@@ -1,0 +1,243 @@
+name: SCRAM Supply Chain Scan
+description: >
+  Scan a pull request for new supply chain risk. Blocks the PR only on
+  findings that are new relative to the baseline, so pre-existing issues
+  don't make every pull request red.
+author: 0xsan7
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  fail-on:
+    description: 'Severity threshold (clean, low, medium, high, critical).'
+    required: false
+    default: 'high'
+  sbom-formats:
+    description: 'Comma-separated SBOM formats to write (cyclonedx, spdx).'
+    required: false
+    default: 'cyclonedx'
+  comment-on-pr:
+    description: 'Post or update a PR comment summarizing the drift.'
+    required: false
+    default: 'true'
+  upload-sarif:
+    description: 'Upload results to the GitHub Security tab.'
+    required: false
+    default: 'false'
+  config-path:
+    description: 'Path to the .scram.yml policy file.'
+    required: false
+    default: '.scram.yml'
+  baseline-ref:
+    description: >
+      Git ref to diff against. Defaults to the PR base branch. Set to an
+      empty string to diff against the committed .scram/baseline.json instead.
+    required: false
+    default: ''
+  epss:
+    description: 'Enable EPSS exploitability scoring (more upstream requests).'
+    required: false
+    default: 'false'
+  scram-version:
+    description: 'Version of the scram binary to use.'
+    required: false
+    default: 'latest'
+
+outputs:
+  sbom-path:
+    description: 'Directory containing the generated SBOMs.'
+    value: ${{ steps.scram.outputs.sbom-path }}
+  repo-score:
+    description: 'Aggregate repository risk score, 0-100.'
+    value: ${{ steps.scram.outputs.repo-score }}
+  repo-bucket:
+    description: 'Aggregate repository severity bucket.'
+    value: ${{ steps.scram.outputs.repo-bucket }}
+  new-critical-count:
+    description: 'Number of newly introduced critical findings.'
+    value: ${{ steps.scram.outputs.new-critical-count }}
+  new-high-count:
+    description: 'Number of newly introduced high findings.'
+    value: ${{ steps.scram.outputs.new-high-count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install scram
+      shell: bash
+      env:
+        VERSION: ${{ inputs.scram-version }}
+      run: |
+        set -euo pipefail
+        if [ "$VERSION" = "latest" ]; then
+          url="https://github.com/0xsan7/SCRAM/releases/latest/download/scram-linux-amd64"
+        else
+          url="https://github.com/0xsan7/SCRAM/releases/download/${VERSION}/scram-linux-amd64"
+        fi
+        curl -sSfL "$url" -o "$RUNNER_TEMP/scram"
+        chmod +x "$RUNNER_TEMP/scram"
+        "$RUNNER_TEMP/scram" --version
+
+    - name: Resolve baseline
+      id: baseline
+      shell: bash
+      env:
+        BASELINE_REF: ${{ inputs.baseline-ref }}
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        set -euo pipefail
+
+        if [ "$EVENT_NAME" != "pull_request" ]; then
+          echo "ref=" >> "$GITHUB_OUTPUT"
+          echo "Not a pull_request event; scanning without a baseline."
+          exit 0
+        fi
+
+        ref="${BASELINE_REF:-$BASE_SHA}"
+        echo "Comparing against $ref"
+
+        # Materialize the base ref into a separate worktree so the diff is a
+        # real tree-to-tree comparison, not a guess based on the PR's own
+        # lockfile. FR-403: the user should not have to manage this.
+        rm -rf "$RUNNER_TEMP/baseline"
+        git worktree add --detach "$RUNNER_TEMP/baseline" "$ref"
+
+        if [ -f "$RUNNER_TEMP/baseline/.scram/baseline.json" ]; then
+          echo "Using the committed baseline from the base branch"
+          cp "$RUNNER_TEMP/baseline/.scram/baseline.json" "$RUNNER_TEMP/base.json"
+        else
+          # No committed baseline: scan the base tree itself and use that
+          # scan as the comparison point. This is what makes the Action
+          # work on day one with zero setup.
+          echo "No committed baseline; scanning the base branch as the baseline"
+          "$RUNNER_TEMP/scram" scan "$RUNNER_TEMP/baseline" \
+            --config "$RUNNER_TEMP/baseline/${{ inputs.config-path }}" \
+            --format json --no-gate > "$RUNNER_TEMP/base.json"
+        fi
+        echo "ref=$RUNNER_TEMP/base.json" >> "$GITHUB_OUTPUT"
+
+    - name: Run scan
+      id: scram
+      shell: bash
+      env:
+        BASE_JSON: ${{ steps.baseline.outputs.ref }}
+        OUT_DIR: ${{ github.workspace }}/scram-output
+      run: |
+        set -euo pipefail
+
+        args=(
+          scan .
+          --fail-on "${{ inputs.fail-on }}"
+          --config "${{ inputs.config-path }}"
+          --sbom "${{ inputs.sbom-formats }}"
+          --out "$OUT_DIR"
+          --format json
+        )
+        [ "${{ inputs.epss }}" = "true" ] && args+=(--epss)
+        [ -n "$BASE_JSON" ] && [ -f "$BASE_JSON" ] && args+=(--baseline "$BASE_JSON")
+
+        set +e
+        "$RUNNER_TEMP/scram" "${args[@]}" > "$OUT_DIR/scan.json"
+        exit_code=$?
+        set -e
+
+        # Exit 1 is a policy failure (expected, that's the gate working).
+        # Exit 2 means the scanner itself broke, which must be distinguished.
+        if [ "$exit_code" -gt 1 ]; then
+          echo "::error::scram failed to run (exit $exit_code)"
+          exit "$exit_code"
+        fi
+
+        # Drift-derived counts live under .drift.summary, not .scan.summary:
+        # the scan summary describes the current state, the drift summary
+        # describes what this change introduced. Reading the wrong one
+        # silently yields nulls and a PR comment claiming "0 new findings".
+        {
+          echo "sbom-path=$OUT_DIR"
+          echo "repo-score=$(jq -r '.scan.summary.repo_score' "$OUT_DIR/scan.json")"
+          echo "repo-bucket=$(jq -r '.scan.summary.repo_bucket' "$OUT_DIR/scan.json")"
+          echo "new-critical-count=$(jq -r '.drift.summary.new_critical_count // 0' "$OUT_DIR/scan.json")"
+          echo "new-high-count=$(jq -r '.drift.summary.new_high_count // 0' "$OUT_DIR/scan.json")"
+        } >> "$GITHUB_OUTPUT"
+
+        if [ "$exit_code" -eq 1 ]; then
+          echo "::error::SCRAM policy check failed"
+          exit 1
+        fi
+
+    - name: Comment on PR
+      if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SCAN_JSON: ${{ github.workspace }}/scram-output/scan.json
+        COMMENT_MARKER: '<!-- scram-report -->'
+      run: |
+        set -euo pipefail
+
+        # Build the comment body.
+        {
+          echo "$COMMENT_MARKER"
+          echo "## SCRAM supply chain report"
+          echo
+          jq -r '
+            "| | |",
+            "|---|---|",
+            "| Repo score | \(.scan.summary.repo_score)/100 (\(.scan.summary.repo_bucket)) |",
+            "| Components | \(.scan.summary.total_components) |",
+            "| New vulnerabilities | \((.drift.summary.new_vuln_ids // []) | length) |",
+            "| New high | \(.drift.summary.new_high_count // 0) |",
+            "| New critical | \(.drift.summary.new_critical_count // 0) |"
+          ' "$SCAN_JSON"
+
+          new_ids=$(jq -r '(.drift.summary.new_vuln_ids // []) | length' "$SCAN_JSON")
+          if [ "$new_ids" -gt 0 ]; then
+            echo
+            echo "### New findings"
+            echo
+            echo "| Component | New findings |"
+            echo "|---|---|"
+            # One row per component that has at least one of the new ids.
+            jq -r --argjson new "$(jq -c '.drift.summary.new_vuln_ids // []' "$SCAN_JSON")" '
+              .scan.components[]
+              | select(.vulnerabilities | length > 0)
+              | . as $c
+              | [$c.vulnerabilities[]
+                 | select(.id as $i | $new | index($i))
+                 | .id] as $hit
+              | select($hit | length > 0)
+              | "| `\($c.purl)` | \($hit | join(", ")) |"
+            ' "$SCAN_JSON" | head -25
+          fi
+
+          echo
+          echo "<details><summary>Full report</summary>"
+          echo
+          echo '```'
+          jq -r '.scan.summary.counts_by_bucket | to_entries[] | "\(.key): \(.value)"' "$SCAN_JSON"
+          echo '```'
+          echo
+          echo "</details>"
+        } > "$RUNNER_TEMP/comment.md"
+
+        # FR-604: update the existing comment rather than posting a new one on
+        # every push, which is what turns a bot into PR spam.
+        comment_id=$(gh api \
+          "repos/$GITHUB_REPOSITORY/issues/${{ github.event.pull_request.number }}/comments" \
+          --paginate \
+          --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | head -1)
+
+        if [ -n "$comment_id" ]; then
+          gh api --method PATCH \
+            "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" \
+            -f body="$(cat "$RUNNER_TEMP/comment.md")" > /dev/null
+          echo "Updated existing SCRAM comment"
+        else
+          gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/issues/${{ github.event.pull_request.number }}/comments" \
+            -f body="$(cat "$RUNNER_TEMP/comment.md")" > /dev/null
+          echo "Posted SCRAM comment"
+        fi

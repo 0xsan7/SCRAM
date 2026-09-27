@@ -1,0 +1,30 @@
+# Build output
+/scram
+/bin/
+/dist/
+
+# Scan output — generated artifacts, never committed
+/scram-output/
+*.sarif
+
+# Local baseline. Commit this deliberately if you want drift tracking in PRs;
+# by default it stays local so the first run isn't a huge diff.
+# Uncomment to track it:
+# .scram/
+
+# Test and coverage output
+*.out
+coverage.html
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Secrets. SCRAM has no telemetry and no phone-home, so nothing here should
+# ever need a key — but a user may add an NVD_API_KEY to a local .env.
+.env
+.env.local
+*.pem

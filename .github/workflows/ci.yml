@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, test, vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Verify dependencies
+        # NFR-2: this is a security tool, so its own supply chain is the
+        # credibility test. Verify checksums rather than trusting the proxy.
+        run: go mod verify
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l ./cmd ./internal)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: ignore
+
+  dogfood:
+    name: SCRAM scans itself
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Build scram
+        run: go build -o scram ./cmd/scram
+
+      - name: Run scram on its own repo
+        # The scan must pass on SCRAM's own dependency tree. It is configured
+        # to fail closed, so a network problem here fails the job rather than
+        # quietly reporting "clean".
+        run: ./scram scan . --sbom cyclonedx,spdx --epss
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: scram-output/
+          if-no-files-found: ignore
+
+  sbom-validate:
+    name: Validate SBOM against official schemas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate SBOMs from the fixture repo
+        run: |
+          go build -o scram ./cmd/scram
+          ./scram sbom generate testdata/fixtures/npm --format both --out out
+
+      - name: Validate CycloneDX 1.5
+        # FR-103/FR-104 require output that passes the official validators,
+        # not just our own eyeballs. The published JSON schemas are the
+        # normative artifacts for both specs.
+        run: |
+          pip install --quiet jsonschema
+          curl -sSfL -o /tmp/bom-1.5.schema.json \
+            https://raw.githubusercontent.com/CycloneDX/specification/master/schema/bom-1.5.schema.json
+          python - <<'PY'
+          import json, sys, jsonschema
+          schema = json.load(open('/tmp/bom-1.5.schema.json'))
+          doc = json.load(open('out/sbom.cdx.json'))
+          errs = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+          if errs:
+              for e in errs[:20]:
+                  print(f"  {list(e.path)}: {e.message}", file=sys.stderr)
+              sys.exit(1)
+          print("CycloneDX 1.5 valid")
+          PY
+
+      - name: Validate SPDX 2.3
+        run: |
+          curl -sSfL -o /tmp/spdx-schema.json \
+            https://raw.githubusercontent.com/spdx/spdx-spec/v2.3/schemas/spdx-schema.json
+          python - <<'PY'
+          import json, sys, jsonschema
+          schema = json.load(open('/tmp/spdx-schema.json'))
+          doc = json.load(open('out/sbom.spdx.json'))
+          errs = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+          if errs:
+              for e in errs[:20]:
+                  print(f"  {list(e.path)}: {e.message}", file=sys.stderr)
+              sys.exit(1)
+          print("SPDX 2.3 valid")
+          PY
+
+  release:
+    name: Release
+    needs: [build, dogfood, sbom-validate]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build for release
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          CGO_ENABLED=0 go build \
+            -trimpath \
+            -ldflags "-s -w -X github.com/0xsan7/scram/internal/cli.Version=${VERSION}" \
+            -o dist/scram-linux-amd64  ./cmd/scram
+          CGO_ENABLED=0 GOARCH=arm64 go build \
+            -trimpath \
+            -ldflags "-s -w -X github.com/0xsan7/scram/internal/cli.Version=${VERSION}" \
+            -o dist/scram-linux-arm64 ./cmd/scram
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build \
+            -trimpath \
+            -ldflags "-s -w -X github.com/0xsan7/scram/internal/cli.Version=${VERSION}" \
+            -o dist/scram-darwin-arm64 ./cmd/scram
+
+      - name: Checksums
+        run: |
+          cd dist && shasum -a 256 scram-* > checksums.txt && cat checksums.txt
+
+      # NFR-5: a supply chain scanner whose own binaries are unsigned is
+      # undercutting its own argument. These steps are what make "SCRAM's
+      # supply chain is clean" a claim rather than a slogan.
+      - name: Sign with cosign (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+        run: |
+          for f in dist/scram-*; do
+            [ "$f" = "dist/checksums.txt" ] && continue
+            cosign sign-blob --yes "$f" \
+              --output-certificate "${f}.pem" \
+              --output-signature "${f}.sig"
+          done
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/scram-*
+            dist/checksums.txt
+          generate_release_notes: true

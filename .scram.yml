@@ -1,0 +1,27 @@
+version: 1
+
+# SCRAM scans itself. Its own supply chain is the credibility test (NFR-2).
+ecosystems: [go]
+
+fail_on: high
+fail_on_existing: false
+
+sbom:
+  formats: [cyclonedx, spdx]
+
+sources:
+  osv: true
+  nvd: false
+  ghsa: false
+
+# Keep the dependency footprint minimal: cobra, packageurl-go, and yaml.v3 are
+# the only non-stdlib imports, and all three are load-bearing.
+licenses:
+  deny: [GPL-3.0-only, AGPL-3.0-only]
+
+# A scan that could not reach OSV must not report a clean result. Failing
+# closed is the whole point of a security gate.
+allow_degraded_scan: false
+
+# Vulnerability results are cached 6h by default; 12h suits a nightly-ish CI.
+cache_ttl_hours: 12

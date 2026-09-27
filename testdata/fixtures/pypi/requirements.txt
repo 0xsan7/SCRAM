@@ -1,0 +1,8 @@
+# Deliberately old pinned versions, used to assert that the resolver finds
+# known-vulnerable packages. Do not "fix" these.
+requests==2.19.1
+urllib3==1.24.1
+Flask==1.0.2
+Jinja2==2.10
+PyYAML==5.1
+cryptography==2.3

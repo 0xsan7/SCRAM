@@ -1,0 +1,214 @@
+package cli
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/0xsan7/scram/internal/drift"
+	"github.com/0xsan7/scram/internal/model"
+	"github.com/0xsan7/scram/internal/policy"
+	"github.com/0xsan7/scram/internal/report"
+	"github.com/0xsan7/scram/internal/scan"
+	"github.com/spf13/cobra"
+)
+
+// scanFlags holds the flags specific to `scram scan`.
+type scanFlags struct {
+	format         string
+	sbomFormats    string
+	outDir         string
+	baseline       string
+	ecosystems     []string
+	explain        string
+	epss           bool
+	skipVuln       bool
+	baselineUpdate bool
+	// noGate skips the pass/fail decision, for exploring a repo.
+	noGate bool
+}
+
+var sf scanFlags
+
+func newScanCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "scan [path]",
+		Short: "Full scan: SBOM + vulnerabilities + risk score",
+		Long: `Scan a repository for supply chain risk.
+
+Discovers the dependency tree from lockfiles, generates SBOMs, matches
+components against OSV, scores risk, and diffs against a baseline to report
+what changed. Exits non-zero when policy fails.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: runScan,
+	}
+	f := cmd.Flags()
+	f.StringVar(&sf.format, "format", "table", "output format: table, json, or sarif")
+	f.StringVar(&sf.sbomFormats, "sbom", "", "write SBOMs: cyclonedx, spdx, or both (comma-separated)")
+	f.StringVar(&sf.outDir, "out", "scram-output", "output directory for SBOM and SARIF files")
+	f.StringVar(&sf.baseline, "baseline", drift.DefaultBaselinePath, "path to the baseline file to diff against")
+	f.StringSliceVar(&sf.ecosystems, "ecosystems", nil, "restrict to these ecosystems (default: auto-detect)")
+	f.StringVar(&sf.explain, "explain", "", "print the score breakdown for one component PURL, then exit")
+	f.BoolVar(&sf.epss, "epss", false, "enable EPSS exploitability scoring (more upstream requests)")
+	f.BoolVar(&sf.skipVuln, "sbom-only", false, "generate SBOMs and skip vulnerability scanning (fast path)")
+	f.BoolVar(&sf.noGate, "no-gate", false, "always exit 0; report findings without gating")
+
+	return cmd
+}
+
+func runScan(cmd *cobra.Command, args []string) error {
+	path := "."
+	if len(args) > 0 {
+		path = args[0]
+	}
+
+	// A bare `scram` with no args shouldn't silently scan a directory the
+	// user didn't mean.
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("cannot scan %s: %w", path, err)
+	}
+
+	opts := scan.Options{
+		Path:         path,
+		Ecosystems:   sf.ecosystems,
+		SBOMFormats:  expandFormats(sf.sbomFormats),
+		OutDir:       sf.outDir,
+		BaselinePath: "",
+		DisableCache: g.noCache,
+		Offline:      g.offline,
+		SkipVuln:     sf.skipVuln,
+		EPSS:         sf.epss,
+	}
+
+	// Only diff against a baseline if one actually exists. A missing baseline
+	// is the normal first-run state, not an error.
+	if sf.baseline != "" {
+		if _, err := os.Stat(sf.baseline); err == nil {
+			opts.BaselinePath = sf.baseline
+		} else if g.verbose {
+			fmt.Fprintf(os.Stderr, "no baseline at %s, reporting current state only\n", sf.baseline)
+		}
+	}
+
+	result, err := scan.Run(cmd.Context(), opts)
+	if err != nil {
+		return err
+	}
+
+	// --explain short-circuits to the score breakdown (FR-303). Accept either
+	// a full PURL or a bare component name; a bare name is only honored when
+	// it matches exactly one component, so an ambiguous name is an error
+	// rather than a silent pick.
+	if sf.explain != "" {
+		var matches []model.Component
+		for _, c := range result.Scan.Components {
+			if c.Purl == sf.explain {
+				// An exact PURL match is unambiguous; stop here.
+				matches = []model.Component{c}
+				break
+			}
+			if c.Name == sf.explain {
+				matches = append(matches, c)
+			}
+		}
+		switch len(matches) {
+		case 0:
+			return fmt.Errorf("no component matching %q; run `scram scan --format json` to list components", sf.explain)
+		case 1:
+			return report.Explain(os.Stdout, matches[0])
+		default:
+			names := make([]string, 0, len(matches))
+			for _, m := range matches {
+				names = append(names, m.Purl)
+			}
+			return fmt.Errorf("%q matches %d components; use a full PURL:\n  %s",
+				sf.explain, len(matches), strings.Join(names, "\n  "))
+		}
+	}
+
+	format := report.Format(strings.ToLower(sf.format))
+	report.NoColor = !isTTY(os.Stdout)
+
+	switch format {
+	case report.FormatSARIF:
+		// SARIF is a machine format for the GitHub Security tab; the policy
+		// text goes to stderr so stdout stays a valid, uploadable document.
+		if err := report.Write(os.Stdout, result.Scan, result.Diff, format); err != nil {
+			return err
+		}
+		printPolicySummary(os.Stderr, path, result)
+	case report.FormatJSON:
+		// Same rule for JSON: stdout must parse. Any human-facing summary
+		// goes to stderr, so `scram scan --format json | jq` always works.
+		if err := report.Write(os.Stdout, result.Scan, result.Diff, format); err != nil {
+			return err
+		}
+		printPolicySummary(os.Stderr, path, result)
+	default:
+		if err := report.Write(os.Stdout, result.Scan, result.Diff, format); err != nil {
+			return err
+		}
+		fmt.Println()
+		printPolicySummary(os.Stdout, path, result)
+	}
+
+	if g.verbose {
+		fmt.Fprintf(os.Stderr, "\nscan completed in %s\n", result.Duration.Round(time.Millisecond))
+	}
+
+	if !result.Decision.Pass && !sf.noGate {
+		return ErrPolicyFailed
+	}
+	return nil
+}
+
+// printPolicySummary writes the pass/fail decision and artifact paths. The
+// caller chooses the stream: stdout for the human table, stderr for the
+// machine formats, whose stdout must stay parseable.
+func printPolicySummary(w io.Writer, path string, result *scan.Result) {
+	cfg, err := loadConfig(path)
+	if err != nil {
+		cfg = policy.Default()
+	}
+	fmt.Fprintln(w)
+	fmt.Fprint(w, policy.Explain(cfg, result.Decision))
+	if len(result.SBOMPaths) > 0 {
+		fmt.Fprintln(w)
+		for _, p := range result.SBOMPaths {
+			fmt.Fprintf(w, "  SBOM: %s\n", p)
+		}
+	}
+}
+
+// splitList parses a comma-separated flag value, dropping empties.
+func splitList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.ToLower(strings.TrimSpace(p)); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// expandFormats is splitList plus the "both" shorthand, which the README and
+// CI use. Without it, `--format both` silently produced zero SBOMs: "both" is
+// not a recognized format, so the writer skipped it and reported success.
+func expandFormats(s string) []string {
+	list := splitList(s)
+	var out []string
+	for _, f := range list {
+		if f == "both" || f == "all" {
+			out = append(out, "cyclonedx", "spdx")
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}

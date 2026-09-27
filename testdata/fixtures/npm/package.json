@@ -1,0 +1,10 @@
+{
+  "name": "scram-npm-fixture",
+  "version": "1.0.0",
+  "dependencies": {
+    "lodash": "4.17.11"
+  },
+  "devDependencies": {
+    "minimist": "1.2.0"
+  }
+}

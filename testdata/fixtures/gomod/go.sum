@@ -1,0 +1,8 @@
+github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I4=
+github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/stretchr/testify v1.4.0 h1:5WIx9zhYAAu+FpF1nJ5ZfE8lZbGJ5Iy5ob7sUq8Y2w=
+github.com/stretchr/testify v1.4.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+golang.org/x/net v0.0.0-20190311183353-d8887717615a h1:Ev5Ob7R2etl4sJ+b/RVKGZ7nUxstVJo9d4Ic7LtPjoY=
+golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:2vu6hF7RhkJaeEt5wJMLmgGc0i8icVZ6dQvYZ9dclv4=
+golang.org/x/text v0.3.0 h1:/v5Z/6tKpyD8XeZ3xKqd6dUd3UV1RZKY8DZ7i4dL4YkYk=
+golang.org/x/text v0.3.0/go.mod h1:4Zgv+7g7f5rRTZ51iDrhQdkUrSJoVWhWXb/P7uO9v3Q=

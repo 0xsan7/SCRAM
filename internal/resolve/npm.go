@@ -34,14 +34,28 @@ func (r npmResolver) Edges(root, path string) ([]graph.Edge, error) {
 // only exist in one version left empty.
 type packageLock struct {
 	LockfileVersion int `json:"lockfileVersion"`
-	// v1 shape
-	Dependencies map[string]lockDep `json:"dependencies"`
+	// v1 shape: a nested dependency tree keyed by package name.
+	//
+	// This is Raw rather than map[string]lockDep because a v2/v3 lockfile may
+	// ALSO carry a top-level "dependencies" map (npm writes one whenever the
+	// root package.json has dependencies), and that map is name -> version
+	// string, not a nested tree. Typing it as map[string]lockDep makes
+	// json.Unmarshal fail on the whole document, which loses the entire scan
+	// on a perfectly ordinary modern lockfile. The v1 path decodes it
+	// separately and only when the packages map is absent.
+	Dependencies json.RawMessage `json:"dependencies"`
 	// v2/3 shape, keyed by install path ("" for the root, "node_modules/x")
 	Packages map[string]lockPkg `json:"packages"`
 	// RequiresTrue is the top-level "requires": true marker in v2/v3
 	// lockfiles. It is a bool, not a dependency map — declaring it as a map
 	// makes json.Unmarshal fail on every modern lockfile.
 	RequiresTrue bool `json:"requires"`
+}
+
+// v1Lock is the legacy nested tree, decoded only when there is no v2/v3
+// "packages" map to use instead.
+type v1Lock struct {
+	Dependencies map[string]lockDep `json:"dependencies"`
 }
 
 type lockDep struct {
@@ -100,7 +114,17 @@ func (r npmResolver) Resolve(root, path string) ([]model.Component, error) {
 	if len(lock.Packages) > 0 {
 		out = r.fromPackages(lock, direct)
 	} else {
-		out = r.fromV1(lock, direct)
+		// Only decode the legacy tree when there is no v2/v3 map, since the
+		// same key means a different shape in each.
+		// lock.Dependencies is the raw value of the "dependencies" KEY, so
+		// it holds the tree itself. It decodes straight into the map; wrapping
+		// it in another struct with a "dependencies" field would look for one
+		// more level of nesting than the document has, and yield an empty
+		// result with no error.
+		var tree map[string]lockDep
+		if len(lock.Dependencies) > 0 && json.Unmarshal(lock.Dependencies, &tree) == nil {
+			out = r.fromV1(v1Lock{Dependencies: tree}, direct)
+		}
 	}
 	return out, nil
 }
@@ -141,7 +165,7 @@ func (r npmResolver) fromPackages(lock packageLock, direct map[string]bool) []mo
 
 // fromV1 walks the nested v1 dependency tree. Dev-only subtrees are skipped
 // so the SBOM reflects what ships, not what CI pulls in.
-func (r npmResolver) fromV1(lock packageLock, direct map[string]bool) []model.Component {
+func (r npmResolver) fromV1(lock v1Lock, direct map[string]bool) []model.Component {
 	var out []model.Component
 	var walk func(deps map[string]lockDep, inDev bool)
 	walk = func(deps map[string]lockDep, inDev bool) {

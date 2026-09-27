@@ -93,6 +93,7 @@ By default, CI gating applies only to NEW findings. Adopt it on a repo with
 		newInitCmd(),
 		newReportCmd(),
 		newWhyCmd(),
+		newBlameCmd(),
 	)
 	return root
 }

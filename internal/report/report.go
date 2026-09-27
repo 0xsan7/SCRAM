@@ -25,15 +25,37 @@ const (
 
 // Write renders the scan in the given format to w.
 func Write(w io.Writer, scan model.Scan, diff *model.DiffResult, f Format) error {
+	return WriteWithTrend(w, scan, diff, f, nil)
+}
+
+// WriteWithTrend renders a scan, optionally including the repo's risk-score
+// history. The trend is a separate argument rather than a global so that
+// rendering stays deterministic and testable: the same inputs always produce
+// the same bytes, and a caller that does not have history simply passes nil.
+func WriteWithTrend(w io.Writer, scan model.Scan, diff *model.DiffResult, f Format, tr *Trend) error {
 	switch f {
 	case FormatJSON:
 		return writeJSON(w, scan, diff)
 	case FormatSARIF:
 		return writeSARIF(w, scan, diff)
 	case FormatTable:
-		return writeTable(w, scan, diff)
+		return writeTable(w, scan, diff, tr)
 	}
 	return fmt.Errorf("unknown format %q (want table, json, or sarif)", f)
+}
+
+// Trend is the score history attached to a rendered report.
+type Trend struct {
+	// Spark is the pre-rendered glyph run, oldest sample first.
+	Spark string
+	// First and Last bracket the window, so the reader can see the change
+	// rather than infer it from a picture.
+	First int
+	Last  int
+	// Samples is how many scans the window covers.
+	Samples int
+	// Path is where the history is stored, so the row is actionable.
+	Path string
 }
 
 // JSONDocument is the top-level shape of `scram scan --format json`. Wrapping
@@ -81,6 +103,21 @@ func paint(color, s string) string {
 	return color + s + colorReset
 }
 
+// trendChangeText describes the movement across the window in words, so the
+// sparkline is not the only way to read it. Plain signs beat emoji and avoid
+// depending on locale-specific glyphs.
+func trendChangeText(tr *Trend) string {
+	delta := tr.Last - tr.First
+	switch {
+	case delta > 0:
+		return fmt.Sprintf("%+d over %d scans, worsening", delta, tr.Samples)
+	case delta < 0:
+		return fmt.Sprintf("%+d over %d scans, improving", delta, tr.Samples)
+	default:
+		return fmt.Sprintf("flat across %d scans", tr.Samples)
+	}
+}
+
 // bucketColor picks the color used for a severity bucket.
 func bucketColor(bucket string) string {
 	switch bucket {
@@ -122,7 +159,7 @@ func bucketLabel(b string) string {
 	return "CLEAN"
 }
 
-func writeTable(w io.Writer, scan model.Scan, diff *model.DiffResult) error {
+func writeTable(w io.Writer, scan model.Scan, diff *model.DiffResult, tr *Trend) error {
 	var b strings.Builder
 
 	// New-finding ids, for the drift markers in the component table.
@@ -145,12 +182,21 @@ func writeTable(w io.Writer, scan model.Scan, diff *model.DiffResult) error {
 	bucket := scan.Summary.RepoBucket
 	fmt.Fprintf(&b, "  repo score  %d/100  %s\n", scan.Summary.RepoScore,
 		paint(bucketColor(bucket), bucketLabel(bucket)))
-	fmt.Fprintf(&b, "  breakdown   critical %d  high %d  medium %d  low %d  clean %d\n\n",
+	fmt.Fprintf(&b, "  breakdown   critical %d  high %d  medium %d  low %d  clean %d\n",
 		scan.Summary.Counts[model.BucketCritical],
 		scan.Summary.Counts[model.BucketHigh],
 		scan.Summary.Counts[model.BucketMedium],
 		scan.Summary.Counts[model.BucketLow],
 		scan.Summary.Counts[model.BucketClean])
+	// The trend row sits directly under the score so the two read together:
+	// the number is where you are, the sparkline is which way you are moving.
+	// A single sample is omitted rather than drawn, because one point drawn to
+	// full width looks like a dramatic trend it cannot support.
+	if tr != nil && tr.Samples > 1 {
+		fmt.Fprintf(&b, "  trend       %s  %s\n",
+			tr.Spark, trendChangeText(tr))
+	}
+	fmt.Fprintln(&b)
 
 	if diff != nil {
 		writeDriftSection(&b, diff)

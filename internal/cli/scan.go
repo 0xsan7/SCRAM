@@ -12,6 +12,7 @@ import (
 	"github.com/0xsan7/scram/internal/policy"
 	"github.com/0xsan7/scram/internal/report"
 	"github.com/0xsan7/scram/internal/scan"
+	"github.com/0xsan7/scram/internal/trend"
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +29,10 @@ type scanFlags struct {
 	baselineUpdate bool
 	// noGate skips the pass/fail decision, for exploring a repo.
 	noGate bool
+	// trendPath is the local score history file. Empty disables the sparkline
+	// and stops it being written, so `--no-trend` fully opts out.
+	trendPath string
+	noTrend   bool
 }
 
 var sf scanFlags
@@ -45,6 +50,10 @@ what changed. Exits non-zero when policy fails.`,
 		RunE: runScan,
 	}
 	f := cmd.Flags()
+	f.StringVar(&sf.trendPath, "trend-file", trend.DefaultPath,
+		"score history file backing the trend sparkline")
+	f.BoolVar(&sf.noTrend, "no-trend", false,
+		"do not read or write score history")
 	f.StringVar(&sf.format, "format", "table", "output format: table, json, or sarif")
 	f.StringVar(&sf.sbomFormats, "sbom", "", "write SBOMs: cyclonedx, spdx, or both (comma-separated)")
 	f.StringVar(&sf.outDir, "out", "scram-output", "output directory for SBOM and SARIF files")
@@ -131,6 +140,21 @@ func runScan(cmd *cobra.Command, args []string) error {
 	format := report.Format(strings.ToLower(sf.format))
 	report.NoColor = !isTTY(os.Stdout)
 
+	// Record this scan in the local score history and render the trend, but
+	// only for the human-readable report. JSON and SARIF are machine formats
+	// with fixed schemas (FR-208), and appending a decorative glyph to a
+	// stdout that gets piped to jq would be indefensible.
+	var tr *report.Trend
+	trendPath := sf.trendPath
+	if sf.noTrend {
+		trendPath = ""
+	}
+	if format != report.FormatJSON && format != report.FormatSARIF && trendPath != "" {
+		var trendErr error
+		tr, trendErr = recordTrend(trendPath, result.Scan)
+		warnTrendFailure(trendErr, g.verbose)
+	}
+
 	switch format {
 	case report.FormatSARIF:
 		// SARIF is a machine format for the GitHub Security tab; the policy
@@ -147,7 +171,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		}
 		printPolicySummary(os.Stderr, path, result)
 	default:
-		if err := report.Write(os.Stdout, result.Scan, result.Diff, format); err != nil {
+		if err := report.WriteWithTrend(os.Stdout, result.Scan, result.Diff, format, tr); err != nil {
 			return err
 		}
 		fmt.Println()

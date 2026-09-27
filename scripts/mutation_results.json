@@ -1,0 +1,82 @@
+[
+  {
+    "id": "CVSS-scope",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "D01-requires-bool",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D22-license-array",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D23-py-range",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D26-silent-zero",
+    "status": "killed",
+    "why": "caught by internal/resolve internal/scan"
+  },
+  {
+    "id": "D26-toml-counter",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D27-pep621",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D27-python-key",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D28-registry",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D29-precedence",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "D30-v1-warning",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "DEDUPE-alias",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "DRIFT-added",
+    "status": "killed",
+    "why": "caught by internal/drift"
+  },
+  {
+    "id": "POLICY-threshold",
+    "status": "killed",
+    "why": "caught by internal/policy"
+  },
+  {
+    "id": "SCORE-bucket-escalation",
+    "status": "killed",
+    "why": "caught by internal/score"
+  },
+  {
+    "id": "WAIVER-expiry",
+    "status": "killed",
+    "why": "caught by internal/policy"
+  }
+]

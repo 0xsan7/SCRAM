@@ -207,12 +207,81 @@ func TestFreshnessFromReleaseAge(t *testing.T) {
 func TestEscalationByCount(t *testing.T) {
 	e := New()
 
-	// Ten high components, none individually at 90.
+	// Ten components that each land in the High bucket (score 70-89) but
+	// none of which reaches Critical on its own. The repo must still escalate
+	// to Critical, because ten separate High exposures is the aggregate risk
+	// the PRD cares about.
+	//
+	// This test previously built ten CLEAN components and asserted only that
+	// an all-clean repo stays clean. The name claimed count-based escalation
+	// and the body never reached counts[BucketHigh] >= 10, so changing that
+	// threshold to 99 left the suite green. Found by scripts/mutation_audit.py.
+	//
+	// A component scores High at ~72 via CVSS 9.5 + EPSS 0.95 + a large
+	// major-version distance; the version gap is what supplies freshness
+	// points, since maintenance is not implemented.
 	comps := make([]model.Component, 10)
 	for i := range comps {
+		name := "high" + string(rune('a'+i))
+		e.LatestVersions[model.EcoNPM+":"+name] = "99.0.0"
 		comps[i] = model.Component{
-			Purl: "pkg:npm/p" + string(rune('a'+i)) + "@1.0.0",
-			Name: "p", Version: "1.0.0", Ecosystem: model.EcoNPM,
+			Purl: "pkg:npm/" + name + "@1.0.0", Name: name, Version: "1.0.0",
+			Ecosystem: model.EcoNPM,
+			Vulnerabilities: []model.Vuln{
+				{ID: "CVE-HIGH-" + name, CVSSv3: 9.5, EPSS: 0.95},
+			},
+		}
+	}
+	s := e.Score(comps)
+	if s.Counts[model.BucketHigh] != 10 {
+		t.Fatalf("expected 10 high components, got counts %+v", s.Counts)
+	}
+	if s.Counts[model.BucketCritical] != 0 {
+		t.Fatalf("no component should be critical on its own, got %+v", s.Counts)
+	}
+	if s.RepoBucket != model.BucketCritical {
+		t.Errorf("ten high components must escalate the repo to critical: got %q",
+			s.RepoBucket)
+	}
+}
+
+// TestEscalationBelowThresholdDoesNotFire is the other half: nine high
+// components must NOT reach the ten-component critical escalation, so the
+// threshold itself is pinned from both sides rather than one.
+func TestEscalationBelowThresholdDoesNotFire(t *testing.T) {
+	e := New()
+	comps := make([]model.Component, 9)
+	for i := range comps {
+		name := "high" + string(rune('a'+i))
+		e.LatestVersions[model.EcoNPM+":"+name] = "99.0.0"
+		comps[i] = model.Component{
+			Purl: "pkg:npm/" + name + "@1.0.0", Name: name, Version: "1.0.0",
+			Ecosystem: model.EcoNPM,
+			Vulnerabilities: []model.Vuln{
+				{ID: "CVE-HIGH-" + name, CVSSv3: 9.5, EPSS: 0.95},
+			},
+		}
+	}
+	s := e.Score(comps)
+	if s.Counts[model.BucketHigh] != 9 {
+		t.Fatalf("expected 9 high components, got counts %+v", s.Counts)
+	}
+	if s.RepoBucket == model.BucketCritical {
+		t.Errorf("nine high components must not escalate to critical, got %q",
+			s.RepoBucket)
+	}
+}
+
+// TestEscalationAllCleanStaysClean keeps the original assertion the vacuous
+// test made, now as its own correctly-named test rather than a side effect.
+func TestEscalationAllCleanStaysClean(t *testing.T) {
+	e := New()
+	comps := make([]model.Component, 10)
+	for i := range comps {
+		name := "clean" + string(rune('a'+i))
+		comps[i] = model.Component{
+			Purl: "pkg:npm/" + name + "@1.0.0", Name: name, Version: "1.0.0",
+			Ecosystem: model.EcoNPM,
 		}
 	}
 	s := e.Score(comps)

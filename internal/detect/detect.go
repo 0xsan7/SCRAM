@@ -26,16 +26,22 @@ type Project struct {
 // wins.
 //
 // Order matters within an ecosystem: lockfiles come before bare manifests,
-// because a lockfile pins exact resolved versions while a manifest like
-// requirements.txt can carry ranges, extras, and unpinned entries. Scanning
-// the manifest when a lockfile is present would understate or misreport the
-// dependency set.
+// because a lockfile pins exact resolved versions while a manifest lists
+// ranges. Scanning the manifest when a lockfile is present would understate
+// or misreport the dependency set.
+//
+// pyproject.toml sits after poetry.lock deliberately. A pyproject.toml
+// declares ranges ("starlette>=0.46.0"), not the versions actually installed,
+// so a project with both must be read through the lock. pyproject.toml is the
+// last resort and covers the large population of modern Python projects that
+// ship no lockfile at all -- see D27.
 var candidates = []Project{
 	{Ecosystem: "npm", File: "package-lock.json", RelPath: "package.json"},
 	{Ecosystem: "npm", File: "npm-shrinkwrap.json", RelPath: "package.json"},
 	{Ecosystem: "pypi", File: "poetry.lock", RelPath: "pyproject.toml"},
 	{Ecosystem: "pypi", File: "Pipfile.lock", RelPath: "Pipfile"},
 	{Ecosystem: "pypi", File: "requirements.txt", RelPath: "requirements.txt"},
+	{Ecosystem: "pypi", File: "pyproject.toml", RelPath: "pyproject.toml"},
 	{Ecosystem: "go", File: "go.sum", RelPath: "go.mod"},
 }
 

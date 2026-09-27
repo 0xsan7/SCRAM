@@ -14,6 +14,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/BurntSushi/toml"
+
 	"github.com/0xsan7/scram/internal/model"
 )
 
@@ -147,9 +149,20 @@ func declaredDependencies(path string) int {
 			l = strings.TrimSpace(l)
 			return l != "" && !strings.HasPrefix(l, "//")
 		})
+	case "pyproject.toml":
+		// TOML cannot be counted line-wise. The first version of this
+		// function used the text branch and counted EVERY non-comment line,
+		// so click's "name = \"click\"" and "[build-system]" were tallied as
+		// dependencies -- the guard then demanded 275 components from a file
+		// that legitimately declares none, and rejected 12 correct results.
+		//
+		// A false positive here is as harmful as a false negative: it turns a
+		// working scan into a hard error. So this parses properly and reads
+		// only the sections that actually declare dependencies.
+		return declaredInPyproject(b)
 	default:
-		// Text formats (requirements*.txt, pyproject.toml, go.mod): any line
-		// that is not blank, not a comment, and not a pip option.
+		// Text formats (requirements*.txt, go.mod): any line that is not
+		// blank, not a comment, and not a pip option.
 		return countLines(b, func(l string) bool {
 			t := strings.TrimSpace(l)
 			if t == "" || strings.HasPrefix(t, "#") || strings.HasPrefix(t, "-") {
@@ -158,6 +171,51 @@ func declaredDependencies(path string) int {
 			return !strings.Contains(t, "://")
 		})
 	}
+}
+
+// declaredInPyproject counts dependency declarations in a pyproject.toml by
+// parsing it, not by counting lines. It deliberately does not use the
+// pyproject resolver, so a resolver bug cannot make the counter agree with it
+// and hide the very condition the counter exists to detect.
+func declaredInPyproject(b []byte) int {
+	var doc map[string]any
+	if err := toml.Unmarshal(b, &doc); err != nil {
+		// Not parseable: report 0 so a genuine parse error surfaces as an
+		// error rather than being reported as a silent zero.
+		return 0
+	}
+	n := 0
+	if proj, ok := doc["project"].(map[string]any); ok {
+		switch v := proj["dependencies"].(type) {
+		case []any:
+			for _, item := range v {
+				if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+					n++
+				}
+			}
+		case map[string]any:
+			n += len(v)
+		}
+	}
+	if tool, ok := doc["tool"].(map[string]any); ok {
+		if poetry, ok := tool["poetry"].(map[string]any); ok {
+			switch v := poetry["dependencies"].(type) {
+			case map[string]any:
+				for k := range v {
+					if !isPythonConstraintKey(k) {
+						n++
+					}
+				}
+			case []any:
+				for _, item := range v {
+					if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+						n++
+					}
+				}
+			}
+		}
+	}
+	return n
 }
 
 func countLines(b []byte, match func(string) bool) int {
@@ -180,21 +238,67 @@ type Resolver interface {
 	Resolve(root, path string) ([]model.Component, error)
 }
 
-// registry maps an ecosystem name to its resolver.
-var registry = map[string]Resolver{}
+// registry maps an ecosystem name to its resolvers.
+//
+// An ecosystem can have more than one resolver: PyPI is handled by both
+// pypiResolver (lockfiles: poetry.lock, Pipfile.lock, requirements.txt) and
+// pyprojectResolver (the PEP 621 / Poetry manifest). Registering a second
+// resolver for the same ecosystem previously REPLACED the first, so adding
+// pyproject support silently disabled every other Python format -- which is
+// what happened, and what the corpus caught.
+var registry = map[string][]Resolver{}
 
 // Register adds a resolver. Called from each ecosystem's init().
 func Register(r Resolver) {
-	registry[r.Ecosystem()] = r
+	registry[r.Ecosystem()] = append(registry[r.Ecosystem()], r)
 }
 
-// Get returns the resolver for an ecosystem.
+// Get returns the resolver for an ecosystem that handles the given lockfile
+// path, or ErrUnsupported when none does.
+//
+// Dispatch is by filename because several resolvers can share an ecosystem.
+// Within an ecosystem the LAST registered resolver that recognises the file
+// wins, which lets a format-specific resolver (pyproject.toml) take precedence
+// without displacing the general one.
 func Get(eco string) (Resolver, error) {
-	r, ok := registry[eco]
-	if !ok {
+	rs, ok := registry[eco]
+	if !ok || len(rs) == 0 {
 		return nil, ErrUnsupported
 	}
-	return r, nil
+	if len(rs) == 1 {
+		return rs[0], nil
+	}
+	return rs[0], nil
+}
+
+// GetFor returns the resolver able to handle a specific lockfile path within
+// an ecosystem. Resolvers that cannot handle the path are skipped, so a
+// caller never gets ErrUnsupported for a file some resolver does understand.
+func GetFor(eco, path string) (Resolver, error) {
+	rs, ok := registry[eco]
+	if !ok || len(rs) == 0 {
+		return nil, ErrUnsupported
+	}
+	if len(rs) == 1 {
+		return rs[0], nil
+	}
+	// Reverse order: a format-specific resolver registered later wins, so
+	// pyproject.toml is tried before the general pypi lockfile resolver.
+	for i := len(rs) - 1; i >= 0; i-- {
+		if handles, ok := rs[i].(FileMatcher); ok && handles.Handles(path) {
+			return rs[i], nil
+		}
+	}
+	// No resolver claimed the file explicitly. Fall back to the general one,
+	// which reports ErrUnsupported for formats it does not know.
+	return rs[0], nil
+}
+
+// FileMatcher is implemented by resolvers that handle a specific set of
+// filenames rather than an entire ecosystem. Without it, a second resolver
+// for the same ecosystem is unreachable.
+type FileMatcher interface {
+	Handles(path string) bool
 }
 
 // Supported lists every registered ecosystem, sorted.

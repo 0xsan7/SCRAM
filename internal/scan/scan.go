@@ -134,7 +134,11 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		if len(allowed) > 0 && !allowed[p.Ecosystem] {
 			continue
 		}
-		r, err := resolve.Get(p.Ecosystem)
+		// GetFor, not Get: an ecosystem can have several resolvers (PyPI has
+		// a lockfile one and a pyproject.toml one), and the filename is what
+		// decides. Using Get would hand every Python file to whichever
+		// resolver happened to register last.
+		r, err := resolve.GetFor(p.Ecosystem, p.File)
 		if err != nil {
 			scan.Warnings = append(scan.Warnings,
 				fmt.Sprintf("no resolver for %s (%s)", p.Ecosystem, p.File))

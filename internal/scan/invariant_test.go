@@ -22,9 +22,16 @@ import (
 
 // brokenResolver returns no components and no error, which is exactly what the
 // ==-only PyPI regex (D23) and the mis-typed npm dependencies map (D01) did.
+//
+// It also implements resolve.FileMatcher so GetFor will select it. Without
+// that, the test silently stops replacing anything -- the replacement is
+// skipped, the real resolver runs, and the test passes for the wrong reason,
+// which is a worse outcome than failing.
 type brokenResolver struct{ eco string }
 
 func (b brokenResolver) Ecosystem() string { return b.eco }
+
+func (b brokenResolver) Handles(path string) bool { return true }
 
 func (b brokenResolver) Resolve(root, path string) ([]model.Component, error) {
 	return nil, nil
@@ -34,12 +41,25 @@ func (b brokenResolver) Resolve(root, path string) ([]model.Component, error) {
 // and restores it afterwards, so no production hook exists solely for tests.
 func installBrokenResolver(t *testing.T, eco string) {
 	t.Helper()
-	real, err := resolve.Get(eco)
+	real, err := resolve.GetFor(eco, "requirements.txt")
 	if err != nil {
 		t.Fatalf("no real resolver for %s to replace: %v", eco, err)
 	}
 	resolve.Register(brokenResolver{eco: eco})
 	t.Cleanup(func() { resolve.Register(real) })
+
+	// Verify the swap actually took effect. A test that installs a
+	// replacement and then silently tests the original is the exact
+	// vacuous-test failure this project has been bitten by before, so it is
+	// checked here rather than assumed.
+	got, err := resolve.GetFor(eco, "requirements.txt")
+	if err != nil {
+		t.Fatalf("GetFor after Register: %v", err)
+	}
+	if _, ok := got.(brokenResolver); !ok {
+		t.Fatalf("brokenResolver was not installed; GetFor returned %T. "+
+			"The test would pass without exercising the guard.", got)
+	}
 }
 
 func writeScanFile(t *testing.T, path, content string) {

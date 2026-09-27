@@ -3,6 +3,7 @@ module github.com/0xsan7/scram
 go 1.23.4
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/package-url/packageurl-go v0.1.7
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1

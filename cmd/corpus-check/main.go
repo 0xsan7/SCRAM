@@ -99,7 +99,7 @@ func main() {
 		rel, _ := filepath.Rel(root, p)
 		r := result{Path: rel, Ecosystem: eco}
 
-		res, rerr := resolve.Get(eco)
+		res, rerr := resolve.GetFor(eco, base)
 		if rerr != nil {
 			r.Err = fmt.Errorf("no resolver: %w", rerr)
 			results = append(results, r)

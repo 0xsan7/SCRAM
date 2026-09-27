@@ -17,6 +17,29 @@ type pypiResolver struct{}
 
 func (pypiResolver) Ecosystem() string { return model.EcoPyPI }
 
+// Handles reports whether this resolver is responsible for path. PyPI has two
+// resolvers, so the choice is made by filename rather than by ecosystem: this
+// one owns the lockfiles, pyprojectResolver owns the manifest.
+//
+// Paths are normalised before the base name is taken, because a subdirectory
+// form like "requirements/base.txt" has a base of "base.txt" -- matching on
+// the full relative path is what makes those forms work.
+func (pypiResolver) Handles(path string) bool {
+	p := strings.ToLower(filepath.ToSlash(path))
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		p = p[i+1:]
+	}
+	switch p {
+	case "poetry.lock", "pipfile.lock",
+		"requirements.txt", "requirements-dev.txt", "requirements-prod.txt",
+		"requirements-prod.dev.txt", "base.txt", "main.txt", "production.txt",
+		"test.txt", "common.txt", "constraints.txt", "dev.txt", "lint.txt",
+		"types.txt":
+		return true
+	}
+	return false
+}
+
 // poetry.lock is TOML. SCRAM has no TOML dependency, so the relevant tables
 // are extracted with a line scanner rather than a full parser — the format is
 // regular enough for that, and a real TOML dep would be a poor trade for a

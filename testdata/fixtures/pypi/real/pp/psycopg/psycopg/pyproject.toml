@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=49.2.0", "wheel>=0.38.1"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+filterwarnings = [
+    "error",
+]
+testpaths=[
+    "tests",
+]
+# Note: On Travis these options seem to leak objects
+# log_format = "%(asctime)s.%(msecs)03d %(levelname)-8s %(name)s:%(filename)s:%(lineno)d %(message)s"
+# log_level = "DEBUG"
+
+[tool.coverage.run]
+source = [
+    "psycopg/psycopg",
+    "psycopg_pool/psycopg_pool",
+]
+[tool.coverage.report]
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    '\.\.\.$',
+]
+
+[tool.mypy]
+files = [
+    "psycopg/psycopg",
+    "psycopg_pool/psycopg_pool",
+    "psycopg_c/psycopg_c",
+    "tests",
+]
+warn_unused_ignores = true
+show_error_codes = true
+strict = true
+exclude = '''(?x)(
+    ^ docs/lib/.*\.py
+    | tests/test_tstring\.py
+    | tests/test_tstring_async\.py
+)'''
+
+# Don't use SQLite cache as it highlights Mypy concurrency issues.
+# See https://github.com/python/mypy/issues/21136
+# The issue is triggered by parallel mypy runs under pre-commit, setting
+# the parameter here allows the use of the same cache both by pre-commit and
+# every other Mypy usage.
+#
+# Check https://github.com/python/mypy/issues/13916 in the future to see
+# if new ways to run mypy under pre-commit emerge.
+sqlite_cache = false
+
+[[tool.mypy.overrides]]
+module = [
+    "numpy.*",
+    "polib",
+    "shapely.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "scrap.*",
+]
+check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+
+[tool.codespell]
+ignore-words-list = "alot,ans,ba,fo,te,erro,varning,perfor"
+skip = "build,_build,.tox,.mypy_cache,.venv,pq.c,_psycopg.c,*.html"
+
+[tool.isort]
+profile = "black"
+length_sort = true
+multi_line_output = 9
+include_trailing_comma = false
+sort_order = "psycopg"  # requires the isort-psycopg module

@@ -169,6 +169,35 @@ PYPI_FILES = ("poetry.lock", "requirements.txt", "requirements-dev.txt",
               "requirements/main.txt", "requirements/constraints.txt",
               "constraints.txt")
 
+# pyproject.toml is fetched into a subdirectory of its own (pypi/real/pp/) so
+# the corpus-check can treat it separately: it declares RANGES rather than
+# resolved versions, so it is a fallback source, never a replacement for a
+# lockfile. These are the lock-less libraries that motivated the resolver --
+# click, starlette, fastapi and friends all ship pyproject.toml and nothing
+# else, and were previously invisible to SCRAM.
+PYPROJECT: dict[str, list[str]] = {
+    "pallets/click": [""], "encode/starlette": [""], "tiangolo/fastapi": [""],
+    "pallets/flask": [""], "pallets/werkzeug": [""], "pallets/jinja": [""],
+    "pallets/itsdangerous": [""], "pallets/quart": [""], "pallets/markupsafe": [""],
+    "pallets/celery": [""], "python-hyper/h11": [""], "python-hyper/h2": [""],
+    "hynek/structlog": [""], "agronholm/anyio": [""], "encode/uvicorn": [""],
+    "encode/httpx": [""], "aio-libs/aiohttp": [""], "pydantic/pydantic": [""],
+    "Textualize/rich": [""], "Textualize/textual": [""], "psf/black": [""],
+    "astral-sh/ruff": [""], "scikit-learn/scikit-learn": [""], "numpy/numpy": [""],
+    "sympy/sympy": [""], "pydata/xarray": [""], "dask/dask": [""],
+    "ipython/ipython": [""], "psf/requests": [""], "sqlalchemy/sqlalchemy": [""],
+    "scrapy/scrapy": [""], "tiangolo/typer": [""], "pypa/pip": [""],
+    "python-poetry/poetry": [""], "pdm-project/pdm": [""], "tox-dev/tox": [""],
+    "pyca/cryptography": [""], "pre-commit/pre-commit": [""],
+    "pytest-dev/pytest": [""], "sphinx-doc/sphinx": [""],
+    "ansible/ansible-core": [""], "psycopg/psycopg": [""], "rq/rq": [""],
+    "benoitc/gunicorn": [""], "celery/kombu": [""],
+    "marshmallow-code/marshmallow": [""], "hiredis/hiredis-py": [""],
+    "urllib3/urllib3": [""], "encode/uvicorn-worker": [""],
+    "agronholm/apscheduler": [""], "encode/httpcore": [""], "hynek/attrs": [""],
+    "tox-dev/virtualenv": [""], "pypa/build": [""], "hatch-pyp/pypa-build": [""],
+}
+
 GO: dict[str, list[str]] = {
     "gin-gonic/gin": [""], "labstack/echo": [""], "gofiber/fiber": [""],
     "gorilla/mux": [""], "spf13/cobra": [""], "spf13/viper": [""],
@@ -285,6 +314,9 @@ def main() -> int:
     if which in ("pypi", "all"):
         log("pypi: probing")
         fetch_eco(PYPI, PYPI_FILES, "pypi", "pypi")
+        # pyproject.toml goes under pypi/real/pp/ so it can be handled as the
+        # range-declaring fallback it is, not confused with a lockfile.
+        fetch_eco(PYPROJECT, ("pyproject.toml",), os.path.join("pypi", "real", "pp"), "pyproject")
     if which in ("go", "all"):
         log("go: probing")
         fetch_eco(GO, GO_FILES, "gomod", "go")

@@ -40,7 +40,36 @@ var candidates = []Project{
 	{Ecosystem: "npm", File: "npm-shrinkwrap.json", RelPath: "package.json"},
 	{Ecosystem: "pypi", File: "poetry.lock", RelPath: "pyproject.toml"},
 	{Ecosystem: "pypi", File: "Pipfile.lock", RelPath: "Pipfile"},
+	// The requirements variants, most-specific first. Only the FIRST hit per
+	// ecosystem per directory is used, so listing them is a fallback chain:
+	// a project with both requirements.txt and requirements-dev.txt is
+	// scanned through the former.
+	//
+	// These were missing until the differential test against syft (D37).
+	// The resolver had handled all of them since D23, but the DETECTOR never
+	// looked for them, so `requirements-dev.txt` was invisible end to end:
+	// psf/requests, which is in the real corpus, reported zero components
+	// and exited 0. The silent-zero invariant could not catch it, because
+	// the file was never detected in the first place -- there was no
+	// resolver call to return zero from.
+	//
+	// A resolver that can read a file the detector will not look for is a
+	// capability nobody has, and nothing in the type said so. The
+	// TestDetectorAndResolverAgreeOnFilenames test now fails if the two
+	// lists drift apart again.
 	{Ecosystem: "pypi", File: "requirements.txt", RelPath: "requirements.txt"},
+	{Ecosystem: "pypi", File: "requirements-dev.txt", RelPath: "requirements-dev.txt"},
+	{Ecosystem: "pypi", File: "requirements-prod.txt", RelPath: "requirements-prod.txt"},
+	{Ecosystem: "pypi", File: "requirements-prod.dev.txt", RelPath: "requirements-prod.dev.txt"},
+	{Ecosystem: "pypi", File: "dev.txt", RelPath: "dev.txt"},
+	{Ecosystem: "pypi", File: "test.txt", RelPath: "test.txt"},
+	{Ecosystem: "pypi", File: "lint.txt", RelPath: "lint.txt"},
+	{Ecosystem: "pypi", File: "types.txt", RelPath: "types.txt"},
+	{Ecosystem: "pypi", File: "production.txt", RelPath: "production.txt"},
+	{Ecosystem: "pypi", File: "main.txt", RelPath: "main.txt"},
+	{Ecosystem: "pypi", File: "base.txt", RelPath: "base.txt"},
+	{Ecosystem: "pypi", File: "common.txt", RelPath: "common.txt"},
+	{Ecosystem: "pypi", File: "constraints.txt", RelPath: "constraints.txt"},
 	{Ecosystem: "pypi", File: "pyproject.toml", RelPath: "pyproject.toml"},
 	{Ecosystem: "go", File: "go.sum", RelPath: "go.mod"},
 }

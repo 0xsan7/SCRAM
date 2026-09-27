@@ -914,3 +914,194 @@ seed corpus did not — are committed under `testdata/fuzz/`, 116 KB, capped at
 `go test` cases, so a shape the fuzzer discovered is still tested when
 nobody is fuzzing. Fuzzing that finds a bug and leaves only a cache entry
 under `~/Library/Caches` has not been done, only performed.
+
+---
+
+## D37 — syft found a bug SCRAM's own corpus could not
+
+Section 4 of the plan: validate against the tools already trusted in
+production. Installed syft 1.52.0, grype 0.119.0 and osv-scanner 2.6.0
+(darwin/arm64; osv-scanner's SHA256 verified against the release's
+`osv-scanner_SHA256SUMS`), and ran SCRAM's SBOM generator against syft's
+cataloger over 15 real corpus repos spanning every npm lockfileVersion and
+all three ecosystems.
+
+**syft reported 0 components for `psf/requests`. SCRAM agreed: 0, CLEAN,
+exit 0.**
+
+requests' only Python file is a `requirements-dev.txt` declaring five
+packages. It had been invisible to SCRAM since the beginning.
+
+### Three layers, three lists, two of them wrong
+
+The filename existed in three places, and they disagreed:
+
+| layer | claimed | actually read |
+|---|---|---|
+| `detect.candidates` | `requirements.txt` only | `requirements.txt` |
+| `pypiResolver.Handles` | 15 names | — (dispatch only) |
+| `pypiResolver.Resolve` | 3 names | 3 names |
+
+`GetFor` correctly routed `requirements-dev.txt` to the pypi resolver, which
+then rejected it with `ErrUnsupported`. And because the DETECTOR never
+listed it, no resolver call happened at all — which is why **the D26
+silent-zero invariant could not catch it.** There was no resolver to return
+zero from. A guard that fires on the wrong layer is not a guard.
+
+**The worst part:** the file is in SCRAM's own corpus. 86 real lockfiles,
+run through a property test asserting "manifest detected → non-zero
+components" — and it passed, because the file was never detected. Every
+test asserted a property of a file the code had already decided did not
+exist.
+
+After the fix: **6 components, 3 real vulnerability findings, score 30/100
+LOW**, where it had reported CLEAN with exit 0.
+
+### Three changes, because one would leave it half-fixed
+
+1. `detect.candidates` lists all fifteen requirements filenames, most
+   specific first (only the first hit per ecosystem per directory is used,
+   so this is a fallback chain — a lockfile still wins).
+2. `pypiResolver.Resolve` no longer switches on its own hardcoded list; it
+   branches on `Handles`, so there is no fourth list to drift.
+3. `TestDetectorAndResolverAgreeOnFilenames` compares the two lists in both
+   directions and fails if either claims something the other does not.
+
+**The new test immediately failed**, catching `requirements-prod.dev.txt` —
+a name the resolver claimed and nobody had listed. Fixing the detector by
+hand would have missed it; the cross-check found it in one run.
+
+---
+
+## D38 — What syft and SCRAM actually disagree about
+
+The remaining differences are scope, and each was measured rather than
+argued. Comparing counts directly would compare two different questions.
+
+### npm: syft reports production only, SCRAM reports everything
+
+nestjs/nest, the largest fixture:
+
+| | components |
+|---|---|
+| syft | 190 |
+| SCRAM (full) | 1,478 |
+| SCRAM, non-dev only | 180 |
+
+1,479 of the 1,676 lockfile entries are marked `dev`. syft's
+`javascript-lock-cataloger` excludes them by default; SCRAM includes
+everything and marks `Direct`.
+
+**Scope-matched, SCRAM's non-dev set is a strict subset of syft's** — every
+name syft reported, SCRAM has, plus 10 syft entries carrying version
+`UNKNOWN`. Those 10 are npm workspace links (`node_modules/@nestjs/core` is
+a `link: true` pointer whose real version lives in `packages/core`); syft
+cannot follow them and emits a placeholder. SCRAM reports the actual
+version. On a workspace monorepo, syft's placeholders match no package at
+OSV and silently find nothing.
+
+The same pattern on vscode and bitwarden: the residual is entirely
+platform-specific optional packages (`@esbuild/darwin-arm64`,
+`@rollup/rollup-win32-x64`) that syft catalogs and SCRAM's non-dev filter
+drops, plus the same workspace-link placeholders.
+
+### PyPI: syft requires exact pins, SCRAM reads ranges
+
+Isolated to a two-line file:
+
+    pendulum==2.1.2     ->  syft: 2 components
+    pendulum>=2.1.2     ->  syft: 0 components
+
+SCRAM resolves both, recording the range floor. This is why syft reports
+**0** for `prefecthq/prefect` (22 ranged requirements, SCRAM: 22) and
+**54** for `home-assistant/core` (SCRAM: 58, the difference being ranged
+entries syft drops).
+
+**SCRAM's ranges are a real limitation, not a free win.** A range's floor is
+not the installed version: `pendulum>=2.1.2` may well resolve to 3.x
+installed. It is the best available from a ranged declaration, and it is
+documented in LIMITATIONS.md, but it is not equivalent to syft's exact-pin
+reading of a lockfile.
+
+### Go: syft needs the module graph, SCRAM reads checksums
+
+syft reports **0** for both `consul` and `kubernetes` from a bare `go.sum`,
+and still 0 when a `go.mod` is added alongside it. Syft's Go cataloger
+resolves the module graph rather than reading checksums. SCRAM parses
+`go.sum` directly: 309 components for consul, 204 for kubernetes.
+
+This is the clearest place SCRAM is broader, and also the clearest caveat:
+`go.sum` records what was downloaded, not what a fresh `go mod tidy` would
+select. It cannot see a version that was never fetched.
+
+---
+
+## D39 — On vulnerability IDs SCRAM finds 4 that grype does not
+
+`scripts/diff_vulns.py` compares the set of vulnerabilities each tool
+reports, per package, rather than a count. A count comparison passes on
+fourteen findings that are fourteen different bugs; a set comparison
+cannot.
+
+### ID scheme first, then substance
+
+The first run disagreed on 6 of 8 packages, and almost every "difference"
+was a naming convention:
+
+    SCRAM : PYSEC-2026-2141
+    grype : GHSA-r6ph-v2qm-q3c2
+
+Both alias the same record. Comparing the raw ID strings would have
+produced a finding-level disagreement out of a formatting choice, which is
+the kind of number that looks like a defect and is not one. `canonical()`
+resolves every reported ID to its alias group through OSV and uses the CVE
+when there is one, so both sides land on the same identity.
+
+My first attempt at this got it wrong in the other direction: the PYSEC
+records that looked unmatched were reported as bare PYSEC ids because the
+comparison was reading the pre-normalization set. A first pass that
+produced a plausible "SCRAM-only" list is exactly the kind of result that
+would have gone into a commit as a finding.
+
+### What is actually left: SCRAM is a strict superset
+
+`cryptography==3.2`, normalized by CVE:
+
+| | distinct vulnerabilities |
+|---|---|
+| SCRAM | 16 |
+| grype | 12 |
+| SCRAM only | CVE-2020-25659, CVE-2024-26130, CVE-2026-69248, CVE-2026-69249 |
+| grype only | none |
+
+Every extra is confirmed live in OSV and genuinely affects cryptography;
+CVE-2026-69248 and CVE-2026-69249 are 2026 advisories for wildcard-DNS
+verification bypass and exponential-growth certificate issues. Grype's
+database is not stale — it was built the same day, 2026-09-27, and
+`valid: true` — so the gap is provider coverage, not a stale cache. OSV
+publishes these; grype's PyPI provider does not carry them.
+
+**This is the single most useful result in section 4**, and it is worth
+being precise about what it does and does not mean. It is not evidence
+that SCRAM is better in general. It is one ecosystem, one package version,
+and a direction of disagreement that happens to favour the new tool,
+found by looking. The same exercise could equally have gone the other way,
+and on the component side it mostly did: syft sees 10 workspace-link
+components that SCRAM resolves to real versions, and 54 platform-specific
+optional packages SCRAM's non-dev filter drops.
+
+Across the other seven packages, the sets are identical once normalized:
+`requests 2.19.1 / jinja2 2.10 / pyyaml 5.1` (14 each, with per-component
+attribution matching exactly), `urllib3 1.23` (16), `lodash 4.17.4` (0 both),
+`django 2.0.2` (22 vs 21), `Pillow 5.0.0` (54 vs 49), `flask+werkzeug` (13
+vs 11), `idna 2.7` (5 vs 4).
+
+### osv-scanner contributed nothing
+
+v2.6.0 has no darwin/arm64 release archive, only a raw binary, whose
+SHA256 was verified against the release's `osv-scanner_SHA256SUMS`. It
+resolves packages correctly but reported zero vulnerabilities for inputs
+where SCRAM and grype both find 14, and its v2 `scan source` output has no
+`vulnerabilities` array in the JSON schema v1 emitted. It is not a usable
+oracle for this comparison on this platform; that is recorded here rather
+than left as a silently-zero column in the harness.

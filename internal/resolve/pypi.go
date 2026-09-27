@@ -62,13 +62,26 @@ var (
 
 func (r pypiResolver) Resolve(root, path string) ([]model.Component, error) {
 	full := filepath.Join(root, path)
-	switch strings.ToLower(filepath.Base(path)) {
+	base := strings.ToLower(filepath.Base(path))
+	switch base {
 	case "poetry.lock":
 		return r.poetry(full)
-	case "requirements.txt":
-		return r.requirements(full)
 	case "pipfile.lock":
 		return r.pipfile(full)
+	}
+	// Everything else this resolver claims is a requirements file. The list
+	// used to be a second hardcoded switch containing only "requirements.txt"
+	// while Handles claimed fifteen names, so requirements-dev.txt, dev.txt,
+	// test.txt and the rest were routed here by GetFor and then rejected with
+	// ErrUnsupported -- three lists in three layers, two of them agreeing and
+	// one not.
+	//
+	// That is the bug the differential test against syft found: psf/requests,
+	// a real corpus fixture, has a requirements-dev.txt declaring five
+	// packages, and SCRAM reported zero and exited 0. Handled by branching on
+	// Handles rather than a fourth list, so there is nothing left to drift.
+	if r.Handles(base) {
+		return r.requirements(full)
 	}
 	return nil, ErrUnsupported
 }

@@ -215,13 +215,28 @@ numpy==1.21.0
 	if err != nil {
 		t.Fatal(err)
 	}
-	// requests, flask-login (two pins collapse to the last), some-pkg, numpy.
-	// The >= specifier, VCS URL, and -r/-e lines carry no pinned version.
-	if len(comps) != 4 {
+	// requests, flask-login (two pins collapse to the last), urllib3, some-pkg,
+	// numpy.
+	//
+	// urllib3 IS included. This test used to assert the opposite, encoding the
+	// D25 bug: a regex matched only `==`, so `urllib3>=2.0.0` was discarded
+	// along with every other ranged requirement, and a file full of ranges
+	// scanned as zero dependencies. A lower bound is a version pip would
+	// install, so it is now recorded.
+	//
+	// The VCS URL and -r/-e lines are still skipped: a git+https URL has no
+	// version to record, and -r/-e are pip options rather than requirements.
+	if len(comps) != 5 {
 		for _, c := range comps {
 			t.Logf("  %s", c.Purl)
 		}
-		t.Fatalf("got %d components, want 4", len(comps))
+		t.Fatalf("got %d components, want 5", len(comps))
+	}
+	urllib := find(comps, "urllib3")
+	if urllib == nil {
+		t.Error("urllib3 (>=2.0.0) not parsed; ranged requirements must not be dropped")
+	} else if urllib.Version != "2.0.0" {
+		t.Errorf("urllib3 version: got %q, want 2.0.0 (the range's lower bound)", urllib.Version)
 	}
 	if find(comps, "requests") == nil {
 		t.Error("requests not parsed")

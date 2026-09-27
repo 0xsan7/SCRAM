@@ -135,10 +135,37 @@ func poetryDirect(path string) map[string]bool {
 	return direct
 }
 
-// requirementsLine matches a pinned requirement, ignoring comments, options,
-// environment markers, and editable/VCS installs which have no resolvable
-// version from the file alone.
-var requirementsLine = regexp.MustCompile(`^([A-Za-z0-9._-]+)\s*==\s*([^\s;#]+)`)
+// requirementName matches the package name at the start of a requirement
+// line, stopping at the first specifier, marker, or comment. It is
+// deliberately permissive about the specifier that follows, because a
+// requirements.txt is full of `>=` and `~=` lines and those are real
+// dependencies that must not be dropped.
+//
+// The earlier regex was `^([A-Za-z0-9._-]+)\s*==\s*([^\s;#]+)`, which matched
+// ONLY `==`. Every `>=`, `~=`, `<`, and bare-name line fell through it, so a
+// requirements.txt with nothing but ranges resolved to ZERO components and the
+// scan reported CLEAN. prefect's requirements.txt is 22 ranged dependencies
+// and real-world proof of that: see D25 in DECISIONS.md.
+var requirementName = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]*)`)
+
+// specifierVersion extracts a concrete version from a requirement's
+// specifier set. It prefers an exact `==` pin, and otherwise returns the first
+// version-looking token, which is the lower bound of a range -- the version
+// pip would actually install. A range with no parseable version (e.g.
+// `>=3,<4` with no literal, or a bare name) yields "" and the caller decides
+// whether to record an unversioned component.
+var exactPin = regexp.MustCompile(`==\s*([^,\s;#]+)`)
+var lowerBound = regexp.MustCompile(`(?:>=|~=|>|<)\s*([0-9][^\s,;#]*)`)
+
+func specifierVersion(rest string) string {
+	if m := exactPin.FindStringSubmatch(rest); m != nil {
+		return strings.TrimSpace(m[1])
+	}
+	if m := lowerBound.FindStringSubmatch(rest); m != nil {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
+}
 
 func (r pypiResolver) requirements(path string) ([]model.Component, error) {
 	f, err := os.Open(path)
@@ -159,15 +186,36 @@ func (r pypiResolver) requirements(path string) ([]model.Component, error) {
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "-") {
 			continue
 		}
-		m := requirementsLine.FindStringSubmatch(line)
+		// VCS and URL requirements ("git+https://...", "foo @ https://...")
+		// name a source rather than a resolvable version. The old ==-only
+		// regex skipped them as a side effect; the permissive name regex
+		// added for D25 no longer does, so they are rejected explicitly.
+		// Without this, "git+https://github.com/foo/bar.git" parses as a
+		// package named "git".
+		if strings.HasPrefix(line, "git+") || strings.HasPrefix(line, "hg+") ||
+			strings.HasPrefix(line, "svn+") || strings.HasPrefix(line, "bzr+") ||
+			strings.Contains(line, "://") {
+			continue
+		}
+		m := requirementName.FindStringSubmatch(line)
 		if m == nil {
 			continue
 		}
 		name := normalizePyPIName(m[1])
+		// Everything after the name is the specifier set, extras, and possibly
+		// an environment marker. A version is best-effort: a bare "flask" or a
+		// marker-only line has none, and the component is still recorded with
+		// an empty version rather than dropped, because "we found a dependency
+		// but do not know its version" is more honest than "no dependencies".
+		rest := line[len(m[1]):]
+		if i := strings.Index(rest, ";"); i >= 0 {
+			rest = rest[:i]
+		}
+		ver := specifierVersion(rest)
 		byName[name] = model.Component{
-			Purl:      makeSimplePURL("pypi", name, m[2]),
+			Purl:      makeSimplePURL("pypi", name, ver),
 			Name:      name,
-			Version:   m[2],
+			Version:   ver,
 			Ecosystem: model.EcoPyPI,
 			// In a flat requirements file every line is a direct dep.
 			Direct: true,

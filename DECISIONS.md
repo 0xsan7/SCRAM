@@ -152,3 +152,129 @@ Carried over from previous work and enforced here without exception:
 Every bug in D01 and D02 was found by running the feature against real data,
 not by reading the code. All of them would have passed a suite that only
 checked the tool was registered.
+
+---
+
+## D22 — An array-valued `license` silently zeroed entire npm scans
+
+**Found by:** running the resolver against real lockfiles fetched from six
+upstream projects, not against fixtures written by hand.
+
+`nestjs/nest` is a 1676-package project. It failed to parse at all:
+
+    json: cannot unmarshal array into Go struct field lockPkg.packages.license of type string
+
+Real-world evidence from that lockfile:
+
+    "node_modules/pause-stream": { "license": ["MIT", "Apache2"] }
+
+npm accepts either a string or an array of license identifiers. Declaring the
+field as `string` made `json.Unmarshal` fail on the ENTIRE document, so all
+1676 packages resolved to zero — and a scan of zero components prints
+`CLEAN` on the terminal. One dual-licensed dependency cost a whole repository
+its entire scan, silently.
+
+**Rule:** a parser must not let one unexpected field invalidate a document it
+has otherwise understood. Fields that vary in shape get a tolerant type
+(`flexString` in `internal/resolve/npm.go`), and a lockfile that yields zero
+components from a non-empty file is a test failure, not a passing scan.
+
+---
+
+## D23 — Ranged PyPI requirements resolved to ZERO components
+
+**Found by:** the same corpus run, on `prefecthq/prefect/requirements.txt`.
+
+The requirements parser matched a single regex:
+
+    ^([A-Za-z0-9._-]+)\s*==\s*([^\s;#]+)
+
+That matches `==` and nothing else. Every `>=`, `~=`, `<`, and bare-name line
+fell through it and was discarded. prefect's file is 22 ranged dependencies and
+no exact pins, so SCRAM resolved ZERO of them and reported the repo clean.
+
+The fix parses the name permissively, then extracts a version by preferring an
+exact `==` pin and falling back to a range's lower bound, which is the version
+pip would actually install.
+
+The fix introduced a second bug, caught by an existing test: the old regex had
+been *accidentally* filtering out VCS requirements, so `git+https://...` now
+parsed as a package named `git`. Those are now rejected explicitly.
+
+**The pre-existing test asserted the buggy behaviour.** `TestPyPIRequirements`
+required exactly 4 components and commented that `urllib3>=2.0.0` "carries no
+pinned version". That comment was the bug, written down as an expectation. The
+test was updated, because the expectation was wrong — but note that a test
+suite which pinned the defect would have blocked the fix.
+
+**Rule:** a test that asserts a lossy behaviour is not protecting the product,
+it is protecting the bug. When a fix changes an assertion, read the assertion's
+comment first: if it rationalises the loss ("carries no version", "not
+pinned"), that is the smell, not the test.
+
+---
+
+## D24 — Hand-authored fixtures inherit their author's blind spots
+
+**Pattern, applying the existing "a guard that cannot fail is worse than no
+guard" rule to test *data* rather than test *logic*.**
+
+Every npm fixture in this repo was written by the same person who wrote the npm
+resolver. When that resolver mis-modelled a lockfile shape, no fixture could
+catch it, because the fixture and the resolver shared one author's
+assumptions about what an npm lockfile looks like. A green suite and a broken
+product were consistent with each other.
+
+The corpus under `testdata/fixtures/<eco>/real/` now comes from upstream
+projects, fetched reproducibly by `scripts/fetch_corpus.py`. It is 80 lockfiles
+(63 Go, 10 npm, 7 PyPI) covering 22,776 components, and it found D22 and D23
+within minutes.
+
+**Rule:** no ecosystem resolver's test suite is trusted until it has been run
+against at least one lockfile nobody on this project wrote. For a new
+resolver that means: fetch real fixtures first, then write unit tests to cover
+shapes the corpus does not contain.
+
+### What the corpus could not get, and why
+
+Honest limits, so nobody re-attempts these:
+
+- **npm lockfileVersion 1 (npm 6) is not in the corpus.** Modern upstream
+  projects have migrated. The v1 nested-`dependencies` path is therefore still
+  only covered by hand-written fixtures, which is exactly the blind spot D24
+  describes. This is a known gap, not a covered case.
+- **Many popular repos commit no npm lockfile at all.** n8n uses pnpm;
+  express and angular.js are libraries with nothing to lock. A larger repo list
+  will not fix this.
+- **Most Python projects have moved to `pyproject.toml`.** click, starlette and
+  fastapi commit no requirements file whatsoever. SCRAM has no PEP 621
+  resolver, so a large and growing share of the Python ecosystem is invisible
+  to it. That is a product gap, not a test gap, and closing it means writing
+  the resolver rather than growing the corpus.
+- The GitHub API is rate-limited to 60 req/hour unauthenticated, which is why
+  the fetcher uses `raw.githubusercontent.com` and probes subpaths instead of
+  walking repository trees.
+
+---
+
+## D25 — The corpus fetcher reported false absences
+
+While building the corpus, the fetcher reported `0/77` for Go on four separate
+runs, and `0/45` / `0/54` for npm and PyPI — while the same code, called
+directly on the same repos, returned hits every time.
+
+Two separate defects, both of the same kind as D24: a tool reporting a
+confident answer it had not actually established.
+
+1. **A transient upstream failure was reported as "this repo has no
+   lockfile."** Absent and unreachable are different facts. Fetches now retry,
+   and only a definitive 404 counts as an absence.
+2. **Repos whose file was already on disk were counted as absent.** The summary
+   printed `0/45` for a corpus that was 100% present on disk, because cached
+   files skipped the accounting entirely. The summary now reports fetched and
+   cached separately and reconciles against files on disk.
+
+**Rule:** a tool that reports "nothing found" must be able to distinguish
+"I looked and there was nothing" from "I could not look". A negative result
+needs the same evidence as a positive one, and a summary that can disagree
+with the filesystem is worse than no summary.

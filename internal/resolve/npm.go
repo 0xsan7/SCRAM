@@ -64,14 +64,72 @@ type lockDep struct {
 	Requires     map[string]string  `json:"requires"`
 	Dependencies map[string]lockDep `json:"dependencies"`
 	Integrity    string             `json:"integrity"`
-	License      string             `json:"license"`
+	// License is flexString because npm accepts an array of license
+	// identifiers as well as a bare string; see lockPkg.License.
+	License flexString `json:"license"`
+}
+
+// flexString unmarshals a JSON value that is either a string or an array of
+// strings into a single string.
+//
+// npm lockfiles genuinely contain both shapes. `pause-stream` in
+// nestjs/nest is real-world proof:
+//
+//	"node_modules/pause-stream": { "license": ["MIT", "Apache2"] }
+//
+// Declaring these fields as plain string made json.Unmarshal fail on the
+// ENTIRE document, which turned a 1676-package project into a zero-component
+// scan. One array-valued license must never cost a whole repo its scan.
+type flexString string
+
+func (f *flexString) UnmarshalJSON(b []byte) error {
+	s := strings.TrimSpace(string(b))
+	if s == "" || s == "null" {
+		*f = ""
+		return nil
+	}
+	if s[0] == '[' {
+		var arr []string
+		if err := json.Unmarshal(b, &arr); err != nil {
+			return err
+		}
+		// Keep all identifiers, joined the way SPDX expressions are written,
+		// so a dual-licensed package stays a valid expression downstream.
+		*f = flexString(strings.Join(nonEmpty(arr), " OR "))
+		return nil
+	}
+	var str string
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
+	*f = flexString(str)
+	return nil
+}
+
+// MarshalJSON emits a plain string, so a round-trip does not turn "MIT" into
+// a one-element array.
+func (f flexString) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(f))
+}
+
+func (f flexString) String() string { return string(f) }
+
+func nonEmpty(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 type lockPkg struct {
-	Name            string            `json:"name"`
-	Version         string            `json:"version"`
-	Dev             bool              `json:"dev"`
-	License         string            `json:"license"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Dev     bool   `json:"dev"`
+	// License accepts a string or an array of strings; see flexString.
+	License         flexString        `json:"license"`
 	Integrity       string            `json:"integrity"`
 	Dependencies    map[string]string `json:"dependencies"`
 	DevDependencies map[string]string `json:"devDependencies"`
@@ -153,7 +211,7 @@ func (r npmResolver) fromPackages(lock packageLock, direct map[string]bool) []mo
 			Version:   pkg.Version,
 			Ecosystem: model.EcoNPM,
 			Direct:    direct[name],
-			License:   pkg.License,
+			License:   pkg.License.String(),
 		}
 		if h := parseIntegrity(pkg.Integrity); h != "" {
 			c.Hashes = map[string]string{"SHA-512": h}
@@ -178,7 +236,7 @@ func (r npmResolver) fromV1(lock v1Lock, direct map[string]bool) []model.Compone
 					Version:   d.Version,
 					Ecosystem: model.EcoNPM,
 					Direct:    direct[name],
-					License:   d.License,
+					License:   d.License.String(),
 					Hashes:    integrityMap(d.Integrity),
 				})
 			}

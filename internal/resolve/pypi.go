@@ -40,6 +40,17 @@ func (pypiResolver) Handles(path string) bool {
 	return false
 }
 
+// Priority marks this a LOCKFILE resolver. poetry.lock and Pipfile.lock
+// record exact resolved versions, so they outrank the manifest resolver for
+// the same ecosystem. requirements.txt is ranged in practice but is a
+// declared-input file rather than a resolved one; it stays in this group
+// because when a project ships a poetry.lock, that lock is the better source
+// and detect already prefers it.
+//
+// Stating this explicitly is the point: the first dispatch implementation
+// relied on init() order instead, which Go does not guarantee.
+func (pypiResolver) Priority() int { return PriorityLockfile }
+
 // poetry.lock is TOML. SCRAM has no TOML dependency, so the relevant tables
 // are extracted with a line scanner rather than a full parser — the format is
 // regular enough for that, and a real TOML dep would be a poor trade for a

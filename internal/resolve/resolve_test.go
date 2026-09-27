@@ -368,12 +368,20 @@ func TestDedupeAndSort(t *testing.T) {
 }
 
 func TestResolverRegistry(t *testing.T) {
-	for _, eco := range []string{model.EcoNPM, model.EcoPyPI, model.EcoGo} {
-		if _, err := Get(eco); err != nil {
-			t.Errorf("no resolver registered for %q", eco)
+	// GetFor, not Get: an ecosystem can have several resolvers (PyPI has a
+	// lockfile one and a manifest one), so registry membership is now
+	// per-file rather than per-ecosystem.
+	for _, c := range []struct{ eco, file string }{
+		{model.EcoNPM, "package-lock.json"},
+		{model.EcoPyPI, "poetry.lock"},
+		{model.EcoPyPI, "pyproject.toml"},
+		{model.EcoGo, "go.sum"},
+	} {
+		if _, err := GetFor(c.eco, c.file); err != nil {
+			t.Errorf("no resolver for %q/%q: %v", c.eco, c.file, err)
 		}
 	}
-	if _, err := Get("cargo"); err != ErrUnsupported {
+	if _, err := GetFor("cargo", "Cargo.lock"); err != ErrUnsupported {
 		t.Error("expected ErrUnsupported for an unregistered ecosystem")
 	}
 	if len(Supported()) != 3 {

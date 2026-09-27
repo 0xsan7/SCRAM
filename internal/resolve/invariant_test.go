@@ -38,7 +38,8 @@ func TestInvariantNoSilentZeroOverCorpus(t *testing.T) {
 		for _, f := range files {
 			name := relName(t, f)
 			ecoName := ecosystemFor(f)
-			r, err := Get(ecoName)
+			// GetFor because PyPI has two resolvers and the filename decides.
+			r, err := GetFor(ecoName, filepath.Base(f))
 			if err != nil {
 				t.Errorf("%s: %v", name, err)
 				continue

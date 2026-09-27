@@ -41,11 +41,17 @@ type pyprojectResolver struct{}
 func (pyprojectResolver) Ecosystem() string { return model.EcoPyPI }
 
 // Handles reports whether this resolver is responsible for path. It exists
-// because PyPI has two resolvers (see resolve.GetFor): without it, whichever
-// registered last would shadow the other entirely.
+// because PyPI has two resolvers (see resolve.GetFor): without it, this
+// resolver could never be selected.
 func (pyprojectResolver) Handles(path string) bool {
 	return strings.EqualFold(filepath.Base(path), "pyproject.toml")
 }
+
+// Priority marks this a MANIFEST resolver. A pyproject.toml declares ranges
+// ("starlette>=0.46.0"), never the version actually installed, so it must
+// lose to a lockfile when a project ships both. Stating that explicitly is
+// what keeps the choice from depending on init() order.
+func (pyprojectResolver) Priority() int { return PriorityManifest }
 
 func (r pyprojectResolver) Resolve(root, path string) ([]model.Component, error) {
 	full := path

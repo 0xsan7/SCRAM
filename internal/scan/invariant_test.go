@@ -23,15 +23,21 @@ import (
 // brokenResolver returns no components and no error, which is exactly what the
 // ==-only PyPI regex (D23) and the mis-typed npm dependencies map (D01) did.
 //
-// It also implements resolve.FileMatcher so GetFor will select it. Without
-// that, the test silently stops replacing anything -- the replacement is
-// skipped, the real resolver runs, and the test passes for the wrong reason,
-// which is a worse outcome than failing.
+// It also implements resolve.FileMatcher and resolve.Prioritised so GetFor
+// will select it. Without FileMatcher it is skipped by dispatch; without
+// Priority it ties with the real resolver and loses on registration order.
+// Either way the test would exercise the original resolver rather than the
+// broken one, which is a test that passes for the wrong reason.
 type brokenResolver struct{ eco string }
 
 func (b brokenResolver) Ecosystem() string { return b.eco }
 
 func (b brokenResolver) Handles(path string) bool { return true }
+
+// Priority claims the top slot so no tie can send dispatch to the real
+// resolver. The value only matters relative to other resolvers for this
+// ecosystem in this test; it deliberately exceeds every real priority.
+func (b brokenResolver) Priority() int { return resolve.PriorityLockfile + 1000 }
 
 func (b brokenResolver) Resolve(root, path string) ([]model.Component, error) {
 	return nil, nil

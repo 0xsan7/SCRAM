@@ -249,49 +249,85 @@ type Resolver interface {
 var registry = map[string][]Resolver{}
 
 // Register adds a resolver. Called from each ecosystem's init().
+//
+// Registration order is NOT the dispatch order, and must not be relied on. Go
+// runs init() in file presentation order, which is a compiler implementation
+// detail; the first version of GetFor scanned the slice backwards and so
+// preferred whichever file happened to be initialised last. Renaming
+// pyproject.go to zz_pyproject.go would have silently changed which resolver
+// handles which file. Dispatch is decided by Priority instead.
 func Register(r Resolver) {
 	registry[r.Ecosystem()] = append(registry[r.Ecosystem()], r)
 }
 
-// Get returns the resolver for an ecosystem that handles the given lockfile
-// path, or ErrUnsupported when none does.
+// Priority orders resolvers within one ecosystem. Higher wins.
 //
-// Dispatch is by filename because several resolvers can share an ecosystem.
-// Within an ecosystem the LAST registered resolver that recognises the file
-// wins, which lets a format-specific resolver (pyproject.toml) take precedence
-// without displacing the general one.
-func Get(eco string) (Resolver, error) {
-	rs, ok := registry[eco]
-	if !ok || len(rs) == 0 {
-		return nil, ErrUnsupported
-	}
-	if len(rs) == 1 {
-		return rs[0], nil
-	}
-	return rs[0], nil
+// The ordering that matters, and the reason this exists: for a given
+// ecosystem, a LOCKFILE resolver outranks a MANIFEST resolver, because a
+// lockfile records the exact versions installed while a manifest records
+// ranges. A project shipping both must be read through the lock.
+const (
+	// PriorityManifest is for resolvers that read a dependency manifest and
+	// therefore can only report a range, never an installed version.
+	PriorityManifest = 10
+	// PriorityLockfile is for resolvers that read a lockfile and report exact
+	// resolved versions.
+	PriorityLockfile = 20
+)
+
+// Prioritised is implemented by resolvers that share an ecosystem with
+// others. A resolver that does not implement it is treated as
+// PriorityLockfile, which keeps every existing single-resolver ecosystem
+// (Go, npm) behaving exactly as before.
+type Prioritised interface {
+	Priority() int
 }
 
-// GetFor returns the resolver able to handle a specific lockfile path within
-// an ecosystem. Resolvers that cannot handle the path are skipped, so a
-// caller never gets ErrUnsupported for a file some resolver does understand.
+func priorityOf(r Resolver) int {
+	if p, ok := r.(Prioritised); ok {
+		return p.Priority()
+	}
+	return PriorityLockfile
+}
+
+// GetFor returns the resolver responsible for a specific lockfile path within
+// an ecosystem.
+//
+// Selection is explicit and has two stages, in this order:
+//
+//  1. Among resolvers that CLAIM the file via FileMatcher.Handles, the one
+//     with the highest Priority wins. Ties break on registration order, and
+//     that is a last resort rather than the primary rule.
+//  2. If no resolver claims the file, fall back to the highest-priority
+//     resolver overall, which reports ErrUnsupported for formats it does not
+//     know. This preserves the pre-multi-resolver behaviour exactly.
+//
+// A resolver that does not implement FileMatcher cannot be selected by stage
+// 1, which is what makes the "one ecosystem, two formats" case expressible
+// without relying on anything implicit.
 func GetFor(eco, path string) (Resolver, error) {
 	rs, ok := registry[eco]
 	if !ok || len(rs) == 0 {
 		return nil, ErrUnsupported
 	}
-	if len(rs) == 1 {
-		return rs[0], nil
-	}
-	// Reverse order: a format-specific resolver registered later wins, so
-	// pyproject.toml is tried before the general pypi lockfile resolver.
-	for i := len(rs) - 1; i >= 0; i-- {
-		if handles, ok := rs[i].(FileMatcher); ok && handles.Handles(path) {
-			return rs[i], nil
+	bestClaim := -1
+	bestAny := 0
+	for i, r := range rs {
+		if priorityOf(r) > priorityOf(rs[bestAny]) {
+			bestAny = i
+		}
+		handles, ok := r.(FileMatcher)
+		if !ok || !handles.Handles(path) {
+			continue
+		}
+		if bestClaim == -1 || priorityOf(r) > priorityOf(rs[bestClaim]) {
+			bestClaim = i
 		}
 	}
-	// No resolver claimed the file explicitly. Fall back to the general one,
-	// which reports ErrUnsupported for formats it does not know.
-	return rs[0], nil
+	if bestClaim >= 0 {
+		return rs[bestClaim], nil
+	}
+	return rs[bestAny], nil
 }
 
 // FileMatcher is implemented by resolvers that handle a specific set of

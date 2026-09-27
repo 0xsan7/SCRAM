@@ -306,11 +306,81 @@ def summary() -> None:
         log(f"corpus {eco}: {len(files)} files, {size / 1e6:.1f} MB")
 
 
+# npm v1 lockfiles (npm 5/6, 2017-2020) are only reachable at pinned TAGS.
+#
+# Two things make this hard enough to be worth writing down, both of which
+# cost a full search to discover:
+#
+#  1. No current default branch carries one. Every project that used npm 6 has
+#     since upgraded, so probing branches finds only v2/v3 forever.
+#  2. raw.githubusercontent.com requires the "v" prefix on tags. Without it
+#     every URL 404s -- and a 404 is indistinguishable from "this project has
+#     no lockfile" unless you separately probe a file you know exists. The
+#     first search run here returned 0/20 and looked like a real negative;
+#     probing axios's package.json at the same tag proved the tags were
+#     reachable and the URLs were wrong.
+#
+# The assertion at the end is deliberate: a silently-zero v1 corpus would
+# restore exactly the gap this function exists to close.
+NPM_V1_TAGS = [
+    ("mochajs/mocha", "6.2.0"),
+    ("mochajs/mocha", "8.0.0"),
+    ("mochajs/mocha", "9.0.0"),
+    ("markedjs/marked", "0.6.0"),
+    ("markedjs/marked", "0.8.0"),
+    ("less/less", "3.13.0"),
+]
+
+
+def fetch_npm_v1() -> None:
+    """Fetch npm lockfileVersion 1 fixtures from pinned tags."""
+    fetched, cached, failed = 0, 0, []
+    for repo, tag in NPM_V1_TAGS:
+        dest_dir = os.path.join(CORPUS, "npm", "real", f"{repo.replace('/', '-')}@{tag}")
+        dest = os.path.join(dest_dir, "package-lock.json")
+        if os.path.exists(dest) and os.path.getsize(dest) > 2:
+            cached += 1
+            continue
+        try:
+            data = get(f"{repo}/v{tag}/package-lock.json")
+        except Exception as exc:  # noqa: BLE001
+            failed.append(f"{repo}@{tag}: {exc}")
+            continue
+        if data is None or not valid(data, "package-lock.json"):
+            failed.append(f"{repo}@{tag}: no usable package-lock.json at v{tag}")
+            continue
+        body = data.decode("utf-8", "replace")
+        if '"lockfileVersion"' not in body:
+            failed.append(f"{repo}@{tag}: fetched but not a package-lock.json")
+            continue
+        os.makedirs(dest_dir, exist_ok=True)
+        with open(dest, "w") as fh:
+            fh.write(body)
+        # package.json is a sibling SCRAM reads for the direct-dependency set.
+        # It is best-effort: npm v1 lockfiles parse without it.
+        try:
+            pj = get(f"{repo}/v{tag}/package.json")
+            if pj:
+                with open(os.path.join(dest_dir, "package.json"), "wb") as fh:
+                    fh.write(pj)
+        except Exception:  # noqa: BLE001
+            # Best effort: a v1 lockfile parses without a sibling package.json.
+            pass
+        fetched += 1
+    log(f"  npm v1: {fetched} fetched, {cached} cached, {len(failed)} failed")
+    for f in failed:
+        log(f"    {f}")
+    if fetched + cached == 0:
+        log("  WARNING: zero npm v1 fixtures. SCRAM's v1 code path would have no "
+            "real-world coverage again; do not delete the v1 warning on this basis.")
+
+
 def main() -> int:
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
     if which in ("npm", "all"):
         log("npm: probing")
         fetch_eco(NPM, ("package-lock.json",), "npm", "npm")
+        fetch_npm_v1()
     if which in ("pypi", "all"):
         log("pypi: probing")
         fetch_eco(PYPI, PYPI_FILES, "pypi", "pypi")

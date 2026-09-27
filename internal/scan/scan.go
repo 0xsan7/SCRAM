@@ -161,6 +161,13 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 			continue
 		}
 		all = append(all, comps...)
+		// A resolver may flag the quality of what it just read without
+		// failing the resolve -- e.g. a lockfile format it parses but has no
+		// real-world fixture for. These are advisory and never fail the scan;
+		// a file we could not read at all is handled as an error above.
+		for _, w := range resolve.WarningsFor(r, root, p.File) {
+			scan.Warnings = append(scan.Warnings, w)
+		}
 		// Recover parentage while the resolver is in hand. Only resolvers
 		// that can supply real edges opt in; the rest contribute nothing,
 		// which is honest (requirements.txt records no parentage, go.sum

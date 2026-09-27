@@ -2,6 +2,7 @@ package resolve
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,10 +14,83 @@ import (
 
 func init() { Register(npmResolver{}) }
 
-// npmResolver reads package-lock.json. Both lockfileVersion 1 (the legacy
-// "dependencies" tree) and 2/3 (the flat "packages" map) are supported,
-// because both are still common in the wild.
+// npmResolver reads package-lock.json. lockfileVersion 1 (the legacy
+// "dependencies" tree), 2 (packages + dependencies) and 3 (packages only) are
+// all supported, and all three are covered by the real-world corpus:
+// 6 v1, 1 v2, 9 v3 fixtures, from mocha, marked, less, nest, bitwarden and
+// others. See LIMITATIONS.md for what that coverage does and does not mean.
 type npmResolver struct{}
+
+// npmV1Warning is emitted for a v1-shaped lockfile.
+//
+// SCRAM reads v1 correctly, and the corpus proves it, so this is not a
+// "results may be unreliable" warning. It names the one thing that genuinely
+// differs: v1 records only what npm resolved, with no flag for optional,
+// dev-only or peer dependencies, so SCRAM cannot tell a production
+// dependency from a test-only one and reports devDependencies in the scan
+// component list. That is a real, known imprecision, stated as such.
+const npmV1Warning = "npm lockfileVersion 1 detected in %s: parsed correctly, " +
+	"and covered by %d real-world corpus fixtures, but the v1 format records no " +
+	"dev/optional/peer flags -- unlike v2/v3, which carry them in " +
+	"\"packages\". Components from this lockfile therefore include " +
+	"development-only dependencies, and the dev/prod split in the report is " +
+	"not reliable for this file. Regenerate with npm 7+ for accurate flags."
+
+// WarningsFor implements resolve.Warner.
+func (r npmResolver) WarningsFor(root, path string) []string {
+	b, err := os.ReadFile(filepath.Join(root, path))
+	if err != nil {
+		return nil
+	}
+	// Read lockfileVersion without fully decoding the document: this runs on
+	// every npm lockfile, and a malformed one should not make the warning
+	// path panic. The silent-zero invariant (D26) is what handles malformed
+	// files, not this.
+	var probe struct {
+		LockfileVersion *int `json:"lockfileVersion"`
+	}
+	if json.Unmarshal(b, &probe) != nil {
+		return nil
+	}
+	// A missing lockfileVersion means npm 5 or earlier, which predates the
+	// field entirely. npm 4/5 wrote a v1-shaped tree, so it is treated the
+	// same way rather than assumed current: assuming "absent means modern"
+	// would apply the most confidence to the least evidence.
+	if probe.LockfileVersion != nil && *probe.LockfileVersion > 1 {
+		return nil
+	}
+	return []string{fmt.Sprintf(npmV1Warning, path, npmV1CorpusCount())}
+}
+
+// npmV1CorpusCount reports how many real v1 fixtures back the v1 code path.
+// It is counted at runtime rather than written into the message as a literal,
+// so the warning cannot quietly start claiming a coverage number that the
+// corpus no longer supports -- or understate it either.
+func npmV1CorpusCount() int {
+	dir := filepath.Join("..", "..", "testdata", "fixtures", "npm", "real")
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, e := range ents {
+		if !e.IsDir() {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name(), "package-lock.json"))
+		if err != nil {
+			continue
+		}
+		var probe struct {
+			LockfileVersion *int `json:"lockfileVersion"`
+		}
+		if json.Unmarshal(b, &probe) == nil &&
+			(probe.LockfileVersion == nil || *probe.LockfileVersion <= 1) {
+			n++
+		}
+	}
+	return n
+}
 
 func (npmResolver) Ecosystem() string { return model.EcoNPM }
 

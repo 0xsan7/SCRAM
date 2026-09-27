@@ -526,3 +526,119 @@ snapshots and restores the whole map.
 **Standing rule, extended:** a test helper that installs a replacement must
 assert the replacement is in effect, and must restore shared state completely.
 Both cost one line and both have now caught a real defect.
+
+---
+
+## D30 — npm v1: documented, then the documentation turned out to be wrong
+
+The plan was to document a limitation: SCRAM parses npm lockfileVersion 1 but
+has no real npm 6 lockfile in its corpus, so the v1 path has no real-world
+coverage. The instruction was explicit about how to handle this -- do not
+synthesise a fixture to claim coverage, warn at runtime instead, and log it in
+LIMITATIONS.md.
+
+**The warning was written first, claiming no coverage existed.** Then the
+instruction's own "grab one opportunistically, but don't block on it" was
+tried, and six real v1 lockfiles turned up: mocha 6.2.0/8.0.0/9.0.0,
+marked 0.6.0/0.8.0, less 3.13.0, totalling 2.8 MB, all resolving non-empty
+(829 to 2,492 components). The limitation as written was no longer true.
+
+**Two ways the search nearly produced a false negative.** The first run
+reported 0/20 and looked authoritative. Probing `axios/axios/0.19.0/package.json`
+-- a file certain to exist at that tag -- also 404'd, which proved the
+network was fine and the URLs were wrong: raw.githubusercontent.com requires
+the `v` prefix on tags. With that fixed, 2/20 real hits appeared immediately.
+The second: probing tags from before May 2017 returned nothing at all,
+because `package-lock.json` did not exist until npm 5. Both are recorded in
+`fetch_corpus.py` and asserted by a test, because a search that returns zero
+is indistinguishable from a search pointed at the wrong place.
+
+The warning was rewritten to state the real limitation. v1 records no
+dependency flags -- v2/v3 carry `dev`, `optional` and `peer` in the `packages`
+map, v1 carries nothing -- so SCRAM **cannot distinguish a production
+dependency from a development-only one** in a v1 lockfile. The warning says
+exactly that, and states its own corpus count, computed at runtime from the
+fixtures rather than hardcoded, so the sentence cannot drift into a claim the
+corpus does not support.
+
+### A WARNER, because a warning is not a failure
+
+There was no channel for a resolver to say "I read this, but read it with less
+confidence" -- `Resolve` returns components or an error, and nothing between
+those two states existed. Widening `Resolve` would have given every resolver
+a second return value for something only one ever says, so `Warner` is a
+separate optional interface.
+
+The distinction that matters: the silent-zero invariant (D26) hard-fails,
+because a file SCRAM could not read must not report CLEAN. A coverage warning
+never fails a scan -- the components are correct, the caller just deserves to
+know how much to trust them. Conflating the two would mean refusing to scan
+every legacy repo, which is a much worse product decision than flagging one.
+
+---
+
+## D31 — D25 confirmed fixed, with a regression test that catches it
+
+D25 was "the fetcher reported 0/77 on a corpus where all 77 files were on
+disk": a tool asserting a conclusion it had not established, the same class as
+D01/D22/D23 but in the tooling.
+
+**The clean run.** Two consecutive runs against identical targets:
+
+    run A: npm: 10/45 repos have a lockfile (0 fetched, 10 already present)
+    run B: npm: 10/45 repos have a lockfile (0 fetched, 10 already present)
+
+Identical totals, identical split. The first version of the accounting
+excluded already-present files from `have`, so a complete corpus printed as
+0/N -- indistinguishable from a corpus that had downloaded nothing.
+
+**The regression test** is `scripts/test_fetch_corpus.py`, 7 tests, and it is
+verified by reintroducing the bug: restoring the
+`if os.path.exists(dest): continue` branch without the `cached[repo] = ...`
+assignment produces
+
+    npm: 1/2 repos have a lockfile (1 fetched, 0 already present); 1 have none
+
+and the suite goes red on two tests. Restored, all 7 pass. That is the D-series
+standard applied to the tooling rather than the product, and it is the only
+reason to believe the fix rather than the log line.
+
+Three of the fetcher tests failed on first run -- all three my test's fault,
+not the fetcher's, and worth recording because two were subtly wrong:
+
+- Seeded `real/a/` when `fetch_eco` writes `real/a/b/`, so the cache path
+  never matched and "cached" was never exercised.
+- Asserted `assertNotIn("already present")`, which **passes against the
+  correct output "0 already present"** -- the substring lives inside the
+  string it was checking for. It would have green-lit the exact bug it was
+  written to catch. Now `assertNotRegex(out, r"[1-9]\d* already present")`.
+- Asserted on a fully-qualified URL when `get()` is called with a
+  repo-relative path and builds the base itself.
+
+A test that cannot fail is worse than no test, and the second one above is a
+clean example: it was green, it was wrong, and it was green *for the reason
+it was trying to detect*.
+
+---
+
+## D32 — LIMITATIONS.md is checked, not just written
+
+Every claim in LIMITATIONS.md was verified against the code before being
+committed, and one was wrong on the first draft.
+
+The draft said a Go module with `go.mod` and no `go.sum` "is not detected as
+a Go project... This is a detection gap, not a parse failure: nothing warns."
+Running it showed the opposite: `no dependency lockfiles found, so nothing was
+scanned; this is not a clean result`, a warning naming every filename
+searched, and **exit 1**. The behaviour was right and the documentation
+understated it, which is its own failure mode -- an honest-sounding gap
+disclosure that makes the tool look weaker than it is, and invites a
+workaround that is not needed.
+
+The corrected entry says plainly that this is a coverage gap which fails
+closed, and notes that `go.mod` does declare dependencies, so reading it is a
+deliberate choice to read only the resolved file rather than an oversight.
+
+This is the G-section rule ("a badge showing green for a check that doesn't
+run") applied to prose: a limitation that overstates a gap is as much an
+unverified claim as a coverage number nobody counted.

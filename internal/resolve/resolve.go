@@ -248,6 +248,36 @@ type Resolver interface {
 // what happened, and what the corpus caught.
 var registry = map[string][]Resolver{}
 
+// Warner is implemented by resolvers that can report a non-fatal quality
+// concern about the file they just read -- a format they parse less
+// confidently than another, or a shape whose coverage is unverified.
+//
+// It is deliberately separate from Resolver.Resolve, which returns components
+// or an error. A warning is not a failure: the components are still correct,
+// but the caller should know how much to trust them. Widening Resolve to
+// return warnings too would mean every resolver grows a second return value
+// for something only some of them ever say.
+//
+// Unlike the silent-zero invariant (D26), a warning never hard-fails a scan.
+// The distinction matters: a lockfile we cannot read at all must not report
+// CLEAN, whereas a lockfile we can read with lower confidence should be
+// scanned and flagged.
+type Warner interface {
+	// WarningsFor returns human-readable notes about path, or nil if there
+	// are none. It must not fail the resolve; the result is advisory.
+	WarningsFor(root, path string) []string
+}
+
+// WarningsFor returns any quality warnings the resolver registered while
+// reading path. Resolvers that do not implement Warner return nil.
+func WarningsFor(r Resolver, root, path string) []string {
+	w, ok := r.(Warner)
+	if !ok {
+		return nil
+	}
+	return w.WarningsFor(root, path)
+}
+
 // Register adds a resolver. Called from each ecosystem's init().
 //
 // Registration order is NOT the dispatch order, and must not be relied on. Go

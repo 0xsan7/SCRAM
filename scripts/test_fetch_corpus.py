@@ -19,6 +19,7 @@ implementation.
 Run: python3 scripts/test_fetch_corpus.py
 """
 
+import contextlib
 import io
 import os
 import shutil
@@ -29,6 +30,29 @@ from contextlib import redirect_stdout
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch_corpus as fc  # noqa: E402
+
+
+@contextlib.contextmanager
+def patched(obj, name, value):
+    """Temporarily replace obj.name, restoring the ORIGINAL on exit.
+
+    Assigning in a test and `del`-ing afterwards destroys the real function
+    for every test that runs later, which produces errors in tests that have
+    nothing to do with the one being fixed -- the same class of mistake as
+    leaving a Go test's registry mutation behind.
+    """
+    orig = getattr(obj, name)
+    setattr(obj, name, value)
+    try:
+        yield
+    finally:
+        setattr(obj, name, orig)
+
+
+def fake_write(dest, data):
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(dest, "wb") as fh:
+        fh.write(data)
 
 
 class FetcherReportingTest(unittest.TestCase):
@@ -185,16 +209,14 @@ class NpmV1TagTest(unittest.TestCase):
             fc.get = orig
 
         self.assertTrue(recorded, "fetch_npm_v1 made no requests")
-        # get() is called with a repo-relative path and builds the raw
-        # GitHub URL itself, so the tag ref is asserted on the path as
-        # passed, not on a fully-qualified URL.
+        # URLs are fully qualified, so the v-prefix is asserted on the
+        # path segment, not on the whole string.
         for url in recorded:
-            self.assertRegex(url, r"^\S+/v\d", 
-                             f"tag path missing the v prefix: {url}")
+            self.assertRegex(url, r"/v\d[^/]*/", f"tag missing v prefix: {url}")
         for repo, tag in fc.NPM_V1_TAGS:
             self.assertTrue(
-                any(f"{repo}/v{tag}/package-lock.json" == u for u in recorded),
-                f"no lockfile request recorded for {repo}@v{tag} (got {recorded})")
+                any(f"/{repo}/v{tag}/package-lock.json" in u for u in recorded),
+                f"no lockfile request recorded for {repo}@v{tag}")
 
     def test_zero_v1_fixtures_is_loud(self):
         """A silently-empty v1 corpus must warn, not pass quietly."""
@@ -208,6 +230,89 @@ class NpmV1TagTest(unittest.TestCase):
             fc.get = orig
         self.assertIn("WARNING", buf.getvalue(),
                       "a zero-fixture v1 run must warn loudly")
+
+
+class DestPathTest(unittest.TestCase):
+    """fetch_eco must write where the fixtures actually live.
+
+    D25's false negative had a second instance here. The pyproject corpus
+    lives at <corpus>/pypi/real/pp/<repo>/pyproject.toml, but fetch_eco built
+    <corpus>/<sub>/real/<repo>/<file>. No single `sub` value expresses a
+    directory that is not directly under the ecosystem dir, so the call
+    silently produced a path that never existed -- and the run reported
+    "0/55 have none" while 44 fixtures sat on disk.
+
+    The bug was invisible because the output was a plausible number, not an
+    error. These tests assert the constructed path, so the next mismatch is a
+    failure rather than a summary line nobody reads.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self._orig_corpus = fc.CORPUS
+        fc.CORPUS = self.tmp
+
+    def tearDown(self):
+        fc.CORPUS = self._orig_corpus
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_subdir_lands_where_the_fixtures_actually_are(self):
+        """A root override must produce the real on-disk layout."""
+        buf = io.StringIO()
+        with patched(fc, "probe_one",
+                     lambda repo, filename, subpaths: (filename, b'{"lockfileVersion":1}')), \
+             patched(fc, "write", fake_write):
+            with redirect_stdout(buf):
+                fc.fetch_eco({"pallets/click": [""]}, ("pyproject.toml",),
+                             "pp", "pyproject",
+                             root=os.path.join(self.tmp, "pypi", "real", "pp"))
+        want = os.path.join(self.tmp, "pypi", "real", "pp", "pallets", "click",
+                            "pyproject.toml")
+        self.assertTrue(os.path.exists(want),
+                        f"expected the file at {want}; wrote elsewhere")
+
+    def test_cached_file_is_found_at_its_real_location(self):
+        """The whole point: a present file must be reported as cached.
+
+        With the destination wrong, the cache check silently misses and the
+        fetcher re-downloads (or, offline, reports an absence). This asserts
+        the reported count against a pre-seeded real-layout file.
+        """
+        d = os.path.join(self.tmp, "pypi", "real", "pp", "pallets", "click")
+        os.makedirs(d)
+        with open(os.path.join(d, "pyproject.toml"), "w") as fh:
+            fh.write('{"lockfileVersion":1,"dependencies":{}}')
+
+        def never_called(repo, filename, subpaths):
+            raise AssertionError("probe_one ran despite a valid cached file")
+
+        buf = io.StringIO()
+        orig = fc.probe_one
+        fc.probe_one = never_called
+        try:
+            with redirect_stdout(buf):
+                fc.fetch_eco({"pallets/click": [""]}, ("pyproject.toml",),
+                             "pp", "pyproject",
+                             root=os.path.join(self.tmp, "pypi", "real", "pp"))
+        finally:
+            fc.probe_one = orig
+        out = buf.getvalue()
+        self.assertIn("1/1 repos have a lockfile", out, out)
+        self.assertIn("1 already present", out, out)
+
+    def test_default_layout_is_unchanged(self):
+        """Without a root override the original layout must still hold."""
+        buf = io.StringIO()
+        with patched(fc, "probe_one",
+                     lambda repo, filename, subpaths: (filename, b'{"lockfileVersion":3}')), \
+             patched(fc, "write", fake_write):
+            with redirect_stdout(buf):
+                fc.fetch_eco({"nestjs/nest": [""]}, ("package-lock.json",),
+                             "npm", "npm")
+        want = os.path.join(self.tmp, "npm", "real", "nestjs", "nest",
+                            "package-lock.json")
+        self.assertTrue(os.path.exists(want),
+                        f"default layout changed; expected {want}")
 
 
 if __name__ == "__main__":

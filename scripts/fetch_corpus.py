@@ -247,12 +247,26 @@ def probe_one(repo: str, filename: str, subpaths: list[str]) -> tuple[str, bytes
 
 
 def fetch_eco(spec: dict[str, list[str]], filenames: tuple[str, ...],
-              sub: str, eco: str) -> None:
+              sub: str, eco: str, root: str | None = None) -> None:
+    """Fetch one ecosystem's fixtures.
+
+    Destinations are <corpus>/<sub>/real/<repo>/<file> unless `root` is
+    given, in which case it replaces the <corpus>/<sub> prefix entirely.
+
+    `root` exists because a subdirectory that is NOT directly under the
+    ecosystem directory -- pyproject.toml lives at pypi/real/pp/, not
+    pypi/real/ -- cannot be expressed by `sub` alone, and forcing it through
+    built a path that never existed. That reported "0/55 have none" while 44
+    fixtures sat on disk, which is D25's false negative in a second code
+    path. The failure was invisible because the report was a plausible-looking
+    number rather than an error.
+    """
+    base = root if root is not None else os.path.join(CORPUS, sub, "real")
     jobs = []
     for repo, subpaths in spec.items():
         for fn in filenames:
             jobs.append((repo, fn, subpaths or [""],
-                         os.path.join(CORPUS, sub, "real", repo, fn)))
+                         os.path.join(base, repo, fn)))
 
     got: dict[str, tuple[str, int]] = {}
     cached: dict[str, int] = {}
@@ -342,7 +356,8 @@ def fetch_npm_v1() -> None:
             cached += 1
             continue
         try:
-            data = get(f"{repo}/v{tag}/package-lock.json")
+            data = get(RAW.format(repo=repo, branch=f"v{tag}",
+                             path="package-lock.json"))
         except Exception as exc:  # noqa: BLE001
             failed.append(f"{repo}@{tag}: {exc}")
             continue
@@ -359,7 +374,8 @@ def fetch_npm_v1() -> None:
         # package.json is a sibling SCRAM reads for the direct-dependency set.
         # It is best-effort: npm v1 lockfiles parse without it.
         try:
-            pj = get(f"{repo}/v{tag}/package.json")
+            pj = get(RAW.format(repo=repo, branch=f"v{tag}",
+                             path="package.json"))
             if pj:
                 with open(os.path.join(dest_dir, "package.json"), "wb") as fh:
                     fh.write(pj)
@@ -386,7 +402,16 @@ def main() -> int:
         fetch_eco(PYPI, PYPI_FILES, "pypi", "pypi")
         # pyproject.toml goes under pypi/real/pp/ so it can be handled as the
         # range-declaring fallback it is, not confused with a lockfile.
-        fetch_eco(PYPROJECT, ("pyproject.toml",), os.path.join("pypi", "real", "pp"), "pyproject")
+        #
+        # fetch_eco builds <corpus>/<eco>/<sub>/real/<repo>/<file>, so `sub`
+        # is the segment between the ecosystem and "real" -- here it must be
+        # "pp", and `eco` must be the "pypi" DIRECTORY, not the ecosystem
+        # label. The two arguments take different things, which is why this
+        # silently built fixtures/pp/real/... instead of
+        # fixtures/pypi/real/pp/... and reported 0/55 with 44 fixtures on
+        # disk. See test_subdir_lands_where_the_fixtures_actually_are.
+        fetch_eco(PYPROJECT, ("pyproject.toml",), "pp", "pyproject",
+                  root=os.path.join(CORPUS, "pypi", "real", "pp"))
     if which in ("go", "all"):
         log("go: probing")
         fetch_eco(GO, GO_FILES, "gomod", "go")

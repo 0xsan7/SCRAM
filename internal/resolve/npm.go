@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/0xsan7/scram/internal/graph"
 	"github.com/0xsan7/scram/internal/model"
 	"github.com/package-url/packageurl-go"
 )
@@ -18,6 +19,15 @@ func init() { Register(npmResolver{}) }
 type npmResolver struct{}
 
 func (npmResolver) Ecosystem() string { return model.EcoNPM }
+
+// Edges implements graph.EdgeProvider, recovering parentage from install
+// paths. This is optional on purpose: the Resolver contract stays narrow, and
+// ecosystems that cannot supply real edges (requirements.txt has none, go.sum
+// records checksums) are treated as isolated nodes rather than being given
+// invented relationships.
+func (r npmResolver) Edges(root, path string) ([]graph.Edge, error) {
+	return graph.NpmEdges(root, path)
+}
 
 // packageLock mirrors the subset of package-lock.json SCRAM reads. Both the
 // v1 and v2/3 shapes are decoded into the same struct, with the fields that

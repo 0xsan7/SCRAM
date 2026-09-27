@@ -96,6 +96,17 @@ func bucketColor(bucket string) string {
 	return colorGreen
 }
 
+// Paint applies an ANSI color, honouring the NoColor package flag. Exported
+// so other commands render the same severity palette instead of each growing
+// their own copy of the escape codes.
+func Paint(color, s string) string { return paint(color, s) }
+
+// BucketColor is the ANSI color for a severity bucket.
+func BucketColor(bucket string) string { return bucketColor(bucket) }
+
+// BucketLabel is the short human label for a bucket.
+func BucketLabel(b string) string { return bucketLabel(b) }
+
 // bucketLabel is the short human label for a bucket.
 func bucketLabel(b string) string {
 	switch b {

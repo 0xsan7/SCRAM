@@ -12,6 +12,7 @@ import (
 
 	"github.com/0xsan7/scram/internal/detect"
 	"github.com/0xsan7/scram/internal/drift"
+	"github.com/0xsan7/scram/internal/graph"
 	"github.com/0xsan7/scram/internal/model"
 	"github.com/0xsan7/scram/internal/policy"
 	"github.com/0xsan7/scram/internal/resolve"
@@ -58,6 +59,10 @@ type Result struct {
 	// A degraded scan must never be reported as a clean bill of health — see
 	// policy.Evaluate, which fails closed on this.
 	Degraded bool
+	// Graph holds recovered dependency parentage for `scram why`. It is built
+	// from the same component list as Scan, so it can never disagree with what
+	// the SBOM says. May be nil for ecosystems that record no parentage.
+	Graph *graph.Graph
 }
 
 // DefaultCacheDir is where vulnerability results are cached between runs.
@@ -123,6 +128,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		allowed[e] = true
 	}
 	var all []model.Component
+	var rawEdges []graph.Edge
 	for _, p := range projects {
 		if len(allowed) > 0 && !allowed[p.Ecosystem] {
 			continue
@@ -142,6 +148,15 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 			continue
 		}
 		all = append(all, comps...)
+		// Recover parentage while the resolver is in hand. Only resolvers
+		// that can supply real edges opt in; the rest contribute nothing,
+		// which is honest (requirements.txt records no parentage, go.sum
+		// records checksums) rather than a guess.
+		if ep, ok := r.(graph.EdgeProvider); ok {
+			if pairs, err := ep.Edges(root, p.File); err == nil {
+				rawEdges = append(rawEdges, pairs...)
+			}
+		}
 	}
 	scan.Components = resolve.Dedupe(all)
 
@@ -169,6 +184,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	result := &Result{Scan: scan, SBOMPaths: paths, Degraded: resultDegraded}
+	// Built from the same de-duplicated component list, so the graph can never
+	// name a component the SBOM omitted.
+	result.Graph = graph.Build(scan.Components, rawEdges)
 
 	// 6. Drift, if a baseline is available.
 	var base model.Scan

@@ -1,0 +1,7 @@
+go test fuzz v1
+string("")
+string("\x85\b")
+string("")
+string("")
+string("")
+string("")

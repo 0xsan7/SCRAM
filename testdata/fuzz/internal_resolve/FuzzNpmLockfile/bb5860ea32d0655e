@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\n  \"name\": \"ceph\",\n  \"lockf\x80leVersion\": 3,\n  \"requires\": true,\n  \"packages\": {}\n}\n")

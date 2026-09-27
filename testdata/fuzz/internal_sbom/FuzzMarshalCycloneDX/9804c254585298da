@@ -1,0 +1,7 @@
+go test fuzz v1
+string("")
+string("")
+string("")
+string("")
+string("?\x89\xe4\x17\x0e\x85")
+string("")

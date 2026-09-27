@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("Ñ\n\xf50\n\xf50")

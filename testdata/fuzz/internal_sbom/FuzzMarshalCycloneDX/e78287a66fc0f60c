@@ -1,0 +1,7 @@
+go test fuzz v1
+string("\"&&&")
+string("&")
+string("00&00\xe7\xd0")
+string("")
+string("")
+string("")

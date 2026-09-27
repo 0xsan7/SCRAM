@@ -1,0 +1,7 @@
+go test fuzz v1
+string("\x98\xa0\x9f0Ȝ")
+string("\x85")
+string("")
+string("")
+string("")
+string("")

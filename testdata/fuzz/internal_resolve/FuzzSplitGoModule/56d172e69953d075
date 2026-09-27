@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\xfd\xc50⌭ \xf5\x8dA")

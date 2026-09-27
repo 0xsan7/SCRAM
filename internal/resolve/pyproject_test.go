@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/0xsan7/scram/internal/model"
+	"strings"
 )
 
 // D27: SCRAM could not read pyproject.toml at all, so the large population of
@@ -353,4 +354,63 @@ func purlList(comps []model.Component) []string {
 		out = append(out, c.Name+"@"+c.Version)
 	}
 	return out
+}
+
+// TestPythonConstraintKeyIsTrimmedAndCaseInsensitive is the permanent
+// regression test for a bug FuzzIsPythonConstraintKey found.
+//
+// TOML permits whitespace around a bare key, so a key written as
+// ` python = ">=3.9" ` parses to the same name as `python`. Before the fix
+// the comparison lowercased but never trimmed, so a padded key fell through
+// and became a package literally called "python" -- which is not on PyPI,
+// matches no OSV record, and silently contributes nothing to the scan.
+func TestPythonConstraintKeyIsTrimmedAndCaseInsensitive(t *testing.T) {
+	for _, k := range []string{
+		"python", "PYTHON", "Python",
+		" python", "python ", "\tpython\n",
+		"python_version", " python_version ",
+		"PYTHON_FULL_VERSION", " python_full_version ",
+	} {
+		if !isPythonConstraintKey(k) {
+			t.Errorf("isPythonConstraintKey(%q) = false; the interpreter "+
+				"constraint would be parsed as a package", k)
+		}
+	}
+	// A real package must not be caught by the check.
+	for _, k := range []string{
+		"requests", "pYthon-requests", "python-requests",
+		"mypython", "pythonnet", "requests_python",
+	} {
+		if isPythonConstraintKey(k) {
+			t.Errorf("isPythonConstraintKey(%q) = true; a real package would "+
+				"be dropped from the scan", k)
+		}
+	}
+}
+
+// TestPaddedPythonKeyDoesNotBecomeAComponent proves it end to end, through
+// the TOML parser rather than the helper, because the parser is what
+// decides whether the padded form reaches the helper at all.
+func TestPaddedPythonKeyDoesNotBecomeAComponent(t *testing.T) {
+	dir := t.TempDir()
+	body := `[tool.poetry.dependencies]
+ python = ">=3.9"
+pygments = "^2.13.0"
+`
+	if err := os.WriteFile(filepath.Join(dir, "pyproject.toml"),
+		[]byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	comps, err := pyprojectResolver{}.Resolve(dir, "pyproject.toml")
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for _, c := range comps {
+		if strings.EqualFold(c.Name, "python") {
+			t.Fatalf("a phantom python component was created: %+v", c)
+		}
+	}
+	if len(comps) != 1 || comps[0].Name != "pygments" {
+		t.Errorf("got %d components %+v, want only pygments", len(comps), comps)
+	}
 }

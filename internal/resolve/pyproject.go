@@ -224,8 +224,19 @@ func poetryComponent(name string, spec any) model.Component {
 
 // isPythonConstraintKey reports whether a Poetry dependency key names the
 // interpreter rather than a package.
+//
+// The key is trimmed and lowercased before comparison. TOML permits
+// whitespace around a bare key, so `python = ">=3.9"` and ` python ="^3.9" `
+// both parse to the same dependency name -- and without the trim, a
+// whitespace-padded key slips past and becomes a package called "python",
+// which does not exist on PyPI and matches nothing. Found by
+// FuzzIsPythonConstraintKey, seeded from the fuzzer's own corpus.
+//
+// The space-separated forms ("python 3.9", "python_version") are not
+// standard Poetry, but the underscore variants are the PEP 621 field names
+// that appear in real pyproject.toml files, so they are all recognised.
 func isPythonConstraintKey(name string) bool {
-	switch strings.ToLower(name) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "python", "python_version", "python_full_version":
 		return true
 	}
@@ -281,6 +292,14 @@ func parsePEP508(s string) (model.Component, bool) {
 			return model.Component{}, false
 		}
 		return model.Component{Name: name}, true
+	}
+	// A requirement that STARTS with a specifier character ("!!!", ">=1.0")
+	// has no name at all. Returning ok here produces a component with an
+	// empty name and therefore an empty PURL, which downstream is a
+	// component that matches nothing and reports nothing -- the silent-zero
+	// shape again, one layer below the resolver. Found by FuzzPEP508.
+	if i == 0 {
+		return model.Component{}, false
 	}
 	return componentFromNameSpec(s[:i], s[i:]), true
 }

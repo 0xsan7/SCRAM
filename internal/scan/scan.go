@@ -5,6 +5,7 @@ package scan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -139,8 +140,16 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 				fmt.Sprintf("no resolver for %s (%s)", p.Ecosystem, p.File))
 			continue
 		}
-		comps, err := r.Resolve(root, p.File)
+		comps, err := resolve.ResolveFile(r, root, p.File)
 		if err != nil {
+			// A silent zero (manifest declares dependencies, resolver found
+			// none) is NOT a warning. D01/D22/D23 all died here: a partial
+			// parse produced an empty list, the scan treated it as "no
+			// dependencies", and reported CLEAN with exit 0. That is a false
+			// all-clear from a security tool, so it hard-fails the scan.
+			if errors.Is(err, resolve.ErrSilentZero) {
+				return nil, err
+			}
 			// One unreadable lockfile shouldn't sink the whole scan; warn and
 			// continue with the ecosystems that did parse.
 			scan.Warnings = append(scan.Warnings,

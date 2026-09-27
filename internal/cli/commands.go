@@ -58,6 +58,15 @@ second on a mid-size repo.`,
 			if err != nil {
 				return err
 			}
+			// A lockfile that was detected but could not be parsed produced an
+			// empty SBOM that looks like a valid artifact, and the warning
+			// explaining that was hidden unless --verbose. An empty SBOM from a
+			// repo that plainly has dependencies is a silent-zero, the exact
+			// failure D01/D22/D23 had, so it is surfaced unconditionally here
+			// rather than becoming a successful exit 0.
+			if err := warnIfNothingResolved(result.Scan, path); err != nil {
+				return err
+			}
 			fmt.Printf("Generated %d SBOM(s) from %d components:\n",
 				len(result.SBOMPaths), result.Scan.Summary.TotalComponents)
 			for _, p := range result.SBOMPaths {

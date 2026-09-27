@@ -105,7 +105,12 @@ func main() {
 			results = append(results, r)
 			return nil
 		}
-		comps, cerr := res.Resolve(dir, base)
+		// Go through ResolveFile so the silent-zero invariant applies here
+		// too. A diagnostic that reports "0 components" without knowing
+		// whether the file declared any is exactly the false-negative shape
+		// this whole check exists to catch, so the diagnostic must not
+		// commit it either.
+		comps, cerr := resolve.ResolveFile(res, dir, base)
 		r.Err = cerr
 		r.Count = len(comps)
 

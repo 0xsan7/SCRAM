@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/0xsan7/scram/internal/model"
 	"github.com/0xsan7/scram/internal/policy"
 	"github.com/spf13/cobra"
 )
@@ -137,4 +139,49 @@ func isTTY(f *os.File) bool {
 		return false
 	}
 	return info.Mode()&os.ModeCharDevice != 0
+}
+
+// warningResolveFailed is the prefix scan puts on a warning about a lockfile
+// it could not resolve. The CLI matches on it to distinguish a real parse
+// failure from unrelated advisories, so it is a contract, not a string.
+const warningResolveFailed = "resolving"
+
+// warnIfNothingResolved is the last line of defence against a silent zero.
+//
+// The resolve package refuses to return an empty component list for a
+// lockfile that declares dependencies, and scan propagates that as an error.
+// This covers the remaining gap: a lockfile that was DETECTED but could not
+// be parsed at all. scan collects that as a warning and continues, which is
+// the right behaviour for one bad file among several, but it means a command
+// can succeed having read nothing.
+//
+// "SBOM generated, 0 components" is indistinguishable from "this repo has no
+// dependencies" to anyone reading the output, which is precisely the D01/D22/
+// D23 failure. So when a scan resolved nothing AND reported a resolution
+// failure, this returns an error instead of letting the command exit 0.
+//
+// A scan that resolved nothing with no warnings is left alone: that is a
+// genuinely dependency-free project.
+func warnIfNothingResolved(scan model.Scan, path string) error {
+	if scan.Summary.TotalComponents > 0 {
+		return nil
+	}
+	// Match the resolver's own warning prefix rather than scanning for the
+	// word "failed". An earlier version used strings.Contains(w, "failed"),
+	// which also matched "EPSS enrichment failed, exploitability scored as
+	// 0" -- an unrelated advisory that must never fail a scan. Warnings are
+	// the one place where a loose substring match turns a useful signal into
+	// noise, so the contract is an explicit prefix the resolver sets.
+	var parseFailures []string
+	for _, w := range scan.Warnings {
+		if strings.HasPrefix(w, warningResolveFailed) {
+			parseFailures = append(parseFailures, w)
+		}
+	}
+	if len(parseFailures) == 0 {
+		return nil // genuinely nothing to scan
+	}
+	return fmt.Errorf("%s: no components resolved and %d lockfile(s) could not be parsed "+
+		"(treating this as a clean SBOM would be a false negative):\n  - %s",
+		path, len(parseFailures), strings.Join(parseFailures, "\n  - "))
 }

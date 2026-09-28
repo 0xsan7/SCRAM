@@ -86,12 +86,21 @@ func Dedupe(vulns []model.Vuln) []model.Vuln {
 		// that wins on CVSS may carry no summary while a sibling in the same
 		// group has a good one. Dropping it would leave a finding with a
 		// severity and no explanation.
+		//
+		// CVSS is the exception, and deliberately so. "Take the highest
+		// score in the group" was wrong: two records for one issue can carry
+		// different vectors because the scoring model was revised, and
+		// GitHub's rescoring of CVE-2021-23337 left the older GHSA record
+		// scoring 8.1 while OSV's own record for that CVE scores it 7.2.
+		// Reporting the higher number attributes to the matched advisory a
+		// severity that came from a different record, and a reader checking
+		// against the advisory sees a discrepancy with no way to tell which
+		// number is the mistake. A score is not a completeness measure; the
+		// vector and the score must come from the same record or neither is
+		// verifiable. So the score stays with whichever record was selected,
+		// and the vector is only ever taken alongside its own score.
 		for _, idx := range members {
 			v := vulns[idx]
-			if v.CVSSv3 > best.CVSSv3 {
-				best.CVSSv3 = v.CVSSv3
-				best.CVSSVector = v.CVSSVector
-			}
 			if v.EPSS > best.EPSS {
 				best.EPSS = v.EPSS
 			}
@@ -110,7 +119,21 @@ func Dedupe(vulns []model.Vuln) []model.Vuln {
 			if best.LastAffected == "" {
 				best.LastAffected = v.LastAffected
 			}
-			if best.CVSSVector == "" {
+			// CVSS is never adopted from another record. Two records for one
+			// issue can carry different vectors because the scoring model was
+			// revised: GitHub rescored CVE-2021-23337, leaving the older GHSA
+			// record at 8.1 while OSV's own record for that CVE says 7.2.
+			// Taking the higher number attributes to the matched advisory a
+			// severity that a different record produced, and a reader checking
+			// against the advisory sees a discrepancy with no way to tell
+			// which number is the mistake. So the score stays with whichever
+			// record was selected, and a vector is only ever paired with the
+			// score it came from.
+			//
+			// A vector is still worth recovering when the winning record has
+			// none but a sibling has the vector for the *same* score -- that is
+			// completing a record, not replacing one.
+			if best.CVSSVector == "" && v.CVSSv3 == best.CVSSv3 {
 				best.CVSSVector = v.CVSSVector
 			}
 		}

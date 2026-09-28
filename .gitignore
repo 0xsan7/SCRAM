@@ -12,6 +12,11 @@
 # Uncomment to track it:
 # .scram/
 
+# Trend history is per-developer, not per-project: a benchmark run against
+# a 492-component fixture added four entries to this repo's own sparkline
+# during Phase 1c. It is generated state, so it is not tracked.
+.scram-trend.json
+
 # Test and coverage output
 *.out
 coverage.html

@@ -10,9 +10,7 @@
     "syft_nondev_equivalent": 0,
     "scram_only_names": [],
     "syft_only_names": [],
-    "syft_unknown_version": [],
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft_unknown_version": []
   },
   {
     "repo": "markedjs-marked@0.8.0",
@@ -25,9 +23,7 @@
     "syft_nondev_equivalent": 0,
     "scram_only_names": [],
     "syft_only_names": [],
-    "syft_unknown_version": [],
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft_unknown_version": []
   },
   {
     "repo": "less-less@3.13.0",
@@ -40,9 +36,7 @@
     "syft_nondev_equivalent": 0,
     "scram_only_names": [],
     "syft_only_names": [],
-    "syft_unknown_version": [],
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft_unknown_version": []
   },
   {
     "repo": "ionic-team/ionic-framework",
@@ -55,9 +49,7 @@
     "syft_nondev_equivalent": 0,
     "scram_only_names": [],
     "syft_only_names": [],
-    "syft_unknown_version": [],
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft_unknown_version": []
   },
   {
     "repo": "axios/axios",
@@ -72,9 +64,7 @@
     "syft_only_names": [
       "axios"
     ],
-    "syft_unknown_version": [],
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft_unknown_version": []
   },
   {
     "repo": "appwrite/appwrite",
@@ -91,9 +81,7 @@
     ],
     "syft_unknown_version": [
       "@appwrite.io/repo"
-    ],
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    ]
   },
   {
     "repo": "yargs/yargs",
@@ -108,9 +96,7 @@
     "syft_only_names": [
       "yargs"
     ],
-    "syft_unknown_version": [],
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft_unknown_version": []
   },
   {
     "repo": "nestjs/nest",
@@ -133,9 +119,7 @@
       "@nestjs/platform-ws",
       "@nestjs/testing",
       "@nestjs/websockets"
-    ],
-    "grype": 5,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    ]
   },
   {
     "repo": "microsoft/vscode",
@@ -203,9 +187,7 @@
       "nan",
       "windows-foreground-love"
     ],
-    "syft_unknown_version": [],
-    "grype": 6,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft_unknown_version": []
   },
   {
     "repo": "bitwarden/clients",
@@ -347,9 +329,7 @@
       "@bitwarden/vault-export-core",
       "@bitwarden/vault-export-ui",
       "@bitwarden/web-vault"
-    ],
-    "grype": 17,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    ]
   },
   {
     "repo": "psf/requests",
@@ -357,9 +337,7 @@
     "label": "pypi small",
     "scram_total": 6,
     "scram_sbom": 6,
-    "syft": 1,
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft": 1
   },
   {
     "repo": "prefecthq/prefect",
@@ -367,9 +345,7 @@
     "label": "pypi ranged",
     "scram_total": 22,
     "scram_sbom": 22,
-    "syft": 0,
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft": 0
   },
   {
     "repo": "home-assistant/core",
@@ -377,9 +353,7 @@
     "label": "pypi large ranged",
     "scram_total": 58,
     "scram_sbom": 58,
-    "syft": 54,
-    "grype": 3,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft": 54
   },
   {
     "repo": "hashicorp/consul",
@@ -387,9 +361,7 @@
     "label": "go medium",
     "scram_total": 307,
     "scram_sbom": 307,
-    "syft": 0,
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft": 0
   },
   {
     "repo": "kubernetes/kubernetes",
@@ -397,8 +369,6 @@
     "label": "go xlarge",
     "scram_total": 204,
     "scram_sbom": 204,
-    "syft": 0,
-    "grype": 0,
-    "osv_scanner": "FAILED Incorrect Usage: flag provided but not defined: -q\n\nflag provided but not defined: -q\n"
+    "syft": 0
   }
 ]

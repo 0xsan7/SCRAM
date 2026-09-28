@@ -35,6 +35,25 @@ func ExitCodeFor(err error) int {
 //	go build -ldflags "-X .../cli.Version=1.2.3"
 var Version = "0.1.0-dev"
 
+// Commit and Date are stamped at link time alongside Version. They exist
+// because a bug report that cannot be tied to a build is a bug report
+// that cannot be reproduced: "what version are you on" is a question
+// every maintainer asks, and "which commit" is the one that actually
+// identifies the code.
+//
+// .goreleaser.yml stamped these as `main.commit` and `main.date`, which
+// are not symbols in this module. A -X flag naming a path that does not
+// exist is silently ignored by the linker -- the build succeeds, the
+// variable stays at its default, and nothing anywhere reports an error.
+// Verified with `go tool nm` on a binary built with those exact flags:
+// no main.commit symbol, and the value never appeared. Two dead flags in
+// the first published release, on a project whose premise is not shipping
+// things that look right and are not.
+var (
+	Commit = "unknown"
+	Date   = "unknown"
+)
+
 // globalFlags are shared by every subcommand.
 type globalFlags struct {
 	configPath string
@@ -76,6 +95,16 @@ By default, CI gating applies only to NEW findings. Adopt it on a repo with
 			return g.validate()
 		},
 	}
+
+	// Cobra's default version template prints only the version string,
+	// which leaves the commit out. For a scanner whose bug reports depend
+	// on identifying an exact build, the commit is the part that matters:
+	// a version string is "v0.1.0-rc1" for every build between two tags.
+	root.SetVersionTemplate(
+		"scram version {{.Version}}" +
+			"\ncommit:     " + Commit +
+			"\nbuilt:      " + Date + "\n",
+	)
 
 	pf := root.PersistentFlags()
 	pf.StringVar(&g.configPath, "config", "", "path to .scram.yml (default: ./.scram.yml if present)")

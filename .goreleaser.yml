@@ -72,8 +72,14 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/0xsan7/scram/internal/cli.Version={{ .Version }}
-      - -X main.commit={{ .Commit }}
-      - -X main.date={{ .Date }}
+      # These two used to say `main.commit` and `main.date`. No such
+      # symbols exist in this module, and the linker silently ignores a
+      # -X path that does not resolve -- the build succeeds, the
+      # variables keep their defaults, and nothing reports an error.
+      # Confirmed with `go tool nm` against a binary built with the old
+      # flags: no main.commit symbol at all.
+      - -X github.com/0xsan7/scram/internal/cli.Commit={{ .Commit }}
+      - -X github.com/0xsan7/scram/internal/cli.Date={{ .Date }}
       # Reproducible builds: record the toolchain so two runs of the same
       # commit agree. Without this, Go embeds build paths and the
       # checksums differ between otherwise identical builds, which makes

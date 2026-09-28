@@ -1,0 +1,23 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability in SCRAM itself
+    url: https://github.com/0xsan7/SCRAM/blob/main/SECURITY.md
+    about: >
+      Do not open a public issue for a vulnerability in the scanner. See
+      SECURITY.md for the reporting process. A public report for a
+      fail-open bug gives everyone the chance to exploit it before a fix
+      exists.
+
+  - name: Question, or something not covered above
+    # Discussions are disabled on this repository, so this points at an
+    # issue carrying the "question" label instead. A link to a disabled
+    # feature is worse than no link: it 404s and the person filing has no
+    # route at all. Enabling Discussions would be a repository setting
+    # change, which was out of scope here.
+    url: https://github.com/0xsan7/SCRAM/issues/new?labels=question
+    about: >
+      Usage questions, and anything that does not fit a bug report, a
+      false all-clear, or a resolver support request. There is no Q&A
+      support commitment -- see SUPPORT.md for what that means in
+      practice -- but a question is a legitimate thing to ask. Prefix the
+      title with "question:" so it is easy to tell apart from a defect.

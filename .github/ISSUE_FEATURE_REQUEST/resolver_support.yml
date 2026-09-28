@@ -1,0 +1,71 @@
+name: Resolver or parser support request
+description: Add an ecosystem, or a lockfile format SCRAM does not read yet
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SCRAM reads npm, PyPI and Go lockfiles today. This form is for the
+        ones it does not.
+
+        Before filing: if the format is *read* but mishandled, that is a
+        bug, not a feature request, and the bug form is the right one.
+        This form is for a format SCRAM does not recognise at all.
+
+  - type: dropdown
+    id: ecosystem
+    attributes:
+      label: Ecosystem
+      options:
+        - Cargo (Cargo.lock)
+        - Maven (pom.xml, dependency tree)
+        - RubyGems (Gemfile.lock)
+        - NuGet (packages.lock.json)
+        - Composer (composer.lock)
+        - Bazel
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: file
+    attributes:
+      label: The file
+      description: The exact filename SCRAM would have to recognise.
+      placeholder: Cargo.lock
+    validations:
+      required: true
+
+  - type: textarea
+    id: sample
+    attributes:
+      label: A real example
+      description: >
+        A genuine file from a real project, or a trimmed version of one.
+        This matters more here than it might seem: the resolver walkthrough
+        in the README exists because the first attempt at one of these
+        compiled, ran, and silently skipped vulnerability matching for the
+        new ecosystem.
+      placeholder: "# paste or link to a real lockfile"
+    validations:
+      required: true
+
+  - type: textarea
+    id: structure
+    attributes:
+      label: What does it record?
+      description: >
+        Which fields matter for an SBOM: exact versions, resolved URLs,
+        transitive edges, integrity hashes, dev-vs-runtime flags? Knowing
+        what is genuinely absent is as useful as knowing what is present --
+        most lockfile formats do not record parentage, and pretending
+        otherwise is how a dependency graph becomes fiction.
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this matters
+      description: >
+        What would you scan with it that you cannot today? A rough estimate
+        of how often would help prioritise; so would naming a project whose
+        SBOM you currently cannot produce.

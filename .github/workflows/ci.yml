@@ -259,6 +259,15 @@ jobs:
           # content lost" is verified, not promised.
           python3 scripts/gen_decision_index.py --check
           python3 scripts/gen_adrs.py --check
+          # The changelog is generated from commit subjects, and
+          # scripts/gen_changelog.py duplicates .goreleaser.yml's grouping
+          # rules so the notes can be reviewed before a tag exists. This
+          # is what stops those two copies from drifting.
+          python3 scripts/gen_changelog.py --check-goreleaser
+          # action.yml feeds a Marketplace listing, where a bad icon or
+          # colour is only noticed at submission time.
+          go build -o bin/yaml2json ./cmd/yaml2json
+          python3 scripts/check_action_metadata.py
 
   release:
     name: Release

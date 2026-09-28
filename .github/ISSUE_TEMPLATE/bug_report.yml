@@ -1,0 +1,97 @@
+name: Bug report
+description: Something SCRAM got wrong, or did not do what the documentation says it does
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing this. The most useful reports in this project
+        have all been of one of two kinds: a real-world lockfile that
+        parsed to the wrong thing, or a documented behaviour that does
+        not match the code.
+
+        A false all-clear is the failure this project cares most about. If
+        SCRAM reported a file as clean and that was wrong, say so first
+        and put the lockfile in the report.
+
+  - type: checkboxes
+    id: kind
+    attributes:
+      label: What kind of report is this?
+      options:
+        - label: A real-world lockfile or manifest that resolved wrongly
+        - label: The tool failed to run (crash, hang, unexpected exit code)
+        - label: A documented behaviour does not match what the code does
+        - label: Something is missing (an ecosystem, a flag, an output format)
+        - label: Documentation is unclear or wrong
+        - label: Something else
+
+  - type: textarea
+    id: fixture
+    attributes:
+      label: The input
+      description: >
+        A lockfile, manifest, or fragment. Real-world files are much more
+        useful than minimal reproductions -- the bug corpus in this
+        repository exists because hand-authored fixtures inherit their
+        author's blind spots (see DECISIONS.md D24).
+      placeholder: |
+        ```json
+        {
+          "name": "your-project",
+          "lockfileVersion": 3,
+          ...
+        }
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The exact command
+      description: The full command line, including flags and version.
+      placeholder: "scram scan ./my-project --epss --explain pkg:npm/lodash@4.17.11"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what happened instead?
+      description: >
+        If you have a real expected output, paste it. If the difference is
+        a number -- a component count, a score, a CVSS -- say which one and
+        what value you believe is correct.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SCRAM version
+      description: "`scram --version`"
+      placeholder: "scram version dev (commit 8d0176b)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ecosystem
+    attributes:
+      label: Ecosystem
+      options:
+        - npm
+        - PyPI
+        - Go modules
+        - Not applicable / unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: >
+        OS and version, Go version if you built it, whether this is a real
+        repository or a reduced example, and anything about your
+        environment that might matter.

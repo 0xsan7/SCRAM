@@ -1,0 +1,79 @@
+name: False all-clear
+description: SCRAM reported something as clean when it was not — read this first
+labels: ["bug", "false-all-clear", "priority"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## This is the failure mode this project exists to prevent
+
+        SCRAM fails closed. When it cannot resolve a lockfile, or cannot
+        reach the vulnerability data it needs, it reports an operational
+        error and exits non-zero rather than reporting "clean". Every
+        decision record in this repository is a bug found in that guard.
+
+        **If SCRAM reported a file as clean and that was wrong, this is the
+        form to use**, even if you are not sure. The first question is
+        never whether you are certain.
+
+  - type: textarea
+    id: file
+    attributes:
+      label: The file SCRAM reported as clean
+      description: >
+        The whole file, not a trimmed version. A reduced example is often
+        exactly the part that no longer reproduces the bug.
+      placeholder: "package-lock.json, pyproject.toml, go.sum, ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The exact command and its full output
+      description: >
+        Everything, including the exit code. `scram scan . ; echo "exit $?"`
+        captures both. Whether the report said CLEAN matters as much as
+        what it resolved.
+      placeholder: "scram scan ./repo --epss; echo exit=$?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: shouldhave
+    attributes:
+      label: What should it have found?
+      description: >
+        The component, the version, and the advisory, if you know them. If
+        you do not, say that instead -- "it resolved one component and I
+        expected many" is a complete and useful report.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: shape
+    attributes:
+      label: Which of these is true?
+      options:
+        - label: SCRAM reported CLEAN and the repository is not clean
+        - label: SCRAM reported fewer components than are actually declared
+        - label: SCRAM reported a clean exit code but skipped a file silently
+        - label: A component resolved but showed no vulnerabilities
+        - label: I am not sure, which is why I am filing
+
+  - type: textarea
+    id: upstream
+    attributes:
+      label: Upstream project and version
+      description: Which project does this lockfile come from, and at what commit or tag?
+      placeholder: "lodash/lodash @ v4.17.11"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SCRAM version
+      placeholder: "scram version dev (commit 8d0176b)"
+    validations:
+      required: true

@@ -62,6 +62,10 @@ type Report struct {
 	// ScannedCommits is how many commits were inspected, so a truncated
 	// history is visible rather than implied.
 	ScannedCommits int `json:"scanned_commits"`
+	// Shallow records that the local history is truncated, so Introduced
+	// means "first seen in the available history" rather than a verified
+	// introduction commit. See D41.
+	Shallow bool `json:"shallow,omitempty"`
 	// Note explains any limitation, e.g. a shallow clone.
 	Note string `json:"note,omitempty"`
 }
@@ -91,6 +95,20 @@ func Blame(ctx context.Context, root, lockfile, name, currentVersion string) (*R
 	if len(commits) == MaxCommits {
 		rep.Note = fmt.Sprintf("history truncated at %d commits", MaxCommits)
 	}
+	// A shallow clone (CI's default fetch-depth: 1, every `git clone
+	// --depth N`) makes the oldest scanned commit look like the moment the
+	// dependency arrived, which is precisely the claim this command exists to
+	// answer. Detect it and say the answer is not determinable rather than
+	// reporting a confident wrong one.
+	if isShallow(ctx, root) {
+		rep.Shallow = true
+		rep.Note = strings.TrimSpace(rep.Note + " " +
+			"this is a shallow clone, so the earliest commit in the local " +
+			"history is not necessarily the commit that introduced the " +
+			"dependency; the date above is when it was first SEEN locally, " +
+			"not when it was added to the project. Run " +
+			"\"git fetch --unshallow\" for a real answer.")
+	}
 
 	now := time.Now()
 	// git log returns newest-first. Build the sequence oldest-first, so the
@@ -111,6 +129,18 @@ func Blame(ctx context.Context, root, lockfile, name, currentVersion string) (*R
 		if !present {
 			// Absent here. If it was present before, it was removed; that is
 			// not a change worth reporting as a bump.
+			//
+			// prev MUST be cleared. It carries "the version this package
+			// resolved to at the previous commit", and a package that was
+			// removed has no version at the previous commit either. Leaving
+			// it set made a re-add compare equal to the pre-removal version
+			// and report "unchanged", so a dependency that was dropped and
+			// re-added appeared in the tree exactly once, with
+			// "introduced" pointing at its FIRST appearance rather than the
+			// one that put it back. Drop the re-add too and the report says
+			// the package has been there since the first commit, which is
+			// the specific claim git history is being asked to support.
+			prev = ""
 			continue
 		}
 		// A commit that rewrote the lockfile but left this package's
@@ -172,6 +202,20 @@ func (c commitInfo) short() string {
 		return c.sha[:7]
 	}
 	return c.sha
+}
+
+// isShallow reports whether the repository has truncated history, which is
+// what `git clone --depth N` leaves behind and what CI does by default.
+func isShallow(ctx context.Context, root string) bool {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--is-shallow-repository")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		// Too old to answer, or not a repo. Assume the safe direction: if we
+		// cannot tell, we do not claim to know more than we do.
+		return false
+	}
+	return strings.TrimSpace(string(out)) == "true"
 }
 
 // logCommits returns commits touching the lockfile, newest-first, capped.

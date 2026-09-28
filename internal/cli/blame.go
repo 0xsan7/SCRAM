@@ -43,8 +43,10 @@ commit, so a package that was bumped and reverted reports the bumps.
 Commits that rewrote the lockfile without changing this package's resolved
 version are not listed; they are lockfile churn, not risk history.
 
-This reads local git history only. In a shallow clone the history available
-is the history scanned, and the reported commit count makes that visible.`,
+This reads local git history only. In a shallow clone -- which is what CI
+and most tooling produce -- the local history is not the project's history,
+so SCRAM says "first seen" and warns rather than reporting a date it
+cannot support. Run "git fetch --unshallow" for a real answer.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projects, err := detect.Detect(".")
@@ -103,10 +105,22 @@ func renderBlame(cmd *cobra.Command, rep *blame.Report) {
 	if rep.Current != "" {
 		fmt.Fprintf(out, "  current version   %s\n", rep.Current)
 	}
+	if rep.Shallow {
+		// Put it above the answer, not below it. A reader who sees
+		// "introduced 6.7y ago" and scrolls past a note at the bottom has
+		// been told something untrue. See D41.
+		fmt.Fprintf(out, "  WARNING           shallow clone: this is the first "+
+			"commit in the LOCAL history, not necessarily when the "+
+			"dependency arrived\n")
+	}
 	if rep.Introduced != nil {
 		i := rep.Introduced
-		fmt.Fprintf(out, "  introduced        %s ago, %s, by %s\n",
-			humanAge(i.Date), i.ShortSHA, i.Author)
+		label := "introduced       "
+		if rep.Shallow {
+			label = "first seen       "
+		}
+		fmt.Fprintf(out, "  %s%s ago, %s, by %s\n",
+			label, humanAge(i.Date), i.ShortSHA, i.Author)
 		fmt.Fprintf(out, "                     at %s\n", i.Version)
 	}
 	if rep.LastChange != nil && rep.LastChange.Commit != "" {

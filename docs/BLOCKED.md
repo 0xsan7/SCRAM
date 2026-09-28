@@ -154,3 +154,119 @@ to exclude, not a hostname.
 `testdata/fixtures/pypi/real/pp/pydantic/pydantic/pyproject.toml`. That is
 pydantic's own CI path, part of the upstream file, and part of what the
 fixture is for.
+
+---
+
+## 6. Security and confidentiality audit — 2026-09-29
+
+The repository is public, so this was run with real tools against the
+full history rather than read off the working tree.
+
+### Tools and scope
+
+| Tool | Version | Scope |
+|---|---|---|
+| gitleaks | 8.30.1 | `--log-opts=--all`, every commit, 31 commits / 13.60 MB |
+| trufflehog | 3.97.9 | `git file://`, full history, unverified results included |
+
+**No real secret was found. No credential was rotated, and history was
+not rewritten.**
+
+gitleaks: **0 findings.**
+
+trufflehog: **3 results, all false positives**, shown here rather than
+summarised, because "3 hits" is the number a reader would otherwise see:
+
+| Detector | Where | What it actually is |
+|---|---|---|
+| `Box` | `4a576975`, `testdata/fixtures/gomod/real/traefik/traefik/go.sum` | `h1:1eFIGcM4lI+AfFOUpbs548SFGz1ZWoMOGbECBmkghw4=` — a Go module checksum |
+| `TLy` x2 | `27d92cf`, `testdata/fixtures/npm/real/mochajs-mocha@{8.0.0,9.0.0}/package-lock.json` | `"integrity": "sha512-P8WRou2S+oe2...SIsVJh52VP4lvXkaFVnOFFdoWv1H1Jjvel1aI6NCFOAaeAVm8qrI0odiLcww=="` — an npm integrity field |
+
+Both are base64 content hashes in the vendored fixture corpus, matched
+by entropy rather than by structure. They are unverified against any
+provider, which is the correct state for a checksum: a module hash is not
+a credential and must never authenticate anything. Both remain in HEAD
+and both are supposed to.
+
+### Confirmed clean
+
+- **Network code carries no credential.** `scripts/fetch_corpus.py` reads
+  public URLs from `raw.githubusercontent.com` with a `User-Agent` and no
+  `Authorization` header. There is no token to leak, so there is no
+  environment variable to move into one.
+- **`.gitignore` covers the right patterns** — `.env`, `.env.local`,
+  `*.pem`, `__pycache__/`, `*.py[cod]`, `.DS_Store`, editor swap files,
+  `/dist/`, `/scram-output/`, `*.sarif`, `.scram-trend.json`.
+- **Nothing matching those patterns is tracked.** `git ls-files` against
+  every one of them returns nothing: no `.env`, no `__pycache__`, no
+  `.pyc`, no `*.pem`, no editor junk. (`env.local` appears in
+  `.gitignore` as an ignore rule, which is a different thing from a
+  tracked file.)
+- **cosign is keyless.** `ci.yml` signs with `sign-blob` against an OIDC
+  `id-token: write` permission. There is no stored signing key anywhere
+  in the repository. The one guard worth naming: the step counts what it
+  signed and fails with `::error::no artifacts were signed` if the count
+  is zero, because a signing step that signs nothing and exits 0 is
+  worse than one that fails. `set -euo pipefail` is in force, so a
+  cosign fetch or sign failure aborts rather than being skipped.
+- **No workflow silently skips on an unset secret.** The only secret
+  reference in the whole CI file is `secrets.GITHUB_TOKEN`, passed to
+  GoReleaser. There is no `if: secrets.X != ''` guard anywhere, so
+  nothing degrades quietly.
+
+### Confidentiality findings
+
+**Absolute home-directory paths.** `/Users/santiagojerald/...` appears in
+this file and in `OVERNIGHT_REPORT.md` — in both cases inside a sentence
+*describing* the `.pyc` leak that was fixed, not leaking anything new. The
+only other `/Users/` string in the tree is
+`testdata/fixtures/pypi/real/pp/pydantic/pydantic/pyproject.toml:295`,
+which is pydantic's own CI path, upstream content in a fixture. No
+`/home/` paths, no `*.local` or `*.internal` hostnames, no hostnames of
+any kind.
+
+**A real email address**, `santiagojerald734@gmail.com`, in
+`OVERNIGHT_REPORT.md` and this file. Left in place deliberately: it is the
+author of all 31 commits, so it is already in the git history
+permanently and removing it from two prose files would not reduce
+exposure by one byte. It is there because the contribution-attribution
+finding is stated in terms of it, and stating a finding without the
+evidence is how a report stops being checkable.
+
+**A stale claim in this file.** Item 2 below still reports the repository
+as private, which it is not. Recorded rather than quietly deleted,
+because the correction is itself a finding: it shows that the
+private-repository reading was an inference from a 404 rather than a
+fact, and that the inference was wrong.
+
+### Genuine gap: the fixture corpus has no attribution
+
+**197 upstream projects** are vendored under `testdata/fixtures/`: 50 Go
+repositories, 103 npm projects, and 44 PyPI packages drawn from 32
+organisations. That is 197 real `go.sum`, `package-lock.json`,
+`pyproject.toml` and `requirements.txt` files, one per project. There is no `NOTICE`, no provenance manifest,
+and no statement anywhere in the repository that these are third-party
+files.
+
+The directory names carry the upstream organisation, so the fixtures are
+traceable, but traceable is not attributed. Each upstream project carries
+its own licence — MIT, Apache-2.0, BSD, MPL-2.0 and others — and none of
+those licences is recorded here.
+
+**This is not a licence violation on the evidence available**, and it is
+not certain to be one. These files are dependency manifests, not source
+code: they are facts about a dependency graph, which is what a scanner
+must parse, and the repositories are named in the path. The
+transformative-testing argument is reasonable.
+
+**But it is not my call to make silently.** Whether redistributing 197
+projects' manifests needs a NOTICE is a question for whoever owns this
+repository, so it is logged here instead of answered by me. What should
+not happen is a public repository shipping 197 third-party files with no
+recorded provenance, which is the state it is in now.
+
+The fix, when someone decides to make it, is mechanical:
+`scripts/fetch_corpus.py` already knows every URL it fetched, so a
+generated `testdata/fixtures/SOURCES.md` listing repo, path, commit and
+licence is a small change to a script that exists. The licences would
+have to be fetched per project, which is the part that takes time.

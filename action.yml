@@ -168,6 +168,48 @@ runs:
           exit 1
         fi
 
+    - name: Produce SARIF
+      id: sarif
+      if: ${{ inputs.upload-sarif == 'true' }}
+      shell: bash
+      env:
+        BASE_JSON: ${{ steps.baseline.outputs.ref }}
+        OUT_DIR: ${{ github.workspace }}/scram-output
+      run: |
+        set -euo pipefail
+        # SARIF is written to STDOUT, not to --out: --out is the SBOM
+        # directory, and the machine formats are designed so that stdout
+        # stays a single valid document and the policy text goes to stderr.
+        # Re-running is cheap because the vulnerability cache is warm from
+        # the scan step above.
+        args=(
+          scan .
+          --format sarif
+          --config "${{ inputs.config-path }}"
+          --no-gate
+        )
+        [ "${{ inputs.epss }}" = "true" ] && args+=(--epss)
+        [ -n "$BASE_JSON" ] && [ -f "$BASE_JSON" ] && args+=(--baseline "$BASE_JSON")
+
+        "$RUNNER_TEMP/scram" "${args[@]}" > "$OUT_DIR/scan.sarif"
+
+        # Fail loudly rather than hand GitHub a file that is not SARIF; an
+        # invalid upload is silently dropped by the Security tab and looks
+        # exactly like "no vulnerabilities found".
+        if ! jq -e '.version == "2.1.0" and (.runs | length > 0)' "$OUT_DIR/scan.sarif" > /dev/null; then
+          echo "::error::scram did not produce a valid SARIF 2.1.0 document"
+          head -20 "$OUT_DIR/scan.sarif"
+          exit 1
+        fi
+        echo "SARIF: $OUT_DIR/scan.sarif ($(jq '.runs[0].results | length' "$OUT_DIR/scan.sarif") result(s))"
+
+    - name: Upload SARIF
+      if: ${{ inputs.upload-sarif == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: scram-output/scan.sarif
+        category: scram
+
     - name: Comment on PR
       if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' }}
       shell: bash

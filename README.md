@@ -219,6 +219,10 @@ OpenSSF Scorecard integration is not built.
 
 ## CI integration
 
+> **Pending a release tag.** `uses: 0xsan7/SCRAM@v1` does not resolve yet —
+> no v1 tag and no release exist, so both the Action ref and the binary URL
+> it downloads (404 today). Use the local build until the first tag is cut.
+
 ```yaml
 # .github/workflows/scram.yml
 name: SCRAM
@@ -235,17 +239,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0        # blame needs real history; see below
+          fetch-depth: 0        # blame needs real history; see above
 
+      # PENDING: this ref does not resolve until a v1 tag is cut.
       - uses: 0xsan7/SCRAM@v1
         with:
           fail-on: high
           comment-on-pr: true
+          upload-sarif: true
 
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: scram-output/scan.json
+          sarif_file: scram-output/scan.sarif
+          category: scram
 ```
 
 The Action resolves the baseline from the PR's base branch, so there is no
@@ -255,6 +262,13 @@ posting a new one on every push.
 `fetch-depth: 0` matters: with the default depth of 1, `scram blame`
 correctly refuses to report an introduction date (see above), so the
 command still works but tells you less.
+
+**`upload-sarif: true`** produces `scram-output/scan.sarif` and uploads it.
+SARIF is written to stdout and redirected, because `--out` is the SBOM
+directory — the machine formats keep stdout a single valid document by
+design. The step verifies the output really is SARIF 2.1.0 before handing
+it over, because an invalid upload is dropped silently by the Security tab
+and looks identical to "no vulnerabilities found".
 
 **Outputs:** `sbom-path`, `repo-score`, `repo-bucket`, `new-critical-count`,
 `new-high-count`.
@@ -344,7 +358,12 @@ Two behaviours worth knowing, both tested:
 
 ### Adding a resolver
 
-This is the highest-leverage contribution and the lowest barrier. One file:
+The highest-leverage contribution and the lowest barrier. This walkthrough
+was executed against the current registry — the `dummy` ecosystem below
+resolved, produced SBOMs, SARIF, scores, and drift with no other code
+changed.
+
+**1. Write the resolver.** One file, `internal/resolve/<name>.go`:
 
 ```go
 package resolve
@@ -353,20 +372,84 @@ func init() { Register(cargoResolver{}) }
 
 type cargoResolver struct{}
 
-func (cargoResolver) Ecosystem() string { return "cargo" }
+func (cargoResolver) Ecosystem() string { return model.EcoCargo }
 
 func (r cargoResolver) Resolve(root, path string) ([]model.Component, error) {
     // parse Cargo.lock, return components with Purl set
+    return nil, nil
 }
 ```
 
-Then add the lockfile to `candidates` in `internal/detect`. Nothing else
-changes — detection, SBOM generation, scoring, drift, policy, and every
-output format pick it up automatically.
+**2. Declare the ecosystem** in `internal/model/model.go`, next to the
+existing ones:
 
-A new resolver also has obligations; see
-[CONTRIBUTING.md](CONTRIBUTING.md) for the required corpus, invariant,
-fuzz target, and mutation audit.
+```go
+const (
+    EcoNPM   = "npm"
+    EcoPyPI  = "pypi"
+    EcoGo    = "go"
+    EcoCargo = "cargo"   // add yours
+)
+```
+
+`detect.go` uses plain strings rather than these constants, so in step 4
+write the literal (`{Ecosystem: "cargo", ...}`) — the package does not
+import `model`.
+
+**3. Teach OSV about it** in `osvEcosystem` in `internal/vuln/osv.go`. The
+map is small and it returns `false` for anything unknown, so without this
+step your components are detected, scored, and shipped — and silently
+never vulnerability-matched, with a warning rather than a failure:
+
+```go
+func osvEcosystem(eco string) (string, bool) {
+    switch eco {
+    case model.EcoCargo:
+        return "crates.io", true
+    ...
+    }
+    return "", false
+}
+```
+
+**4. Add the lockfile to `candidates`** in `internal/detect/detect.go`:
+
+```go
+{Ecosystem: "cargo", File: "Cargo.lock", RelPath: "Cargo.toml"},
+```
+
+**Expect one test to fail and fix it.** `TestResolverRegistry` in
+`internal/resolve/resolve_test.go` asserts `len(Supported()) == 3` and
+expects `cargo` to be unregistered. Both are correct today and both are
+wrong the moment you add an ecosystem:
+
+```go
+-	if _, err := GetFor("cargo", "Cargo.lock"); err != ErrUnsupported {
+-		t.Error("expected ErrUnsupported for an unregistered ecosystem")
+-	}
+-	if len(Supported()) != 3 {
+-		t.Errorf("Supported() = %v, want 3 ecosystems", Supported())
+-	}
++	if _, err := GetFor("nonesuch", "nope.lock"); err != ErrUnsupported {
++		t.Error("expected ErrUnsupported for an unregistered ecosystem")
++	}
++	if len(Supported()) != 4 {
++		t.Errorf("Supported() = %v, want 4 ecosystems", Supported())
++	}
+```
+
+Only the first matching candidate per ecosystem per directory is used, so
+ordering is a fallback chain: a lockfile must come before a manifest.
+
+That is the whole change. Detection, SBOM generation (both formats),
+scoring, drift, policy, and every output format pick it up automatically —
+verified, not assumed.
+
+**What you also owe the project.** A resolver that declares dependencies
+and resolves zero is a silent false clean, and the invariant that catches
+it needs a real corpus to be worth anything. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the required fixture corpus,
+invariant test, fuzz target, and mutation audit.
 
 ## Exit codes
 

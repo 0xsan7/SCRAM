@@ -306,15 +306,6 @@ jobs:
 
       # Pinned to an exact patch. Taking whatever is newest for the tool
       # that builds and signs the release is the wrong default.
-      - name: GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: v2.5.1
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install cosign for GoReleaser
         # GoReleaser's own `signs:` block in .goreleaser.yml signs every
         # binary keyless, and it invokes `cosign` from PATH. cosign is not
@@ -337,13 +328,38 @@ jobs:
         #
         # Pinned to an exact version. Unpinned would be the same mistake
         # as an unpinned action, and worse: this one signs the release.
+        #
+        # This step must come BEFORE GoReleaser. It was originally placed
+        # after it, where the hand-written signing step used to be, and
+        # the second v0.1.0-rc1 run failed with the identical
+        # "executable file not found" -- cosign was installed, just too
+        # late to be on PATH when GoReleaser ran. Moving the step fixed
+        # the ordering; `cosign version` at the end of this step is what
+        # makes a broken install report itself here rather than as an
+        # opaque failure inside GoReleaser.
+        #
+        # Installed into RUNNER_TEMP and added via GITHUB_PATH rather than
+        # into /usr/local/bin, so it does not depend on a directory being
+        # writable and it is visible to every later step.
         run: |
           set -euo pipefail
           COSIGN_VERSION=v2.4.1
-          curl -sSfL -o /usr/local/bin/cosign \
+          curl -sSfL -o "${RUNNER_TEMP}/cosign" \
             "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
-          chmod +x /usr/local/bin/cosign
+          chmod +x "${RUNNER_TEMP}/cosign"
+          echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+          export PATH="${RUNNER_TEMP}:$PATH"
+          command -v cosign
           cosign version | head -1
+
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.5.1
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # GoReleaser uploads the binaries, archives, checksums and the
       # release SBOM itself. The signatures and certificates are the

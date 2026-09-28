@@ -1,10 +1,41 @@
 # Decisions
 
-Autonomous engineering decisions, with the reasoning that produced them. Newest
-first. Each entry records what was decided and why, so a later change can
-challenge the reasoning rather than rediscover the problem.
 
----
+## Index
+
+<!-- Generated from the entries below.
+     python3 scripts/gen_decision_index.py rather than editing by hand:
+     a hand-maintained index is an index that goes stale. -->
+
+| # | Decision |
+|---|---|
+| [D01](#d01-the-modern-npm-lockfile-parsed-to-zero-components) | The modern npm lockfile parsed to zero components |
+| [D02](#d02-why-and-blame-claim-only-what-they-can-actually-know) | Why and blame claim only what they can actually know |
+| [D03](#d03-the-self-score-badge-is-generated-never-committed) | The self-score badge is generated, never committed |
+| [D04](#d04-the-trend-sparkline-refuses-to-draw-a-single-point) | The trend sparkline refuses to draw a single point |
+| [D05](#d05-graph-edges-come-through-an-optional-interface-not-a-wider-contract) | Graph edges come through an optional interface, not a wider contract |
+| [D22](#d22-an-array-valued-license-silently-zeroed-entire-npm-scans) | An array-valued `license` silently zeroed entire npm scans |
+| [D23](#d23-ranged-pypi-requirements-resolved-to-zero-components) | Ranged PyPI requirements resolved to ZERO components |
+| [D24](#d24-hand-authored-fixtures-inherit-their-authors-blind-spots) | Hand-authored fixtures inherit their author's blind spots |
+| [D25](#d25-the-corpus-fetcher-reported-false-absences) | The corpus fetcher reported false absences |
+| [D26](#d26-the-silent-zero-invariant-and-a-guard-that-disabled-itself) | The silent-zero invariant, and a guard that disabled itself |
+| [D27](#d27-scram-could-not-read-pyprojecttoml-at-all) | SCRAM could not read pyproject.toml at all |
+| [D28](#d28-a-fourth-instance-of-the-silent-zero-class-in-the-guard-itself) | A fourth instance of the silent-zero class, in the guard itself |
+| [D29](#d29-resolver-precedence-was-init-order-and-nothing-in-the-type-said-so) | Resolver precedence was init() order, and nothing in the type said so |
+| [D30](#d30-npm-v1-documented-then-the-documentation-turned-out-to-be-wrong) | npm v1: documented, then the documentation turned out to be wrong |
+| [D31](#d31-d25-confirmed-fixed-with-a-regression-test-that-catches-it) | D25 confirmed fixed, with a regression test that catches it |
+| [D32](#d32-limitationsmd-is-checked-not-just-written) | LIMITATIONS.md is checked, not just written |
+| [D33](#d33-d25s-false-negative-had-a-second-instance-in-a-different-code-path) | D25's false negative had a second instance, in a different code path |
+| [D34](#d34-one-vacuous-test-and-a-harness-that-could-not-tell-green-from-broken) | One vacuous test, and a harness that could not tell green from broken |
+| [D35](#d35-fuzzing-found-a-silent-zero-and-the-harness-was-reporting-nothing) | Fuzzing found a silent zero, and the harness was reporting nothing |
+| [D36](#d36-fuzzing-totals-and-the-coverage-they-do-and-do-not-claim) | Fuzzing totals, and the coverage they do and do not claim |
+| [D37](#d37-syft-found-a-bug-scrams-own-corpus-could-not) | syft found a bug SCRAM's own corpus could not |
+| [D38](#d38-what-syft-and-scram-actually-disagree-about) | What syft and SCRAM actually disagree about |
+| [D39](#d39-on-vulnerability-ids-scram-finds-4-that-grype-does-not) | On vulnerability IDs SCRAM finds 4 that grype does not |
+| [D40](#d40-benchmarks-and-the-number-that-was-not-a-leak) | Benchmarks, and the number that was not a leak |
+| [D41](#d41-a-linter-driven-rename-silently-disabled-the-fail-closed-path) | a linter-driven rename silently disabled the fail-closed path |
+
+**Numbering gap: D06, D07, D08, D09, D10, D11, D12, D13, D14, D15, D16, D17, D18, D19, D20, D21 do not exist.** D01-D05 were written during the initial build; D22 onward came from the real-world corpus work, which started where the PRD's numbering left off. The gap is recorded rather than back-filled, because inventing decisions after the fact would be writing a fiction about how the code came to be. Nothing is renumbered either: commit messages and code comments already cite the current numbers, and renumbering would break those references for no benefit.
 
 ## D01 — The modern npm lockfile parsed to zero components
 

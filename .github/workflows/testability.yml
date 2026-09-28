@@ -1,0 +1,74 @@
+name: Testability
+
+# A security tool is only as trustworthy as the tests that would catch it
+# being wrong. This workflow is deliberately a separate trigger from CI:
+# `go test -coverprofile` on a pull request measures the code as written,
+# while a pull request that adds a test *should not fail* because coverage
+# moved. Keep the signal clean -- coverage on main, as a gate on
+# regression rather than as a gate on a diff.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Coverage on main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Test with coverage
+        # -covermode=atomic because the race detector is on; without it the
+        # counters race and the number is lower than reality.
+        run: go test -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/... ./...
+
+      - name: Per-package summary
+        run: go tool cover -func=coverage.out | tail -1
+
+      - name: Find the uncovered packages
+        # Coverage is only useful next to the thing it is measuring. This
+        # prints the weakest packages so a low total has an actionable
+        # follow-up rather than being one number to stare at.
+        run: |
+          go test -coverprofile=cover-pkg.out -covermode=atomic ./... 2>&1 | \
+            grep -E 'coverage: [0-9.]+% of statements' | \
+            sort -t' ' -k4 -n | head -10
+
+      - name: Upload the profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-profile
+          path: |
+            coverage.out
+            cover-pkg.out
+          if-no-files-found: error
+          retention-days: 30
+
+  race:
+    name: Race detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      # The vulnerability cache and the scan's per-project fan-out are the
+      # two places this codebase could plausibly race, and neither is
+      # reachable from a serial test run.
+      - name: go test -race
+        run: go test -race ./...

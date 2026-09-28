@@ -47,6 +47,7 @@ which the earlier summaries had understated.
 | `badge` — review | **DONE** | verified on real scan JSON, `6f837aa`; correct output `36/100 low` |
 | Self-score in CI | **DONE** | `ci.yml` job `dogfood`: builds, scans, renders the badge, uploads it as an artifact |
 | Abandonment prediction | **NOT STARTED** | correctly out of scope; nothing built |
+| B. Testability workflow | **DONE** | `testability.yml`; coverage + race on main, never gating a PR diff |
 
 ### Bugs found in Phase 2
 
@@ -65,23 +66,23 @@ reading tests:
 
 | Item | Status | Evidence |
 |---|---|---|
-| A. goreleaser | **NOT STARTED** | no `.goreleaser.yml` |
-| A. cosign signing | **PARTIAL** | `.github/workflows/ci.yml` job `release` signs keyless; needs a tag to execute |
+| A. goreleaser | **DONE** | `.goreleaser.yml`; `goreleaser check` valid, `release --snapshot` builds 5 cross-compiled binaries + checksums + self-generated SBOM; no tag cut |
+| A. cosign signing | **PARTIAL** | keyless signing step in `ci.yml` job `release`, loop verified against real snapshot artifacts (signs 5); never executed — needs a tag |
 | A. SLSA provenance | **NOT STARTED** | — |
-| A. SBOM attached to releases | **NOT STARTED** | `scram sbom generate` works; not wired |
+| A. SBOM attached to releases | **DONE** | generated in a `.goreleaser.yml` before-hook and attached via `extra_files`; both formats verified in the snapshot output |
 | B. Go/OS CI matrix | **DONE** | `ci.yml` job `build`: 3 OSes x Go 1.23/1.24, `fail-fast: false`; matrix not executed on CI — see `BLOCKED.md` |
-| B. golangci-lint | **NOT STARTED** | no `.golangci.yml` |
-| B. govulncheck | **NOT STARTED** | — |
-| B. Coverage reporting | **NOT STARTED** | no badge, no service configured |
+| B. golangci-lint | **DONE** | `.golangci.yml`; clean on pinned v1.64.5. Found 5 real defects, incl. D41 (a rename that disabled the fail-closed path) |
+| B. govulncheck | **DONE** | `ci.yml` job `govulncheck`, scheduled (queries the Go vuln DB, so not on every PR); unrun — see `BLOCKED.md` |
+| B. Coverage reporting | **DONE** | `.github/workflows/testability.yml` on main; **measured 67.0% overall, median 83.3%**, weakest `cli` 24.5%. No badge, because no service is configured |
 | C. CODE_OF_CONDUCT.md | **NOT STARTED** | — |
 | C. GOVERNANCE.md | **NOT STARTED** | — |
 | C. ROADMAP.md | **NOT STARTED** | — |
 | C. CODEOWNERS | **NOT STARTED** | — |
 | C. SUPPORT.md | **NOT STARTED** | — |
-| D. ADRs in `docs/adr/` | **NOT STARTED** | `docs/` exists but holds no ADRs; `DECISIONS.md` has D01–D40 |
+| D. ADRs | **PARTIAL** | `DECISIONS.md` carries the decisions; a generated index (25 entries, anchors verified) is checked in CI. D06-D21 never existed and the gap is documented, not back-filled |
 | E. mkdocs site | **NOT STARTED** | — |
 | F. Renovate/Dependabot | **NOT STARTED** | — |
-| G. LICENSE | **PARTIAL** | Apache-2.0 text present; the copyright line is unverified against the real owner |
+| G. LICENSE | **DONE** | Apache-2.0 with the appendix placeholder `Copyright [yyyy] [name of copyright owner]` replaced |
 
 ## Phase 5 — final verification
 

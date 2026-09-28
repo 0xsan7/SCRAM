@@ -80,7 +80,7 @@ reading tests:
 | C. CODEOWNERS | **NOT STARTED** | — |
 | C. SUPPORT.md | **NOT STARTED** | — |
 | D. ADRs | **PARTIAL** | `DECISIONS.md` carries the decisions; a generated index (25 entries, anchors verified) is checked in CI. D06-D21 never existed and the gap is documented, not back-filled |
-| E. mkdocs site | **NOT STARTED** | — |
+| E. mkdocs site | **decided against** 2026-09-29 | `ROADMAP.md`, with the argument both ways and the conditions that would reverse it |
 | F. Renovate/Dependabot | **NOT STARTED** | — |
 | G. LICENSE | **DONE** | Apache-2.0 with the appendix placeholder `Copyright [yyyy] [name of copyright owner]` replaced |
 

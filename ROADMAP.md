@@ -4,6 +4,28 @@ Ordered by what is missing, with the evidence for each. Every "not
 implemented" below is a real limitation with a test or a measurement
 behind it, not a placeholder.
 
+**mkdocs documentation site.** Decided against, on 2026-09-29, after
+the decision was first claimed to be recorded here when it was not.
+
+The argument for skipping it: the documentation is 43 markdown files
+that GitHub already renders, every relative link resolves, and 28 of them
+are ADRs behind a generated index. A site generator adds a build system, a
+deployment, a second place for content to go stale, and a dependency
+chain to maintain — in a repository whose entire premise is not shipping
+unaudited dependencies.
+
+The argument for building it is real, and this is a judgement call
+rather than a technical fact: a docs site is the difference between
+"read the source" and "use the tool" for anyone arriving from the
+Marketplace listing, and the CLI reference in particular cannot be
+generated from Cobra without one.
+
+What settles it either way is that GitHub renders the same markdown
+natively and `docs/adr/` now has a generated index, so the marginal
+value is lower than it was. **If the project gains a second maintainer
+or a docs-heavy feature, revisit this** — the two conditions that would
+change the answer.
+
 ## Not started
 
 **SLSA provenance.** cosign signs the release blobs keyless; there is no

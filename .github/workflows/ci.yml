@@ -248,10 +248,17 @@ jobs:
       - name: Fetcher regression tests
         run: python3 scripts/test_fetch_corpus.py
 
-      - name: Decision index is current
-        # A decision added without regenerating the index would be
-        # invisible in a document whose whole point is discoverability.
-        run: python3 scripts/gen_decision_index.py --check
+      - name: Check the decision index and the ADRs
+        run: |
+          set -euo pipefail
+          # Two generated documents with one source of truth.
+          # gen_decision_index.py guards the table inside DECISIONS.md;
+          # gen_adrs.py guards docs/adr/, and additionally fails if any
+          # line of the source is missing from the generated ADRs. That
+          # second check is why the split is safe to regenerate: "no
+          # content lost" is verified, not promised.
+          python3 scripts/gen_decision_index.py --check
+          python3 scripts/gen_adrs.py --check
 
   release:
     name: Release

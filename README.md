@@ -550,6 +550,7 @@ stated somewhere a reader would look for it.
 | [docs/STATUS.md](docs/STATUS.md) | Every phase and item, DONE / PARTIAL / NOT STARTED, with a commit hash or a measurement |
 | [docs/BLOCKED.md](docs/BLOCKED.md) | What could not be done here and why — including everything unverified |
 | [DECISIONS.md](DECISIONS.md) | Every bug found and what it changed, numbered and indexed |
+| [docs/adr/](docs/adr/) | The same 27 decisions as one MADR file each, with a generated index and a check that no content was lost in the split |
 | [LIMITATIONS.md](LIMITATIONS.md) | Where the tool is wrong or incomplete, checked rather than asserted |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Resolver, fixture, fuzzing and schema standards |
 | [REPRODUCIBILITY.md](REPRODUCIBILITY.md) | The differential comparison, and exactly where it diverges |

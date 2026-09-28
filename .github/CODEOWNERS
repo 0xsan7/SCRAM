@@ -10,3 +10,12 @@
 /internal/vuln/     @0xsan7
 /internal/scan/     @0xsan7
 /.github/workflows/ @0xsan7
+/action.yml          @0xsan7
+/docs/adr/          @0xsan7
+/DECISIONS.md       @0xsan7
+
+# docs/adr/ is listed because the ADRs are generated from DECISIONS.md by
+# scripts/gen_adrs.py. Editing a generated ADR by hand is the failure this
+# pair of paths shares: the edit is real, the next regeneration silently
+# discards it, and CI's --check then fails on a diff nobody made. The
+# owner list is the reminder to edit the source.

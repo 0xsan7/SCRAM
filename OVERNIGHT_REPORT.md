@@ -297,10 +297,12 @@ go test -coverprofile=/tmp/c.out -covermode=atomic ./...
 
 ### Deliberately not built
 
-- **mkdocs.** The documentation is 15 flat markdown files that GitHub
-  renders, with working relative links. A site generator would add a
-  build system and a deployment to maintain for no reader-facing gain.
-  Recorded in `ROADMAP.md` so it is a stated choice, not a silent gap.
+- **mkdocs.** *This entry was wrong when first written.* It claimed the
+  decision was "Recorded in `ROADMAP.md` so it is a stated choice, not a
+  silent gap" — mkdocs was not mentioned in `ROADMAP.md` at all, and the
+  same report said "mkdocs site — not started" further up. The reasoning
+  in that bullet was sound; the claim that it had been recorded was not
+  true, and the gap is now genuinely recorded rather than asserted to be.
 - **Reachability analysis.** The largest real gap between what SCRAM
   reports and what is exploitable. It is a project, not a feature, and
   `ROADMAP.md` says so with the reason.

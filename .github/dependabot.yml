@@ -1,0 +1,39 @@
+# Dependency updates.
+#
+# This is a dependency scanner, so an unaudited dependency is a
+# contradiction. Two deliberate choices:
+#
+#   * `versioning-strategy: increase` rather than the default, because a
+#     security tool should not silently stay on a version when the whole
+#     point is noticing that versions move.
+#   * Grouped patch/minor updates, because 20 separate PRs for 20
+#     transitive bumps is how a security tool's own supply chain goes
+#     unreviewed.
+#
+# The GitHub Actions ecosystem is included: the workflows in this
+# repository run third-party actions with write permissions, and those
+# are as much of an attack surface as the Go modules.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    versioning-strategy: increase
+    open-pull-requests-limit: 5
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    labels: [dependencies, go]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    versioning-strategy: increase
+    labels: [dependencies, ci]

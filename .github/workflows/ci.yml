@@ -42,22 +42,16 @@ jobs:
         run: go vet ./...
 
       - name: Check formatting
-        # `shell: bash` rather than the runner default. windows-latest uses
-        # pwsh, where `[ -n "$x" ]` is not valid syntax, so the previous
-        # POSIX version of this step failed to parse and the whole
-        # windows-latest job failed on both Go versions while ubuntu and
-        # macos passed. GitHub ships bash on the Windows image, so this runs
-        # identically on all three.
-        shell: bash
-        run: |
-          set -euo pipefail
-          unformatted=$(gofmt -l ./cmd ./internal)
-          if [ -n "$unformatted" ]; then
-            echo "These files need gofmt:"
-            echo "$unformatted"
-            exit 1
-          fi
-          echo "formatting clean"
+        # A Go program, not a shell one-liner. This step was the only one
+        # failing on windows-latest, on two separate fixes: first because
+        # pwsh cannot parse `[ -n "$x" ]`, then -- after adding
+        # `shell: bash` -- still, for a reason that log access was not
+        # available to diagnose. Rather than guess a third time, the check
+        # no longer has a shell. It is also stricter: it compares the
+        # formatted output against the file rather than trusting an exit
+        # code, and it skips testdata/, which holds deliberately malformed
+        # fuzz crashers and real-world lockfile fixtures.
+        run: go run ./cmd/gofmtcheck
 
       - name: Test
         run: go test -race ./...

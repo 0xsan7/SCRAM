@@ -539,6 +539,27 @@ Benchmarks and the baseline they were measured against: [BENCHMARKS.md](BENCHMAR
 Decision log, including every bug the corpus and fuzzing found:
 [DECISIONS.md](DECISIONS.md).
 
+## Project documents
+
+Each of these exists because something in the repository needed to be
+stated somewhere a reader would look for it.
+
+| Document | What it is for |
+|---|---|
+| [ROADMAP.md](ROADMAP.md) | What is not built yet, ordered, with the evidence for each gap |
+| [docs/STATUS.md](docs/STATUS.md) | Every phase and item, DONE / PARTIAL / NOT STARTED, with a commit hash or a measurement |
+| [docs/BLOCKED.md](docs/BLOCKED.md) | What could not be done here and why — including everything unverified |
+| [DECISIONS.md](DECISIONS.md) | Every bug found and what it changed, numbered and indexed |
+| [LIMITATIONS.md](LIMITATIONS.md) | Where the tool is wrong or incomplete, checked rather than asserted |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Resolver, fixture, fuzzing and schema standards |
+| [REPRODUCIBILITY.md](REPRODUCIBILITY.md) | The differential comparison, and exactly where it diverges |
+| [BENCHMARKS.md](BENCHMARKS.md) | Measured numbers and the machine they were taken on |
+| [OVERNIGHT_REPORT.md](OVERNIGHT_REPORT.md) | The most recent working session, including what it could not verify |
+| [SECURITY.md](SECURITY.md) | How to report a vulnerability |
+| [GOVERNANCE.md](GOVERNANCE.md) | Who decides, and the three things a maintainer may not do alone |
+| [SUPPORT.md](SUPPORT.md) | What this project will and will not help with |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Expectations |
+
 ## License
 
 Apache-2.0 — includes the explicit patent grant, which matters for a

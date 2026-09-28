@@ -1,0 +1,12 @@
+# Default owner for everything. One maintainer today; this file exists so
+# that adding a second one is a one-line change rather than a search
+# through history.
+* @0xsan7
+
+# The paths where a review is worth more than elsewhere: a change to a
+# resolver or to the fail-closed guard can turn a false all-clear into a
+# clean report, which is the one failure this project must not have.
+/internal/resolve/  @0xsan7
+/internal/vuln/     @0xsan7
+/internal/scan/     @0xsan7
+/.github/workflows/ @0xsan7

@@ -315,45 +315,48 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign every artifact with cosign (keyless)
-        # Keyless: no long-lived signing key exists to leak, and the
-        # signature is bound to the workflow identity by OIDC rather than to
-        # a secret somebody had to protect. This is the strongest option
-        # available without a key-management service.
+      - name: Install cosign for GoReleaser
+        # GoReleaser's own `signs:` block in .goreleaser.yml signs every
+        # binary keyless, and it invokes `cosign` from PATH. cosign is not
+        # preinstalled on the runner, so without this the release fails at
+        # the signing step with:
         #
-        # cosign is not a Go module dependency of this project and is not
-        # preinstalled on the runner, so it is fetched here at a pinned
-        # version. Unpinned would be the same mistake as unpinned actions.
+        #   sign: cosign failed: exec: "cosign": executable file not found
+        #
+        # which is exactly what v0.1.0-rc1 did on its first run.
+        #
+        # There was a second, hand-written signing step here as well,
+        # doing the same job with a loop and a count check. Two mechanisms
+        # signing the same artifacts is one too many, and the hand-written
+        # one was the dangerous kind: it looked like the signing path and
+        # was in fact redundant with it. It was never exercised, because
+        # every local verification ran `goreleaser --skip=sign`, which
+        # skips both. The comment on it claimed the loop had been
+        # "verified against real snapshot artifacts" -- true, and beside
+        # the point, because the snapshots skipped signing entirely.
+        #
+        # Pinned to an exact version. Unpinned would be the same mistake
+        # as an unpinned action, and worse: this one signs the release.
         run: |
           set -euo pipefail
           COSIGN_VERSION=v2.4.1
-          curl -sSfL -o /tmp/cosign \
+          curl -sSfL -o /usr/local/bin/cosign \
             "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
-          chmod +x /tmp/cosign
-          /tmp/cosign version | head -1
-          # Sign the release artifacts, which are the per-OS/arch binaries
-          # GoReleaser lays down under dist/scram_<os>_<arch>/. `find -type f`
-          # rather than a `dist/scram_*` glob: that glob matches only the
-          # build directories and the checksums file, so it silently signs
-          # nothing and the step still exits 0. A signing step that signs
-          # nothing and passes is worse than one that fails.
-          count=0
-          while IFS= read -r f; do
-            case "$f" in
-              *.pem|*.sig|*_checksums.txt) continue ;;
-            esac
-            /tmp/cosign sign-blob --yes "$f" \
-              --output-certificate "$f.pem" \
-              --output-signature "$f.sig"
-            count=$((count + 1))
-          done < <(find dist -type f \( -name 'scram' -o -name 'scram.exe' \))
-          echo "signed $count artifacts"
-          [ "$count" -gt 0 ] || { echo "::error::no artifacts were signed"; exit 1; }
+          chmod +x /usr/local/bin/cosign
+          cosign version | head -1
 
-      - name: Upload signatures
+      # GoReleaser uploads the binaries, archives, checksums and the
+      # release SBOM itself. The signatures and certificates are the
+      # exception: they sit next to each binary under
+      # dist/scram_<os>_<arch>/ rather than at the top of dist/, so they
+      # need collecting explicitly. fail_on_unmatched_files is false
+      # because this step runs after goreleaser has already published,
+      # and a missing signature file there must not fail a release whose
+      # binaries are already up.
+      - name: Upload signatures and certificates
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.pem
-            dist/*.sig
+            dist/**/*.pem
+            dist/**/*.sig
           fail_on_unmatched_files: false

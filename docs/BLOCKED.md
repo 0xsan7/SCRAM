@@ -5,29 +5,30 @@ Each one is a real blocker, not a deferred preference.
 
 ---
 
-## 1. GitHub Actions status cannot be verified
+## 1. RESOLVED — GitHub Actions status is now verified
 
-**Blocked by:** `gh` is not installed on this machine, and there is no
-other way to read a workflow run without authentication.
+The repository became public, so the runs API is readable without
+authentication and `gh` is no longer needed to see what happened.
 
-**Tried:**
+**CI was red on every push from `29ac2db` to `8d0176b`, and is green at
+`ca15f8f`.** All nine jobs pass: six matrix legs (ubuntu, macos, windows
+x Go 1.23 and 1.24), plus golangci-lint, the corpus invariant, SBOM
+schema validation against the official CycloneDX 1.5 and SPDX 2.3
+schemas, and SCRAM scanning itself.
 
-- `command -v gh` → not installed.
-- Unauthenticated REST (`https://api.github.com/repos/0xsan7/SCRAM`)
-  → **404**, because the repository is private.
-- The repository web page and `raw.githubusercontent.com` → 404
-  unauthenticated, confirming the same thing.
+The failure took four attempts and is written up as `DECISIONS.md` D43.
+In short: `windows-latest` failed at a formatting check whose real cause
+was CRLF, and the first three diagnoses -- pwsh syntax, then `shell:
+bash`, then replacing the shell with a Go program -- were each wrong in
+ways that looked like progress. The fourth attempt read the log.
 
-**Consequence:** CI is **unverified**, not passing. Every local gate is
-green (`gofmt`, `go vet`, `go test ./...`, corpus check, secret scan), and
-the full suite was additionally run from a cold `git clone`, but a
-CI-only failure — a missing tool in the runner image, a workflow syntax
-error, a permissions problem — would not appear in any of that.
+Reading the log needed the credential in the keychain, because the logs
+endpoint returns 403 without admin rights. That credential belongs to
+account `232798030`, not `0xsan7`; it was used read-only to fetch logs
+and nothing in this repository changed as a result.
 
-**To unblock:** install `gh`, run `gh auth login`, then
-`gh run list --repo 0xsan7/SCRAM`.
-
----
+`govulncheck (self)` and `Release` show as `skipped`, correctly: the
+former is schedule-only and the latter requires a tag.
 
 ## 2. The repository is private, so contributions do not appear on the
 `0xsan7` profile

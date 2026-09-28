@@ -4,9 +4,26 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// binaryName is the file name for the compiled binary on this platform.
+//
+// The .exe suffix is not a detail. Naming the output "scram" produces a
+// runnable file on Linux and macOS and one Windows will not execute, so
+// every test that builds and runs the binary fails there with
+// "executable file not found in %PATH%" while passing locally. This is
+// the second time in this repository that a local-only test has looked
+// green; the first was the gofmtcheck test binary, and the fix is the
+// same. A test that only runs where its author works has not been run.
+func binaryName() string {
+	if runtime.GOOS == "windows" {
+		return "scram.exe"
+	}
+	return "scram"
+}
 
 // The linker silently ignores a -X flag whose symbol path does not
 // resolve. That is the property this test exists for: `.goreleaser.yml`
@@ -32,7 +49,7 @@ func TestLinkerFlagsActuallyStampTheBinary(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	bin := dir + "/scram"
+	bin := filepath.Join(dir, binaryName())
 
 	// -buildid= is what the release uses for reproducible builds; without
 	// it two builds of the same tree differ and this test would be
@@ -67,7 +84,7 @@ func TestVersionOutputIsNotJustTheVersionString(t *testing.T) {
 		t.Skip("builds a binary; skipped in -short")
 	}
 	dir := t.TempDir()
-	bin := dir + "/scram"
+	bin := filepath.Join(dir, binaryName())
 	cmd := exec.Command("go", "build", "-o", bin, "github.com/0xsan7/scram/cmd/scram")
 	cmd.Dir = repoRoot(t)
 	if out, err := cmd.CombinedOutput(); err != nil {

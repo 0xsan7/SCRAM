@@ -29,7 +29,7 @@ which the earlier summaries had understated.
 | 1b. REPRODUCIBILITY.md | **DONE** | `REPRODUCIBILITY.md`; 15 repos, list read from `differential.json` |
 | 1c. Benchmarks (NFR-1) | **DONE** | `cacb9c4`; `BENCHMARKS.md`; 9 benchmarks |
 | 1c. ~500-dependency repo, cold+warm | **DONE** | `BENCHMARKS.md`; `yargs/yargs` 492 components: 6,022 ms cold, 2,256 ms warm, 30 ms SBOM-only; NFR-1 (<30s) met |
-| 1d. Nightly fuzz workflow | **NOT STARTED** | `.github/workflows/` contains only `ci.yml` |
+| 1d. Nightly fuzz + mutation audit | **DONE** | `.github/workflows/fuzz.yml`; targets derived from source (16), nightly 02:17 UTC, runs `scripts/mutation_audit.py`; unrun on CI — see `BLOCKED.md` |
 | 1d. Corpus/invariant job on every PR | **PARTIAL** | `internal/resolve/invariant_test.go` runs in `ci.yml` via `go test ./...`, but as part of the test job, not a named gate |
 | 1d. TESTING.md / CONTRIBUTING.md rules | **PARTIAL** | `CONTRIBUTING.md` has resolver/fixture rules; **`TESTING.md` does not exist** |
 
@@ -45,7 +45,7 @@ which the earlier summaries had understated.
 | `why` — review | **PARTIAL** | runs, output inspected on a real corpus repo; no git-history input, so no edge cases apply; not mutation-audited |
 | `trend` / sparkline | **PARTIAL** | renders in `scram scan`; not audited for edge cases |
 | `badge` — review | **DONE** | verified on real scan JSON, `6f837aa`; correct output `36/100 low` |
-| Self-score in CI | **PARTIAL** | `internal/badge` works; **not wired into `ci.yml`** |
+| Self-score in CI | **DONE** | `ci.yml` job `dogfood`: builds, scans, renders the badge, uploads it as an artifact |
 | Abandonment prediction | **NOT STARTED** | correctly out of scope; nothing built |
 
 ### Bugs found in Phase 2
@@ -66,10 +66,10 @@ reading tests:
 | Item | Status | Evidence |
 |---|---|---|
 | A. goreleaser | **NOT STARTED** | no `.goreleaser.yml` |
-| A. cosign signing | **NOT STARTED** | — |
+| A. cosign signing | **PARTIAL** | `.github/workflows/ci.yml` job `release` signs keyless; needs a tag to execute |
 | A. SLSA provenance | **NOT STARTED** | — |
 | A. SBOM attached to releases | **NOT STARTED** | `scram sbom generate` works; not wired |
-| B. Go/OS CI matrix | **NOT STARTED** | `ci.yml` is single-version, single-OS |
+| B. Go/OS CI matrix | **DONE** | `ci.yml` job `build`: 3 OSes x Go 1.23/1.24, `fail-fast: false`; matrix not executed on CI — see `BLOCKED.md` |
 | B. golangci-lint | **NOT STARTED** | no `.golangci.yml` |
 | B. govulncheck | **NOT STARTED** | — |
 | B. Coverage reporting | **NOT STARTED** | no badge, no service configured |
@@ -81,7 +81,7 @@ reading tests:
 | D. ADRs in `docs/adr/` | **NOT STARTED** | `docs/` exists but holds no ADRs; `DECISIONS.md` has D01–D40 |
 | E. mkdocs site | **NOT STARTED** | — |
 | F. Renovate/Dependabot | **NOT STARTED** | — |
-| G. LICENSE | **DONE** | Apache-2.0 present; **year/holder not verified against the real owner** |
+| G. LICENSE | **PARTIAL** | Apache-2.0 text present; the copyright line is unverified against the real owner |
 
 ## Phase 5 — final verification
 

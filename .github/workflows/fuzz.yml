@@ -1,0 +1,146 @@
+name: Fuzz
+
+# Section 1d: the fuzz corpus must run on a schedule, not only on demand.
+#
+# A fuzz target that only runs when someone remembers to run it is a fuzz
+# target that finds bugs in the week after someone stops caring. The
+# corpus committed under testdata/fuzz is the floor -- it replays on every
+# push in the normal test job -- and this workflow is the ceiling: live
+# mutation of every target, nightly, on a budget.
+#
+# A new crasher makes Go write the failing input to the fuzz cache and exit
+# non-zero, which fails the job. The uploaded artifact carries the input
+# so it can be promoted into testdata/fuzz by hand; a promoted crasher
+# becomes a permanent regression test rather than a thing that reproduces
+# only if the fuzzer rediscovers it.
+
+on:
+  schedule:
+    # 02:17 UTC nightly. An off-round minute avoids the top-of-hour stampede
+    # every scheduled workflow on GitHub shares.
+    - cron: '17 2 * * *'
+  pull_request:
+    paths:
+      - 'internal/**'
+      - 'cmd/**'
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: 'Per-target fuzz time'
+        default: '60s'
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz every parser
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      # The parser targets share a process and the machine, so they run one
+      # at a time on a single runner. Fuzzing is CPU-bound: parallelism
+      # across jobs buys wall-clock only by making the result depend on
+      # which runner was faster.
+      max-parallel: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Enumerate fuzz targets
+        id: targets
+        # Derived from the source rather than a hand-kept list, so a new
+        # target cannot silently never be fuzzed -- which is the same
+        # drift class as the D25 fetcher reporting cached files as absent,
+        # and the D37 detector listing files the resolver could not read.
+        run: |
+          set -euo pipefail
+          # No mapfile/process substitution: this has to run identically on a
+          # GitHub runner (bash 5) and on a macOS shell (bash 3.2), because a
+          # verification step that only works where it was written is a
+          # verification step that has not been run.
+          targets=$(grep -rhoE '^func Fuzz[A-Za-z0-9_]+\(f \*testing\.F\)' \
+            --include='*_test.go' ./internal | \
+            sed -E 's/^func (Fuzz[A-Za-z0-9_]+)\(f \*testing\.F\)/\1/' | sort -u)
+          count=$(printf '%s\n' "$targets" | grep -c . || true)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no fuzz targets found; this workflow would pass vacuously"
+            exit 1
+          fi
+          printf '%s\n' "$targets" | tee targets.txt
+          echo "Found $count fuzz targets"
+
+      - name: Replay the committed corpus
+        # Cheap, and it means a promoted crasher fails here first with a
+        # clear name rather than only under live fuzzing.
+        run: go test ./internal/... -run '^Fuzz' -count=1
+
+      - name: Fuzz
+        env:
+          FUZZTIME: ${{ github.event.inputs.fuzztime || '900s' }}
+        run: |
+          set -uo pipefail
+          # A per-target budget split across the targets that were found,
+          # so adding a target shortens everyone's run instead of pushing
+          # the job past its timeout and getting killed with no report.
+          count=$(grep -c . targets.txt || true)
+          # FUZZTIME is a Go duration; strip a trailing s or m before the
+          # arithmetic rather than parsing it, since the value is ours.
+          total=$(( ${FUZZTIME%s} ))
+          [ "$total" -gt 3600 ] && total=3600
+          budget=$(( total / count ))
+          [ "$budget" -lt 30 ] && budget=30
+          echo "Fuzzing $count targets, ${budget}s each (${total}s total budget)"
+          failed=0
+          while read -r target; do
+            echo "=== $target ==="
+            # resolve first, then sbom: parsers first because a parser bug
+            # is the one that produces a wrong component list downstream.
+            pkg=$(grep -rl "func $target(" --include='*_test.go' ./internal | head -1 | xargs dirname)
+            if go test "./$pkg/" -run "^${target}$" -fuzz "^${target}$" \
+                 -fuzztime "${budget}s"; then
+              echo "$target: no crash"
+            else
+              echo "::error::crash in $target — failing the job"
+              failed=1
+            fi
+          done < targets.txt
+          exit $failed
+
+      - name: Upload crashers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers
+          path: |
+            ${{ runner.temp }}/fuzz/
+            testdata/fuzz/**/*crash*
+          if-no-files-found: ignore
+          retention-days: 14
+
+  mutation-audit:
+    name: Mutation audit
+    # The suite has to be able to catch each fixed bug coming back. This
+    # re-breaks every one of them and fails if a mutant survives.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, because the audit diffs against a worktree.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Fetch tooling regression tests
+        run: python3 scripts/test_fetch_corpus.py
+
+      - name: Re-break every fix
+        run: python3 scripts/mutation_audit.py --jobs 4

@@ -176,10 +176,7 @@ func resolveTarget(s model.Scan, input string) (string, error) {
 	case 1:
 		return matches[0], nil
 	default:
-		names := make([]string, 0, len(matches))
-		for _, m := range matches {
-			names = append(names, m)
-		}
+		names := append([]string(nil), matches...)
 		sort.Strings(names)
 		return "", fmt.Errorf("%q is ambiguous: %s is installed at several versions. Use the full PURL.",
 			needle, strings.Join(names, ", "))

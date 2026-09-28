@@ -1,0 +1,134 @@
+# golangci-lint configuration, tuned to this codebase rather than left at
+# the defaults.
+#
+# Two principles, because this is a security tool:
+#
+#  1. No linter is enabled that would flag a security-relevant pattern as
+#     style. gosec and errcheck matter here in a way they do not in an app.
+#  2. Every exclusion is written down with a reason. An unexplained
+#     exclude-rules block is indistinguishable from a disabled check, and
+#     a disabled check that nobody can explain is how a check stops
+#     protecting anything.
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    # Correctness. Each of these maps to a real bug class in this
+    # codebase or in the files it reads.
+    - errcheck        # an unchecked error in a resolver is a silent zero
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosimple
+    - bodyclose       # HTTP response bodies, in the OSV client
+    - noctx           # http requests without a context
+    - durationcheck
+    - errorlint       # %v on an error loses the chain; wrapping matters here
+    - copyloopvar
+
+    # Security. gosec is the reason a dependency scanner's own scanner
+    # should run one.
+    - gosec
+
+  disable:
+    # errcheck is enabled. Its remaining hits in non-test code are fmt
+    # writes, excluded by function below rather than by turning it off.
+    - exhaustive      # the resolver switch is intentionally open
+    - lll             # line length; gofmt decides
+    - gochecknoglobals
+    - gochecknoinits  # resolvers register via init(); see resolve.go
+    - funlen
+    - cyclop
+    - gocognit
+    - nestif
+    - varnamelen
+    - wrapcheck
+    - nlreturn
+    - wsl
+
+linters-settings:
+  errcheck:
+    # The fmt.Fprintf family returns (n, err) and the n is genuinely
+    # uninteresting; the err on a report writer is handled by the callers
+    # that can act on it.
+    exclude-functions:
+      - fmt.Fprintf
+      - fmt.Fprint
+      - os.Stdout.WriteString
+      - os.Stderr.WriteString
+
+  gosec:
+    excludes:
+      # G107: url built from a variable. Every OSV and EPSS request
+      # builds its URL from a host constant plus encoded query values, and
+      # the fuzz targets feed arbitrary strings into exactly this path on
+      # purpose.
+      - G107
+      # G404: math/rand. Used only for SARIF ordering and reproducible
+      # output, never for a security decision. See report.go.
+      - G404
+      # G306: 0644 on written files. All three sites write artifacts that
+      # are meant to be read by something other than the writing user --
+      # an SBOM uploaded as a CI artifact, a baseline committed to the
+      # repo, and the local vulnerability cache. Tightening these to 0600
+      # would make the tool produce files CI cannot collect.
+      - G306
+      # G204: exec with a constructed argument. Both sites are the blame
+      # feature's `git show <sha>:<path>` and `git log ... -- <file>`.
+      # The argument is a concatenation whose first character is a hex
+      # commit SHA, so it cannot be read as a flag, and the log call passes
+      # `--` explicitly. gosec cannot see either fact.
+      - G204
+
+  govet:
+    enable:
+      - shadow         # a shadowed err is how the wrong error gets returned
+
+issues:
+  # Report everything; do not cap. A truncated linter run is a run that
+  # silently checked less than it appears to have.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    # Test files: an unchecked error in a fixture is noise, and a long
+    # table-driven test is not a design problem.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+
+    # govet shadow in tests. `if err := doThing(); err != nil` inside a
+    # helper is the correct Go idiom, not the bug the check is looking for.
+    - path: _test\.go
+      linters:
+        - govet
+      text: 'shadow'
+
+    # SA4000 on serialNumber("app") != serialNumber("app"). The operands
+    # really are textually identical; the assertion is meaningful because
+    # the function is a pure hash of its argument, and a mutation that made
+    # it time-dependent was killed by it. staticcheck cannot see through the
+    # call, so the identical-operands form is expected rather than a defect.
+    - path: internal/sbom/sbom_test\.go
+      linters:
+        - staticcheck
+      text: 'SA4000'
+
+    # The fuzz targets deliberately feed arbitrary bytes into the parsers.
+    # gosec's file-permission rules fire on the harness, not on the code
+    # under test.
+    - path: internal/resolve/fuzz_test\.go
+      linters:
+        - gosec
+
+    # internal/cli writes scan artifacts; --out is supplied by the user on
+    # purpose.
+    - path: internal/cli
+      linters:
+        - gosec
+      text: 'G304|G306'

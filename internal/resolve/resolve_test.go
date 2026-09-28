@@ -1,6 +1,7 @@
 package resolve
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -381,7 +382,7 @@ func TestResolverRegistry(t *testing.T) {
 			t.Errorf("no resolver for %q/%q: %v", c.eco, c.file, err)
 		}
 	}
-	if _, err := GetFor("cargo", "Cargo.lock"); err != ErrUnsupported {
+	if _, err := GetFor("cargo", "Cargo.lock"); !errors.Is(err, ErrUnsupported) {
 		t.Error("expected ErrUnsupported for an unregistered ecosystem")
 	}
 	if len(Supported()) != 3 {

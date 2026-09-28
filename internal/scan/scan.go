@@ -146,26 +146,29 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		// a lockfile one and a pyproject.toml one), and the filename is what
 		// decides. Using Get would hand every Python file to whichever
 		// resolver happened to register last.
-		r, err := resolve.GetFor(p.Ecosystem, p.File)
-		if err != nil {
+		// Named apart from the outer err on purpose: this is a per-project
+		// lookup inside a loop, and a resolver miss is a warning plus
+		// continue, not a failure of the whole scan.
+		r, getErr := resolve.GetFor(p.Ecosystem, p.File)
+		if getErr != nil {
 			scan.Warnings = append(scan.Warnings,
 				fmt.Sprintf("no resolver for %s (%s)", p.Ecosystem, p.File))
 			continue
 		}
-		comps, err := resolve.ResolveFile(r, root, p.File)
-		if err != nil {
+		comps, resolveErr := resolve.ResolveFile(r, root, p.File)
+		if resolveErr != nil {
 			// A silent zero (manifest declares dependencies, resolver found
 			// none) is NOT a warning. D01/D22/D23 all died here: a partial
 			// parse produced an empty list, the scan treated it as "no
 			// dependencies", and reported CLEAN with exit 0. That is a false
 			// all-clear from a security tool, so it hard-fails the scan.
-			if errors.Is(err, resolve.ErrSilentZero) {
-				return nil, err
+			if errors.Is(resolveErr, resolve.ErrSilentZero) {
+				return nil, resolveErr
 			}
 			// One unreadable lockfile shouldn't sink the whole scan; warn and
 			// continue with the ecosystems that did parse.
 			scan.Warnings = append(scan.Warnings,
-				fmt.Sprintf("resolving %s failed: %v", p.File, err))
+				fmt.Sprintf("resolving %s failed: %v", p.File, resolveErr))
 			continue
 		}
 		all = append(all, comps...)
@@ -173,15 +176,13 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		// failing the resolve -- e.g. a lockfile format it parses but has no
 		// real-world fixture for. These are advisory and never fail the scan;
 		// a file we could not read at all is handled as an error above.
-		for _, w := range resolve.WarningsFor(r, root, p.File) {
-			scan.Warnings = append(scan.Warnings, w)
-		}
+		scan.Warnings = append(scan.Warnings, resolve.WarningsFor(r, root, p.File)...)
 		// Recover parentage while the resolver is in hand. Only resolvers
 		// that can supply real edges opt in; the rest contribute nothing,
 		// which is honest (requirements.txt records no parentage, go.sum
 		// records checksums) rather than a guess.
 		if ep, ok := r.(graph.EdgeProvider); ok {
-			if pairs, err := ep.Edges(root, p.File); err == nil {
+			if pairs, edgesErr := ep.Edges(root, p.File); edgesErr == nil {
 				rawEdges = append(rawEdges, pairs...)
 			}
 		}
@@ -195,9 +196,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		// the caller can fail closed rather than reporting a clean result it
 		// never actually verified (NFR-3 paired with NFR-6: degrade, but
 		// never claim "clean" on data you didn't get).
-		degraded, err := attachVulns(ctx, cfg, opts, &scan)
-		if err != nil {
-			return nil, err
+		degraded, attachErr := attachVulns(ctx, cfg, opts, &scan)
+		if attachErr != nil {
+			return nil, attachErr
 		}
 		resultDegraded = degraded
 	}

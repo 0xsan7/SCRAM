@@ -10,14 +10,24 @@ permissions:
 
 jobs:
   build:
-    name: Build, test, vet
-    runs-on: ubuntu-latest
+    name: Build, test, vet (${{ matrix.os }}, go ${{ matrix.go }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Current and previous Go, all three OSes. The unit and integration
+      # suite is where a platform difference shows up -- a path separator in
+      # a lockfile parser, a case-insensitive filesystem, a different git
+      # -- so it runs everywhere. Fuzzing stays Linux-only: it is
+      # CPU-bound, and tripling it buys no coverage.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go: ['1.23', '1.24']
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: ${{ matrix.go }}
           cache: true
 
       - name: Verify dependencies
@@ -41,14 +51,64 @@ jobs:
           fi
 
       - name: Test
-        run: go test -race -coverprofile=coverage.out ./...
+        run: go test -race ./...
+
+      # Coverage is computed once, on one platform. Uploading a different
+      # number from each of six jobs would be six claims to reconcile, and
+      # the coverage of a Go program does not depend on the OS it ran on.
+      - name: Test with coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.23'
+        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Report coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.23'
+        run: go tool cover -func=coverage.out | tail -1
 
       - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.23'
         uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage.out
-          if-no-files-found: ignore
+          if-no-files-found: error
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      # Pinned to an exact version. golangci-lint is a security tool's
+      # linter; taking whatever is newest is the same mistake as pulling an
+      # unpinned action.
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.5
+
+  govulncheck:
+    name: govulncheck (self)
+    runs-on: ubuntu-latest
+    # Scheduled rather than on every push: it queries the Go vulnerability
+    # database, so running it on every PR is slow and rate-limit prone.
+    # A vulnerability scanner running the official Go checker on itself is
+    # the cheapest credibility available for this project.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Run govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
   dogfood:
     name: SCRAM scans itself
@@ -155,15 +215,45 @@ jobs:
           print("SPDX 2.3 valid")
           PY
 
+  corpus:
+    name: Corpus invariant
+    # The real-world lockfile corpus: 86 files, every one of which must
+    # resolve non-empty. This is the job that would have caught D22, D23,
+    # D25, D28, and D37, and it is separate from `go test` because the
+    # property it enforces is about the fixture set as a whole.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Every corpus lockfile resolves non-empty
+        run: go run ./cmd/corpus-check
+
+      - name: Fetcher regression tests
+        run: python3 scripts/test_fetch_corpus.py
+
   release:
     name: Release
-    needs: [build, dogfood, sbom-validate]
+    needs: [build, dogfood, sbom-validate, corpus]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Keyless signing mints an OIDC token; without this the cosign step
+      # cannot obtain one and the job fails at the last moment.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
@@ -189,6 +279,15 @@ jobs:
         run: |
           cd dist && shasum -a 256 scram-* > checksums.txt && cat checksums.txt
 
+      - name: Generate this release's own SBOM
+        # Dogfooding: the SBOM that ships with the release is produced by the
+        # release's own binary, from its own tree. It is attached to the
+        # release rather than living only in CI logs.
+        run: |
+          ./dist/scram-linux-amd64 sbom generate . \
+            --format both --out dist/sbom || \
+            go run ./cmd/scram sbom generate . --format both --out dist/sbom
+
       # NFR-5: a supply chain scanner whose own binaries are unsigned is
       # undercutting its own argument. These steps are what make "SCRAM's
       # supply chain is clean" a claim rather than a slogan.
@@ -208,4 +307,5 @@ jobs:
           files: |
             dist/scram-*
             dist/checksums.txt
+            dist/sbom/*
           generate_release_notes: true

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/0xsan7/scram/internal/model"
 )
@@ -244,7 +243,3 @@ func sortStrings(s []string) {
 		}
 	}
 }
-
-// dedupeDetailsTimeout bounds how long hydration will spend retrying a single
-// slow upstream, so a hung OSV cannot hang a PR check indefinitely.
-const dedupeDetailsTimeout = 60 * time.Second

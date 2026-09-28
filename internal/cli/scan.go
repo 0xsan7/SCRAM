@@ -18,15 +18,14 @@ import (
 
 // scanFlags holds the flags specific to `scram scan`.
 type scanFlags struct {
-	format         string
-	sbomFormats    string
-	outDir         string
-	baseline       string
-	ecosystems     []string
-	explain        string
-	epss           bool
-	skipVuln       bool
-	baselineUpdate bool
+	format      string
+	sbomFormats string
+	outDir      string
+	baseline    string
+	ecosystems  []string
+	explain     string
+	epss        bool
+	skipVuln    bool
 	// noGate skips the pass/fail decision, for exploring a repo.
 	noGate bool
 	// trendPath is the local score history file. Empty disables the sparkline

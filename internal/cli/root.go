@@ -30,9 +30,6 @@ func ExitCodeFor(err error) int {
 	return 2
 }
 
-// exitCodeFor is the internal alias used within the package.
-func exitCodeFor(err error) int { return ExitCodeFor(err) }
-
 // Version is the build version, overridable at link time:
 //
 //	go build -ldflags "-X .../cli.Version=1.2.3"

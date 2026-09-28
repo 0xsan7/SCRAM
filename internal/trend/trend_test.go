@@ -1,6 +1,9 @@
 package trend
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // The sparkline is read at a glance, so its failure mode is a picture that
 // looks meaningful and is not. These pin the cases where that can happen.
@@ -175,8 +178,11 @@ func TestLoadWrongSchemaVersionErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("wrong schema version loaded as valid")
 	}
-	_, ok := err.(*VersionError)
-	if !ok {
+	// errors.As rather than a type assertion: the assertion breaks the
+	// moment Load starts wrapping, which is exactly when this test would
+	// start failing for the wrong reason.
+	var ve *VersionError
+	if !errors.As(err, &ve) {
 		t.Errorf("error type = %T, want *VersionError", err)
 	}
 }

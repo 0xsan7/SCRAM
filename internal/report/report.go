@@ -90,7 +90,6 @@ var (
 	colorYellow = "\033[33m"
 	colorBlue   = "\033[34m"
 	colorGreen  = "\033[32m"
-	colorCyan   = "\033[36m"
 )
 
 // NoColor disables ANSI output, for non-TTY writers like CI logs.

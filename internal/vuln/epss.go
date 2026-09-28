@@ -158,7 +158,10 @@ func (c *Client) fetchEPSS(ctx context.Context, cves []string) (map[string]float
 
 	if len(errs) > 0 && len(out) == 0 {
 		// Every chunk failed — report it so the caller can warn.
-		return out, fmt.Errorf("all %d EPSS request(s) failed: %v", len(errs), errs[0])
+		// %w, not %v: the caller decides whether a total EPSS outage degrades the
+		// scan or aborts it, and that decision can only inspect the error chain
+		// if the first error is still wrapped here.
+		return out, fmt.Errorf("all %d EPSS request(s) failed: %w", len(errs), errs[0])
 	}
 	return out, nil
 }

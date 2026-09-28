@@ -60,8 +60,6 @@ func (r *repo) commit(msg string) {
 	r.git("commit", "-q", "-m", msg)
 }
 
-const lockV3 = `{"lockfileVersion":3,"packages":{"node_modules/%s":{"version":"%s"}}}`
-
 // The headline case: a dependency introduced, then bumped months later. Blame
 // must find BOTH the introduction and the bump, and attribute them correctly.
 func TestBlameFindsIntroductionAndVersionChange(t *testing.T) {

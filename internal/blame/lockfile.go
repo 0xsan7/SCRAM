@@ -159,7 +159,7 @@ func versionFromRequirements(data []byte, name string) (string, bool) {
 		// range is given; fall back to stripping the operator.
 		rest = strings.TrimLeft(rest, ">=")
 		rest = strings.TrimLeft(rest, "<=")
-		rest = strings.TrimLeft(rest, "==")
+		rest = strings.TrimLeft(rest, "=")
 		rest = strings.TrimLeft(rest, "=")
 		rest = strings.TrimLeft(rest, "~=")
 		rest = strings.TrimLeft(rest, ">")

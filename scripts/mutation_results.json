@@ -42,7 +42,7 @@
   {
     "id": "D28-registry",
     "status": "killed",
-    "why": "caught by internal/resolve"
+    "why": "caught by internal/resolve internal/scan"
   },
   {
     "id": "D29-precedence",

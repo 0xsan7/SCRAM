@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,7 +22,6 @@ const (
 	sarifSchema  = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 	// GitHub's taxonomy for supply-chain findings, so the Security tab
 	// groups these sensibly.
-	gitHubTaxonomy = "supplemental/dependency-graph"
 )
 
 type sarifLog struct {
@@ -328,16 +326,4 @@ func sanitizeRuleName(id string) string {
 func fmtFprintf(b *strings.Builder, format string, args ...any) {
 	// strings.Builder never returns a write error.
 	_, _ = fmt.Fprintf(b, format, args...)
-}
-
-// urlOrEmpty guards against emitting an empty helpUri, which some SARIF
-// validators reject.
-func urlOrEmpty(s string) string {
-	if s == "" {
-		return ""
-	}
-	if _, err := url.Parse(s); err != nil {
-		return ""
-	}
-	return s
 }

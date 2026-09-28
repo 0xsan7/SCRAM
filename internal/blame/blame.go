@@ -18,6 +18,7 @@ package blame
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -234,7 +235,8 @@ func logCommits(ctx context.Context, root, lockfile string) ([]commitInfo, error
 		// A repository with no commits yet is a normal state, not a failure:
 		// report an empty history so the caller can explain it rather than
 		// erroring out on a fresh checkout.
-		if ee, ok := err.(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
 			stderr := strings.TrimSpace(string(ee.Stderr))
 			if strings.Contains(stderr, "does not have any commits yet") ||
 				strings.Contains(stderr, "unknown revision") {

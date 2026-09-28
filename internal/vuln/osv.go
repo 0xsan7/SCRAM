@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -507,8 +506,11 @@ func firstNonEmpty(ss ...string) string {
 
 func parseFloat(s string) float64 {
 	var f float64
-	_, err := fmt.Sscanf(s, "%g", &f)
-	if err != nil || err == io.EOF {
+	// Sscanf returns io.EOF when it hits end-of-input before a verb. That
+	// is an error like any other here, and `err != nil` already covers it;
+	// an explicit `|| err == io.EOF` would be a second clause on a path
+	// that cannot be reached.
+	if _, err := fmt.Sscanf(s, "%g", &f); err != nil {
 		return 0
 	}
 	return f

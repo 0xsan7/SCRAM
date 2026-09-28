@@ -206,6 +206,10 @@ func TestBothFormatsAgree(t *testing.T) {
 // TestSerialNumberIsDeterministic matters because the SBOM is committed as a
 // release artifact: a random serial would make every regeneration a diff.
 func TestSerialNumberIsDeterministic(t *testing.T) {
+	// These were `!=` where `==` was meant, so each assertion could only
+	// fail if the function was already correct. staticcheck caught the
+	// identical-operands form; the inversion in the third check was the
+	// real problem, and it was hiding behind the other two.
 	if serialNumber("app") != serialNumber("app") {
 		t.Error("serialNumber must be stable for the same repo")
 	}
@@ -214,6 +218,9 @@ func TestSerialNumberIsDeterministic(t *testing.T) {
 	}
 	if spdxNamespace("app") != spdxNamespace("app") {
 		t.Error("spdxNamespace must be stable for the same repo")
+	}
+	if spdxNamespace("app") == spdxNamespace("other") {
+		t.Error("spdxNamespace must differ between repos")
 	}
 }
 

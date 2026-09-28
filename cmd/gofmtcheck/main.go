@@ -105,5 +105,25 @@ func isFormatted(path string) (bool, error) {
 	if err := cmd.Run(); err != nil {
 		return false, fmt.Errorf("gofmt failed: %w: %s", err, stderr.String())
 	}
-	return bytes.Equal(src, stdout.Bytes()), nil
+	// Compare with line endings normalised, not raw bytes.
+	//
+	// gofmt always writes LF, so a CRLF checkout makes every file compare
+	// as unformatted even when the code is correctly formatted -- which is
+	// what happened: this check failed on windows-latest three times and
+	// reported all 60 files, none of which were actually wrong.
+	//
+	// .gitattributes now forces LF at checkout, so the checkout should no
+	// longer be CRLF. Normalising here anyway is the difference between a
+	// check that reports the code's formatting and one that reports the
+	// machine's line-ending policy. A check that can be red for a reason
+	// unrelated to what it checks is a check that gets skipped.
+	return bytes.Equal(normalizeEOL(src), normalizeEOL(stdout.Bytes())), nil
+}
+
+// normalizeEOL converts CRLF to LF and leaves everything else alone.
+func normalizeEOL(b []byte) []byte {
+	if !bytes.Contains(b, []byte("\r\n")) {
+		return b
+	}
+	return bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))
 }

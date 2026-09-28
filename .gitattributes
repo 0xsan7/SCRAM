@@ -1,0 +1,49 @@
+# Normalise line endings in the working tree, not just in the index.
+#
+# The Windows CI matrix leg failed three times at the formatting check,
+# and the log finally said why: actions/checkout had produced CRLF files,
+# and gofmt normalises CRLF to LF, so every file in ./cmd and ./internal
+# compared as unformatted -- 60 files, all of them correct.
+#
+# The earlier two attempts were wrong and the logs are worth recording:
+# the first was a `[ -n "$x" ]` test that pwsh cannot parse, and the
+# second added `shell: bash` and still failed, for a reason that had
+# nothing to do with the shell. Both looked like a shell problem because
+# the failing step was the one that used a shell.
+#
+# The right fix is the one that makes the checkout correct on every
+# platform rather than making the check tolerate a broken checkout. Go
+# source is LF by convention, `go fmt` assumes it, and a Go repository
+# where `git diff` shows every line as changed on Windows is a
+# repository where nobody reviews the diff.
+
+* text=auto eol=lf
+
+# Shell scripts must be LF even on Windows, or the shebang is preceded by
+# a CR and the kernel refuses to run them.
+*.sh text eol=lf
+
+# The tape file is read line by line by vhs.
+*.tape text eol=lf
+
+# Binary fixtures. These are fetched verbatim from upstream and compared
+# byte-for-byte by the corpus tests, so any normalisation would change
+# what is being tested -- including the deliberately malformed fuzz
+# crashers, whose exact bytes are the point.
+*.pyc binary
+*.gz binary
+*.zip binary
+*.png binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+
+# SBOM and report outputs. A JSON document with CRLF is valid but will not
+# match a committed golden file, and a SARIF file is uploaded and diffed.
+*.json text eol=lf
+*.sarif text eol=lf
+
+# testdata/ is already covered by `* text=auto`, which for a file git
+# detects as binary leaves it alone. Stated explicitly because the corpus
+# is the regression net and a normalisation bug there would be silent.
+testdata/** -text

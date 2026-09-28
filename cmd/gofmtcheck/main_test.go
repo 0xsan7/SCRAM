@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -99,4 +100,46 @@ func repoRoot(t *testing.T) string {
 	}
 	// The test runs in cmd/gofmtcheck.
 	return filepath.Clean(filepath.Join(dir, "..", ".."))
+}
+
+// The failure this program exists to prevent, reproduced exactly.
+//
+// actions/checkout on windows-latest produced CRLF files, and gofmt
+// always writes LF, so a byte comparison reports every file as
+// unformatted. This is the third CI attempt's failure mode: 60 files
+// listed, none of them wrong.
+//
+// .gitattributes now forces LF at checkout, so the checkout should not be
+// CRLF. This test asserts the check does not depend on that, because a
+// check that can be red for a reason unrelated to what it checks is a
+// check that gets skipped.
+func TestCheckerAcceptsACRLFFileThatIsOtherwiseFormatted(t *testing.T) {
+	bin := buildChecker(t)
+	dir := t.TempDir()
+	crlf := filepath.Join(dir, "win.go")
+	body := "package x\n\nfunc F() {}\n"
+	if err := os.WriteFile(crlf, []byte(strings.ReplaceAll(body, "\n", "\r\n")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(bin, dir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("checker rejected a CRLF file that is correctly formatted: %v\n%s", err, out)
+	}
+}
+
+// The counterpart: CRLF must not hide a real formatting problem.
+func TestCheckerStillRejectsAnUnformattedCRLFFile(t *testing.T) {
+	bin := buildChecker(t)
+	dir := t.TempDir()
+	bad := filepath.Join(dir, "win.go")
+	body := "package x\nfunc  F( ) {\n}\n"
+	if err := os.WriteFile(bad, []byte(strings.ReplaceAll(body, "\n", "\r\n")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(bin, dir)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("checker passed an unformatted CRLF file; output:\n%s", out)
+	}
 }

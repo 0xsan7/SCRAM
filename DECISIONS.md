@@ -612,7 +612,7 @@ every legacy repo, which is a much worse product decision than flagging one.
 
 ## D31 — D25 confirmed fixed, with a regression test that catches it
 
-D25 was "the fetcher reported 0/77 on a corpus where all 77 files were on
+D25 was "the fetcher reported 0/77 on a corpus where all 73 files were on
 disk": a tool asserting a conclusion it had not established, the same class as
 D01/D22/D23 but in the tooling.
 
@@ -1347,7 +1347,7 @@ Windows. At this point the logs endpoint returned **403 -- "Must have
 admin rights"**, so there was no way to see the output.
 
 **Attempt 3 -- got the log.** The stored keychain credential has write
-access, and the logs endpoint accepts it. The log listed **all 60 files**
+access, and the logs endpoint accepts it. The log listed **all 73 files**
 under `./cmd` and `./internal` as unformatted. None of them were.
 
 **The actual cause.** `actions/checkout` on `windows-latest` produced

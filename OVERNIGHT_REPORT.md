@@ -1,37 +1,32 @@
 # Overnight report
 
-Written 2026-09-28, covering the session that began with the README
-rewrite (`e08859c`) and ended at `29ac2db`.
+Written 2026-09-28 to 2026-09-29, covering two sessions: the README
+rewrite (`e08859c` through `29ac2db`) and the public-repository pass.
 
-**Four commits, all pushed. `origin/main` is at `29ac2db`, 0 ahead, 0
-behind.** No tag was cut, no release published, no repository setting
-changed.
+**8 commits in the second session, all pushed. `origin/main` is at
+`9a9329e`, 0 ahead, 0 behind.** No tag was cut, no release published, no
+repository setting changed, and no history was rewritten.
+
+**CI is green and the nightly fuzz workflow passes.** Those were
+unverifiable when the first half of this was written, because the
+repository was private. Making it public turned both into real results,
+and both of them found real bugs.
 
 ---
 
-## The contribution graph is empty, and here is why
+## The contribution graph
 
-`0xsan7/SCRAM` is a **private repository**. `https://api.github.com/repos/0xsan7/SCRAM`
-returns 404 unauthenticated, which is what GitHub does for a private repo.
+Settled. The repository is public, so private-contribution visibility is
+no longer the question.
 
-Private-repository commits only appear on your profile's contribution graph
-if **Settings → Public profile → Private contributions** is set to
-**"Make private contributions 'Private' and 'Include private contributions
-on my profile"**. Until that is on, the squares stay grey no matter how
-many commits land.
-
-A second thing worth knowing: `git config credential.helper` is
-`osxkeychain`, and the stored credentials for `github.com` belong to
-account **`232798030`**, not `0xsan7`. The push works because that account
-has write access to the repository, but the commits you make in this
-working tree are attributed to whichever identity is in `git config
-user.email`. Both are `santiagojerald734@gmail.com` right now, so the
-author line is consistent with `0xsan7` — but if the two accounts have
-different emails on file, commits made under the wrong one will not
-attribute at all.
-
-This is the one item here that needs a click in the GitHub UI rather than a
-change in the repository.
+What is still worth knowing, because it is not visible from the
+repository: `git config credential.helper` is `osxkeychain`, and the
+stored `github.com` credential belongs to account **232798030**, not
+`0xsan7`. Pushes work because that account has write access. Commits
+author from `git config user.email` (`santiagojerald734@gmail.com`), so
+attribution is consistent today — but if the two accounts have different
+emails on file, work committed under the wrong one will not attribute.
+That credential was also what made the CI logs readable.
 
 ---
 
@@ -122,6 +117,77 @@ and the checksums file, so it signed **nothing** and still exited 0. Now
 `find`-based with a hard failure on a zero count. Re-run against the real
 snapshot: 5 artifacts.
 
+### 6. Two advisories with the same EPSS and CVSS — one bug, not two
+
+You were right that something was wrong, and wrong about which part.
+
+EPSS was correct. Four of the five lodash findings matched FIRST.org
+exactly (0.05006, 0.21333, 0.05213, 0.07336). They *should* repeat
+across two advisories: `GHSA-35jh` and `GHSA-r5fr` are two records for
+the same CVE, so the same number is expected. Reading that as a lookup
+bug sends you at the wrong subsystem — I did.
+
+The real bug was CVSS. Those two records carry **different vectors**,
+because GitHub rescored the issue when its scope model changed:
+
+```
+GHSA-35jh-r3h4-6jhm  AC:L/PR:H  ->  7.2    OSV's canonical record
+GHSA-r5fr-rjxr-66jc  AC:H/PR:N  ->  8.1    the older record
+```
+
+`Dedupe` merged the group and took the higher score, so GHSA-35jh was
+reported at 8.1 wearing the other record's vector. That one is nastier
+than a wrong number: it was **internally consistent** — 8.1 and the 8.1
+vector agreed — and still wrong, because both came from a record that
+was not the one matched. Self-consistency is not provenance.
+
+A score is no longer adopted from a sibling record. All five findings
+now match an independent CVSS 3.1 implementation run over the vector that
+ships with them. Re-introducing the old rule turns the new test red with
+`CVSSv3 = 8.1, want at most 7.2`. The first version of the fix reordered
+the comparison instead of removing it and the test stayed red, which is
+what proved the test was load-bearing.
+
+### 7. CI was red on every push, and the Windows fix took four attempts
+
+Making the repository public made the runs readable. CI had been failing
+since `29ac2db` — nine of eleven jobs passing every time, only
+`windows-latest` failing, always at the formatting check.
+
+Attempt 1: pwsh cannot parse `[ -n "$x" ]`. Right about the symptom,
+wrong about the cause.
+Attempt 2: `shell: bash`. Still failed. I said so rather than shipping it.
+Attempt 3: replaced the shell entirely with a Go program. **Still
+failed** — and the logs endpoint returned 403.
+Attempt 4: got the log using the keychain credential. It listed **all 60
+files** as unformatted. None of them were: `actions/checkout` produced
+CRLF files, `gofmt` always writes LF, and a byte comparison reports
+every correct file as wrong -- 73 files, which is every `.go` file under
+`./cmd` and `./internal`.
+
+Fixed with `.gitattributes` forcing LF at checkout, plus EOL
+normalisation in the checker. Then the *next* Windows failure was mine:
+all six of the new tests built a binary named `gofmtcheck` with no `.exe`
+suffix, which works on Linux and macOS and not on Windows.
+
+**Green at `ca15f8f`.** The reasoning is the part worth keeping: two of
+four attempts were reasoned from the local machine and both were wrong in
+ways that looked like progress. The step that was failing was the step
+that used a shell, so the shell was the obvious suspect twice.
+
+### 8. Committed `.pyc` files published the build machine's home directory
+
+`scripts/__pycache__/*.pyc` were tracked since `27d92cf`. A Python
+bytecode file records the absolute path of the source it was compiled
+from, so each one published `/Users/santiagojerald/scram/...` — verified
+by compiling a file and reading the path back out. Untracked and ignored
+now. The blobs stay in history; rewriting it was out of scope, and
+`docs/BLOCKED.md` records exactly which commits hold them.
+
+A full-history scan of every blob in the history found nothing else: no `/home/`, no
+hostname, no TMPDIR paths. The one `/Users/runner/...` string is
+pydantic's own CI path inside a committed fixture.
+
 ### 6. Measured, not estimated
 
 - **NFR-1 met.** `yargs/yargs`, 492 resolved components: **6,022 ms cold,
@@ -136,27 +202,31 @@ snapshot: 5 artifacts.
 
 ---
 
-## Unverified — needs a real tag, push, or click
+## Verified, by running it
 
-Stated plainly rather than presented as done.
+The repository became public partway through this session, which turned
+every previously-unverifiable workflow claim into a testable one. All of
+these have now actually executed:
 
-| Item | Status | Why |
-|---|---|---|
-| **GitHub Actions runs** | **unverified** | `gh` is not installed. Every workflow claim here is a claim about YAML, not about a green run. |
-| Go/OS CI matrix (3 OS x Go 1.23/1.24) | **unverified** | never executed on a runner |
-| Nightly fuzz workflow | **unverified** | enumeration and budget arithmetic run locally (16 targets, 56s each); the scheduled run has not happened |
-| cosign signing | **unverified** | loop verified against real artifacts with a stub; needs OIDC, so it needs a real CI run on a tag |
-| GoReleaser release | **unverified** | snapshot verified; no tag was cut, so nothing was published |
-| Release SBOM attachment | **unverified** | the snapshot produced it; `extra_files` attachment only executes on a real release |
-| govulncheck | **unverified** | wired and scheduled, never run |
-| Coverage on CI | **unverified** | measured locally at 67.0% |
-| Contribution graph | **blocked on a click** | private-contribution setting in GitHub UI |
+| Item | Result |
+|---|---|
+| **CI, full matrix** | **green** at `ca15f8f` — 3 OSes x Go 1.23/1.24, six legs, plus lint, corpus, SBOM schema validation, and self-scan |
+| **Nightly fuzz** | **green**, dispatched manually — 16 targets enumerated from source, corpus replayed, 16 fuzzed, no crash |
+| **Mutation audit on CI** | **green** — `killed 16 survived 0 invalid 0 broken 0` |
+| Testability (coverage + race) | green on every push |
+| SBOM schemas | green — CycloneDX 1.5 and SPDX 2.3 validated against the official schemas in CI |
+| GoReleaser | `check` valid; `release --snapshot` produced 5 cross-compiled binaries, checksums, and a self-generated SBOM |
+| golangci-lint | clean on the pinned v1.64.5 |
+| The drift demo | `examples/lodash-drift/run.sh` reproduces the README hero |
 
-Because CI has never run, treat the workflow files as **unproven**. The
-most likely failure is not a logic error — it is an action version or a
-runner default that has moved since this was written.
+## Still unverified
 
----
+| Item | Why |
+|---|---|
+| `govulncheck (self)` | schedule is nightly and has not come round |
+| cosign signing, the `Release` job, release SBOM attachment | all gated on a tag, and no tag may be cut here |
+| Coverage as a published number | measured locally at 67.0%; the CI job is green but no badge is published, because no service is configured |
+| The `@v1` action ref | no release exists, so it cannot resolve |
 
 ## What is still incomplete
 
@@ -213,3 +283,33 @@ go run ./cmd/corpus-check                        # 86 real lockfiles
 python3 scripts/gen_decision_index.py --check    # index is current
 go test -coverprofile=/tmp/c.out -covermode=atomic ./...
 ```
+
+### Found in this pass, not yet fixed
+
+- **`scan.json` has no `findings` key at the top level.** The per-component
+  findings are there, and a machine-readable report that omits the thing
+  you are looking for is a trap. Not fixed here: it changes a published
+  JSON shape, so it needs a decision recorded rather than a quiet fix.
+- **D06-D21 do not exist** in `DECISIONS.md`. Real gaps, left visible in
+  the generated index rather than papered over with invented entries.
+- **`internal/cli` coverage is 24.5%** against a 83.3% median. The lowest
+  number in the project and the package with the most surface.
+
+### Deliberately not built
+
+- **mkdocs.** The documentation is 15 flat markdown files that GitHub
+  renders, with working relative links. A site generator would add a
+  build system and a deployment to maintain for no reader-facing gain.
+  Recorded in `ROADMAP.md` so it is a stated choice, not a silent gap.
+- **Reachability analysis.** The largest real gap between what SCRAM
+  reports and what is exploitable. It is a project, not a feature, and
+  `ROADMAP.md` says so with the reason.
+
+### One thing only you can do
+
+**Cut the first tag.** Everything release-shaped is built and
+locally verified but has never executed: `goreleaser check` passes, a
+snapshot produces five cross-compiled binaries with checksums and a
+self-generated SBOM, the cosign loop was verified against the real
+snapshot layout, and the `Release` job is wired for keyless signing. None
+of that runs without a tag, and I did not cut one.

@@ -29,7 +29,7 @@ which the earlier summaries had understated.
 | 1b. REPRODUCIBILITY.md | **DONE** | [`REPRODUCIBILITY.md`](../REPRODUCIBILITY.md); 15 repos, list read from `docs/differential.json` |
 | 1c. Benchmarks (NFR-1) | **DONE** | `cacb9c4`; `BENCHMARKS.md`; 9 benchmarks |
 | 1c. ~500-dependency repo, cold+warm | **DONE** | `BENCHMARKS.md`; `yargs/yargs` 492 components: 6,022 ms cold, 2,256 ms warm, 30 ms SBOM-only; NFR-1 (<30s) met |
-| 1d. Nightly fuzz + mutation audit | **DONE** | `.github/workflows/fuzz.yml`; targets derived from source (16), nightly 02:17 UTC, runs `scripts/mutation_audit.py`; **dispatched and running** at `ca15f8f` |
+| 1d. Nightly fuzz + mutation audit | **DONE** | `.github/workflows/fuzz.yml`; targets derived from source (16), nightly 02:17 UTC, runs `scripts/mutation_audit.py`; **verified green**: dispatched at `ca15f8f`, 16 targets enumerated and fuzzed, no crashes; mutation audit `killed 16 survived 0` |
 | 1d. Corpus/invariant job on every PR | **PARTIAL** | `internal/resolve/invariant_test.go` runs in `ci.yml` via `go test ./...`, but as part of the test job, not a named gate |
 | 1d. TESTING.md / CONTRIBUTING.md rules | **PARTIAL** | `CONTRIBUTING.md` has resolver/fixture rules; **`TESTING.md` does not exist** |
 
@@ -72,7 +72,7 @@ reading tests:
 | A. SBOM attached to releases | **DONE** | generated in a `.goreleaser.yml` before-hook and attached via `extra_files`; both formats verified in the snapshot output |
 | B. Go/OS CI matrix | **DONE** | `ci.yml` job `build`: 3 OSes x Go 1.23/1.24, `fail-fast: false`; **verified green** at `ca15f8f` |
 | B. golangci-lint | **DONE** | `.golangci.yml`; clean on pinned v1.64.5. Found 5 real defects, incl. D41 (a rename that disabled the fail-closed path) |
-| B. govulncheck | **DONE** | `ci.yml` job `govulncheck`, scheduled (queries the Go vuln DB, so not on every PR); scheduled, not yet fired |
+| B. govulncheck | **DONE** | `ci.yml` job `govulncheck`, scheduled (queries the Go vuln DB, so not on every PR); **not yet fired** — the schedule is nightly and has not come round |
 | B. Coverage reporting | **DONE** | `.github/workflows/testability.yml`; **green on CI**, measured 67.0% overall, median 83.3%, weakest `cli` 24.5%. No badge, because no service is configured |
 | C. CODE_OF_CONDUCT.md | **NOT STARTED** | — |
 | C. GOVERNANCE.md | **NOT STARTED** | — |

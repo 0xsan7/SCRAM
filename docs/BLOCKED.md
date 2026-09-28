@@ -30,6 +30,19 @@ and nothing in this repository changed as a result.
 `govulncheck (self)` and `Release` show as `skipped`, correctly: the
 former is schedule-only and the latter requires a tag.
 
+**The Fuzz workflow was dispatched manually and passes.** 16 targets
+enumerated from the source (so a new target cannot silently never be
+fuzzed), the committed corpus replayed, all 16 fuzzed with no crash, and
+the mutation audit reporting `killed 16 survived 0 invalid 0 broken 0`.
+
+What remains unverified is now only:
+
+- `govulncheck (self)` — the schedule is nightly and has not come round
+- the `Release` job, cosign signing, and the release SBOM attachment —
+  all gated on a tag, and no tag may be cut here
+- coverage measured locally at 67.0%; the CI job that reports it is
+  green, but no badge is published because no service is configured
+
 ## 2. The repository is private, so contributions do not appear on the
 `0xsan7` profile
 

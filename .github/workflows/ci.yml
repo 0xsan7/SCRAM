@@ -3,6 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+    # Tag pushes. Without this the release job below never runs: it is
+    # gated on `startsWith(github.ref, 'refs/tags/v')`, but a workflow
+    # that only listens to `branches: [main]` is never invoked for a tag
+    # at all, so the gate is never evaluated.
+    #
+    # Found by cutting v0.1.0-rc1 and watching nothing happen. The
+    # `if:` on the job looked like it was doing the work; it was only
+    # deciding whether to run a job that was never scheduled.
+    tags:
+      - 'v*'
   pull_request:
 
 permissions:

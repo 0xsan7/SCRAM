@@ -20,6 +20,7 @@ import (
 	"github.com/0xsan7/scram/internal/sbom"
 	"github.com/0xsan7/scram/internal/score"
 	"github.com/0xsan7/scram/internal/vuln"
+	"strings"
 )
 
 // Options control a scan run. The CLI populates these from flags; the Action
@@ -119,8 +120,15 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		return nil, fmt.Errorf("detecting ecosystems: %w", err)
 	}
 	if len(projects) == 0 {
+		// Derived from the candidate list rather than written out, because
+		// this string was hardcoded at four filenames and went stale the
+		// moment the requirements variants were added (D37). A user who
+		// reads a list of filenames this tool does not actually look for
+		// has been told something false, and the failure it causes is
+		// silence rather than an error.
 		scan.Warnings = append(scan.Warnings,
-			"no supported lockfiles found (looked for package-lock.json, poetry.lock, requirements.txt, go.sum)")
+			"no supported lockfiles found (looked for: "+
+				strings.Join(detect.CandidateFilenames(), ", ")+")")
 	}
 
 	// 2. Resolve. Only projects matching the requested ecosystems are kept.

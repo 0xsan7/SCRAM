@@ -74,6 +74,22 @@ var candidates = []Project{
 	{Ecosystem: "go", File: "go.sum", RelPath: "go.mod"},
 }
 
+// CandidateFilenames returns every filename the detector looks for, so user-
+// facing messages can name the real list instead of a hand-kept copy of it.
+func CandidateFilenames() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, c := range candidates {
+		f := c.File
+		if seen[f] {
+			continue
+		}
+		seen[f] = true
+		out = append(out, f)
+	}
+	return out
+}
+
 // maxDepth bounds how deep the subdirectory walk goes. Three levels covers
 // the common monorepo layouts (apps/web, services/api, packages/ui) without
 // walking an arbitrarily large tree, and without descending into vendored or

@@ -1,69 +1,221 @@
 # SCRAM
 
-**Supply Chain Risk Assessment & Monitoring** — *pull the fail-safe on supply chain risk before it ships.*
-
-Most dependency scanners tell you the current state. Almost none of them tell you **what a specific pull request changed**. That gap is what SCRAM fills: drift-aware, PR-native risk delta, with a scoring model you can inspect line by line.
+**Supply Chain Risk Assessment & Monitoring** — a dependency scanner that
+answers the question PR gates actually ask: *what did this change?*
 
 ```
-$ scram scan .
+   _  ___ ___  __  _ __  ___  __  __
+  | || | _ \\|  \\| |  \\/   \\|  \\/ /
+  | __ |   /| |\\/| | |> | - || |\\/|
+  |_||_|_|_\\ |_|  |_|_| |_|_||_|  |_|   v0.1.0 · pre-release
+```
 
+Most scanners tell you the current state. Almost none tell you what a
+specific pull request *changed* — and that is the only question a reviewer
+can act on.
+
+```console
+$ scram scan --epss
 SCRAM supply chain scan
 ────────────────────────────────────────────────────────────────
-  repo        my-app
-  components  412
-  findings    3 vulnerability record(s)
-  repo score  36/100  LOW
+  repo        demo-app
+  components  1
+  findings    2 vulnerability record(s)
+  repo score  37/100  LOW
+  breakdown   critical 0  high 0  medium 0  low 1  clean 0
 
   Drift since baseline
-    added 1   version-changed 2   removed 0
-    new vulnerabilities 3   resolved 1
+    added 0   version-changed 1   removed 0
+    new vulnerabilities 1   resolved 4
+        new high 1, new critical 0
 
-  CHG  MEDIUM  pkg:npm/lodash@4.17.11
-        score 36/100, 2 finding(s)
-        N CVE-2019-10744  cvss 9.1  epss 5.01%  fixed in 4.17.12
-        N CVE-2021-23337  cvss 7.2  epss 21.33% fixed in 4.17.21
+CHG  LOW       pkg:npm/lodash@4.17.21
+         score 37/100, 2 finding(s)
+         N GHSA-r5fr-rjxr-66jc cvss 8.1  epss 21.33%  fixed in 4.18.0
+           GHSA-f23m-r3pf-42rh cvss 6.5  epss   -    fixed in 4.18.0
 
 FAIL  (fail-on: high, new findings only: true)
-  - CVE-2019-10744 affects pkg:npm/lodash@4.17.11 (severity critical, at or above fail-on high)
+  - GHSA-r5fr-rjxr-66jc affects pkg:npm/lodash@4.17.21 (severity high, at or above fail-on high)
 ```
+
+*Real output: `lodash` 4.17.11 → 4.17.21 in a git repo with a committed
+baseline. Reproduce it in under a minute — see [Quick start](#quick-start).*
 
 ---
 
-## Why
+## Contents
 
-A team with 200 pre-existing medium findings will disable any tool that blocks every PR on day one. So SCRAM gates on **new** findings by default:
+- [Why drift beats a score](#why-drift-beats-a-score)
+- [Quick start](#quick-start)
+- [What a real finding looks like](#what-a-real-finding-looks-like)
+- [Failing closed](#failing-closed)
+- [Scoring, in the open](#scoring-in-the-open)
+- [CI integration](#ci-integration)
+- [Output formats](#output-formats)
+- [Configuration](#configuration)
+- [Ecosystems](#ecosystems)
+- [Limitations](#limitations)
+- [Design notes](#design-notes)
+- [Development](#development)
 
-| Scenario | Default behavior |
+---
+
+## Why drift beats a score
+
+A team with 200 pre-existing medium findings will switch off any tool that
+blocks every PR on day one. So SCRAM gates on **new** findings by default,
+and treats a baseline as a first-class input.
+
+| Situation | Default result |
 |---|---|
 | 200 pre-existing mediums, PR changes nothing | **Passes** |
-| PR downgrades `lodash` and introduces a 9.1 CVE | **Fails**, naming the CVE |
+| PR bumps `lodash`, exposes a 7.4 advisory | **Fails**, naming the advisory |
 | A known-unreachable finding with a current waiver | **Passes** |
 | Same finding, waiver expired yesterday | **Fails** — expired waivers re-trigger |
 | OSV is unreachable | **Fails** — see [Failing closed](#failing-closed) |
+| Lockfile present, zero components resolved | **Fails** — see [Failing closed](#failing-closed) |
 
-That last row matters more than it looks.
+The last two matter more than they look. Both are cases where the honest
+answer is "I don't know", and a scanner that answers "clean" is worse than
+one that fails, because the failure is visible.
 
-## Install
+Two supporting commands exist for the case where *when* something landed
+matters as much as what it is:
 
-```bash
-# macOS / Linux
-curl -sSfL https://github.com/0xsan7/SCRAM/releases/latest/download/scram-linux-amd64 -o scram
-chmod +x scram && sudo mv scram /usr/local/bin/
+```console
+$ scram blame pkg:npm/lodash@4.17.21
 
-# or from source
-go install github.com/0xsan7/scram/cmd/scram@latest
+pkg:npm/lodash@4.17.21
+  current version   4.17.21
+  introduced        5.7y ago, b61c7aa, by T
+                     at 2.10
+  last changed      3.7y ago, c8da5ea, by T
+                     to 2.10 — re-add jinja2
+  commits scanned   3
+
+  Version history:
+   * 2.10       b61c7aa       5.7y ago  T
+     3.1.4      4c586aa       4.7y ago  T
+     2.10       3db2f8a       3.7y ago  T
 ```
 
-Ships as a single static binary. No runtime, no config file required.
+An advisory disclosed against a package that has been pinned for two years
+is a different problem from one disclosed against a package added last
+week. `scram why` answers the related question of *how* it got in —
+direct or transitive, and via what.
+
+In a **shallow clone** (`git clone --depth 1`, which is what CI does by
+default) blame refuses to guess:
+
+```
+  WARNING           shallow clone: this is the first commit in the LOCAL
+                    history, not necessarily when the dependency arrived
+  first seen       4.7y ago, 4c586aa, by T
+```
 
 ## Quick start
 
+Requires Go 1.23+. No config file is required; no network is needed to
+resolve dependencies.
+
 ```bash
-scram init                    # write a starter .scram.yml
-scram scan                    # scan the current directory
-scram baseline update         # capture today's state as the baseline
-scram scan                    # now every run reports only what changed
+git clone https://github.com/0xsan7/SCRAM.git && cd SCRAM
+go build -o scram ./cmd/scram
+
+./scram init                    # write a starter .scram.yml
+./scram scan --epss             # scan the current directory
+./scram baseline update         # capture today's state as the baseline
 ```
+
+Then change a dependency and scan again:
+
+```bash
+./scram scan --epss
+```
+
+The second run reports what changed against the baseline and gates on what
+is new. Try it against `lodash` 4.17.11 → 4.17.21 to reproduce the output
+at the top of this file.
+
+## What a real finding looks like
+
+```
+   MEDIUM    pkg:npm/lodash@4.17.11
+         score 41/100, 5 finding(s)
+           GHSA-jf85-cpcp-j695 cvss 9.1  epss 5.01%  fixed in 4.17.12
+           GHSA-35jh-r3h4-6jhm cvss 8.1  epss 21.33%  fixed in 4.17.21
+           GHSA-p6mc-m468-83gw cvss 7.4  epss 5.21%  fixed in 4.17.19
+           GHSA-f23m-r3pf-42rh cvss 6.5  epss   -    fixed in 4.18.0
+           GHSA-29mw-wpgm-hmr9 cvss 5.3  epss 7.34%  fixed in 4.17.21
+```
+
+Every field is real OSV data plus FIRST.org EPSS, and the component is
+matched by PURL, so a transitive package is found without a guess about
+the dependency path.
+
+## Failing closed
+
+If a vulnerability source is unreachable, SCRAM warns **and fails the run**.
+It will not report a clean bill of health it never verified.
+
+The same applies to resolution. A file that declares dependencies and
+resolves **zero** of them is treated as an operational failure, not a
+clean scan — the failure mode this whole project exists to eliminate,
+found five separate times in its own corpus and fixed each time. A
+genuinely dependency-free project (a `pyproject.toml` with no
+`dependencies` key) is still a valid pass, and the two are told apart by
+counting declarations independently of the parser.
+
+```yaml
+allow_degraded_scan: true     # opt in to a partial scan, e.g. an air-gapped runner
+```
+
+## Scoring, in the open
+
+Every number is a weighted sum, and `--explain` prints the arithmetic:
+
+```console
+$ scram scan --epss --explain pkg:npm/lodash@4.17.11
+
+pkg:npm/lodash@4.17.11
+  ecosystem     npm
+  direct        true
+  license       MIT
+
+  severity         36 / 40   (max CVSS v3 across 5 known vulns)
+      GHSA-jf85-cpcp-j695 CVSS 9.1     EPSS 0.0501
+      GHSA-35jh-r3h4-6jhm CVSS 8.1     EPSS 0.2133
+      GHSA-p6mc-m468-83gw CVSS 7.4     EPSS 0.0521
+      GHSA-f23m-r3pf-42rh CVSS 6.5     no EPSS
+      GHSA-29mw-wpgm-hmr9 CVSS 5.3     EPSS 0.0734
+
+  exploitability    5 / 25   (EPSS probability x 25)
+  maintenance       0 / 20   (OpenSSF Scorecard, not yet integrated)
+  freshness         0 / 15   (version distance behind latest)
+
+  = total          41 / 100   bucket: medium
+```
+
+| Bucket | Score |
+|---|---|
+| Critical | 90–100 |
+| High | 70–89 |
+| Medium | 40–69 |
+| Low | 1–39 |
+| Clean | 0 |
+
+Two deliberate choices, both load-bearing:
+
+- **A component with no known vulnerabilities scores 0 on severity.**
+  Absence of a CVE is not evidence of safety, so it must not manufacture
+  risk. The freshness and maintenance terms are what surface latent risk in
+  a clean-looking tree.
+- **The repo score escalates on count as well as on the max component
+  score**, because ten high findings are a high-severity situation even
+  when no single component reaches 70.
+
+`maintenance` is scored 0/20 today and says so in the output — the
+OpenSSF Scorecard integration is not built.
 
 ## CI integration
 
@@ -83,7 +235,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0        # needed to diff against the base branch
+          fetch-depth: 0        # blame needs real history; see below
 
       - uses: 0xsan7/SCRAM@v1
         with:
@@ -93,48 +245,19 @@ jobs:
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: scram-output/scan.json   # or a .sarif file
+          sarif_file: scram-output/scan.json
 ```
 
-The Action resolves the baseline from the PR's base branch automatically, so there's no baseline file to maintain. It also updates a single PR comment on each push rather than posting a new one every time.
+The Action resolves the baseline from the PR's base branch, so there is no
+baseline file to maintain, and it updates a single PR comment rather than
+posting a new one on every push.
 
-**Outputs:** `sbom-path`, `repo-score`, `repo-bucket`, `new-critical-count`, `new-high-count`.
+`fetch-depth: 0` matters: with the default depth of 1, `scram blame`
+correctly refuses to report an introduction date (see above), so the
+command still works but tells you less.
 
-## Failing closed
-
-If a vulnerability source is unreachable, SCRAM warns and then **fails the run**. It will not report a clean bill of health it never verified — "no findings" when there was no data is worse than a red build, because it is a false all-clear.
-
-Set `allow_degraded_scan: true` in `.scram.yml` if you accept that risk, for example on a network-isolated runner.
-
-A scan that finds no lockfiles at all is also treated as a failure, not a pass.
-
-## Scoring
-
-Every score is a weighted sum, capped at 100, and `--explain` shows the arithmetic:
-
-```
-severity        36 / 40   max CVSS v3 across 7 known vulns
-exploitability   5 / 25   EPSS probability × 25
-maintenance     0 / 20   OpenSSF Scorecard (not yet integrated)
-freshness       0 / 15   version distance behind latest
-= total          41 / 100   bucket: medium
-```
-
-```bash
-scram scan --explain pkg:npm/lodash@4.17.11
-```
-
-| Bucket | Score |
-|---|---|
-| Critical | 90–100 |
-| High | 70–89 |
-| Medium | 40–69 |
-| Low | 1–39 |
-| Clean | 0 |
-
-Repo-level severity escalates on count as well as on the max score, because ten high findings are a high-severity situation even when no single component reaches 70.
-
-A component with **no known vulnerabilities scores 0 on severity**. That is deliberate: absence of a CVE is not evidence of safety, so it shouldn't manufacture risk. The freshness and maintenance terms are what surface latent risk in a clean-looking tree.
+**Outputs:** `sbom-path`, `repo-score`, `repo-bucket`, `new-critical-count`,
+`new-high-count`.
 
 ## Output formats
 
@@ -144,7 +267,9 @@ scram scan --format json     # full result object, versioned schema
 scram scan --format sarif    # for the GitHub Security tab
 ```
 
-For `--format json` and `--format sarif`, stdout stays a clean parseable document and the human-readable policy summary goes to stderr, so `scram scan --format json | jq` always works.
+For `--format json` and `--format sarif`, stdout stays a clean parseable
+document and the human-readable policy summary goes to stderr, so
+`scram scan --format json | jq` always works.
 
 Re-render a prior scan without re-querying anything:
 
@@ -153,20 +278,18 @@ scram scan --format json > scan.json
 scram report --from scan.json --format sarif --out results.sarif
 ```
 
-## SBOMs
-
-CycloneDX 1.5 and SPDX 2.3, generated from the same component list so the two artifacts can never disagree. Validated in CI against the official schema validators.
+A self-score badge, for a README. It reads a scan document rather than
+taking a number, so the badge cannot claim a score nobody measured:
 
 ```bash
-scram sbom generate . --format both
-```
-
-```yaml
-sbom:
-  formats: [cyclonedx, spdx]
+scram scan --format json > scan.json
+scram badge --in scan.json
+# {"schemaVersion":1,"label":"self score","message":"36/100 low","color":"yellowgreen"}
 ```
 
 ## Configuration
+
+Every key below is read by the tool; there are no aspirational ones.
 
 ```yaml
 version: 1
@@ -190,24 +313,38 @@ waivers:
 licenses:
   deny: [GPL-3.0-only]
 
+ignore_paths: [vendor, third_party]
+
 epss: false                    # exploitability scoring; ~2x requests
 allow_degraded_scan: false     # fail closed when a source is unreachable
+offline: false                 # cache-only operation
 cache_ttl_hours: 6
 ```
 
 ## Ecosystems
 
-| Ecosystem | Reads | Direct/transitive |
+| Ecosystem | Reads | Direct/transitive from |
 |---|---|---|
-| npm | `package-lock.json` (v1, v2, v3), `npm-shrinkwrap.json` | from `package.json` |
-| PyPI | `requirements.txt`, `poetry.lock`, `Pipfile.lock` | from `pyproject.toml` |
-| Go | `go.sum` | from `go.mod` |
+| npm | `package-lock.json` (v1, v2, v3), `npm-shrinkwrap.json` | `package.json` |
+| PyPI | `requirements.txt` and 14 other requirements filenames, `poetry.lock`, `Pipfile.lock`, `pyproject.toml` (PEP 621 + Poetry) | `pyproject.toml`, `package.json`-style manifests |
+| Go | `go.sum` | `go.mod` |
 
-Lockfiles are parsed directly — no `npm install`, no build step, no network. Maven, Cargo, and RubyGems are on the roadmap.
+Lockfiles are parsed directly — no `npm install`, no build step, no network
+access to a package registry. Maven, Cargo, and RubyGems are not
+implemented.
+
+Two behaviours worth knowing, both tested:
+
+- **A lockfile always outranks a manifest.** A project with both
+  `poetry.lock` and `pyproject.toml` is read through the lockfile, because
+  the lockfile carries exact installed versions and the manifest only
+  ranges.
+- **Poetry's `python = ">=3.9"` is an interpreter constraint, not a
+  package.** It is never emitted as a component named `python`.
 
 ### Adding a resolver
 
-This is the highest-leverage contribution and the lowest barrier. Write one file:
+This is the highest-leverage contribution and the lowest barrier. One file:
 
 ```go
 package resolve
@@ -223,7 +360,13 @@ func (r cargoResolver) Resolve(root, path string) ([]model.Component, error) {
 }
 ```
 
-Then add the lockfile to `candidates` in `internal/detect`. Nothing else changes — detection, SBOM generation, scoring, drift, policy, and all output formats pick it up automatically.
+Then add the lockfile to `candidates` in `internal/detect`. Nothing else
+changes — detection, SBOM generation, scoring, drift, policy, and every
+output format pick it up automatically.
+
+A new resolver also has obligations; see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the required corpus, invariant,
+fuzz target, and mutation audit.
 
 ## Exit codes
 
@@ -231,30 +374,63 @@ Then add the lockfile to `candidates` in `internal/detect`. Nothing else changes
 |---|---|
 | 0 | Pass |
 | 1 | Policy failure — findings at or above threshold |
-| 2 | Scanner error — the scan didn't complete |
+| 2 | Scanner error — the scan did not complete |
 
-Distinguishing 1 from 2 lets CI tell "found something" from "the scanner broke."
+Telling 1 from 2 is what lets CI distinguish "found something" from "the
+scanner broke".
+
+## Limitations
+
+[See LIMITATIONS.md](LIMITATIONS.md) for the full list. The two most likely
+to matter to you:
+
+- **npm v1 lockfiles carry no `dev`/`optional`/`peer` flags**, so a v1
+  scan cannot separate production from test-only dependencies. Real v1
+  fixtures are covered; the *distinction* is not derivable from the format.
+- **PyPI ranges resolve to their floor.** A `>=2.1.2` requirement is
+  recorded as 2.1.2, which is the best a ranged declaration allows and is
+  *not* the same as a lockfile's exact version.
 
 ## Design notes
 
-**Minimal dependencies.** Three non-stdlib imports: `cobra`, `packageurl-go`, `yaml.v3`. For a supply chain tool, its own supply chain is the credibility test. CycloneDX, SPDX, SARIF, and the CVSS 3.1 equation are implemented in-tree rather than pulled in.
+**Minimal dependencies.** Four non-stdlib imports: `cobra`,
+`packageurl-go`, `yaml.v3`, and `BurntSushi/toml`. For a supply chain tool,
+its own supply chain is part of the credibility test — the TOML parser was
+added specifically because hand-rolling one to avoid a dependency was the
+worse trade.
 
-**No telemetry.** No phone-home, ever. If usage analytics are added they will be opt-in and disclosed.
+**No telemetry.** No phone-home. If usage analytics are ever added they will
+be opt-in and disclosed.
 
-**Reproducible output.** Components are sorted, document serial numbers are derived from a hash rather than random, and baselines are written as sorted JSON — so an unchanged repo produces a byte-identical artifact and shows up as no diff.
+**Reproducible output.** Components are sorted, serial numbers derive from a
+hash rather than randomness, and baselines are written as sorted JSON, so an
+unchanged repo produces a byte-identical artifact and shows up as no diff.
 
-**Graceful degradation, but not graceful silence.** A downed upstream produces a warning and a partial scan, and the run still fails. Degrading is fine; degrading *silently green* is not.
+**Degrading is fine; degrading silently green is not.** A downed upstream
+produces a warning, a partial scan, and a failing exit code.
+
+**Validated, not asserted.** The CycloneDX and SPDX output is checked
+against the official schemas in CI, and a mutation audit re-breaks each
+fixed bug to confirm the test suite catches its return.
 
 ## Development
 
 ```bash
-go test ./...
 go build ./cmd/scram
-./scram scan .          # SCRAM scans itself in CI
+go test ./...                                   # 210 tests
+go test ./internal/resolve/ -run '^$' -bench . -benchmem
+
+# validation tooling, all runnable offline against the committed corpus
+python3 scripts/test_fetch_corpus.py            # fetcher regression tests
+python3 scripts/mutation_audit.py               # re-break each fix, expect red
+go test ./internal/resolve/ -run '^Fuzz' -count=1
 ```
 
-Requires Go 1.23+.
+Benchmarks and the baseline they were measured against: [BENCHMARKS.md](BENCHMARKS.md).
+Decision log, including every bug the corpus and fuzzing found:
+[DECISIONS.md](DECISIONS.md).
 
 ## License
 
-Apache-2.0 — includes the explicit patent grant, which matters for a security tool enterprises will actually adopt.
+Apache-2.0 — includes the explicit patent grant, which matters for a
+security tool enterprises will actually adopt.

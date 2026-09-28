@@ -42,13 +42,22 @@ jobs:
         run: go vet ./...
 
       - name: Check formatting
+        # `shell: bash` rather than the runner default. windows-latest uses
+        # pwsh, where `[ -n "$x" ]` is not valid syntax, so the previous
+        # POSIX version of this step failed to parse and the whole
+        # windows-latest job failed on both Go versions while ubuntu and
+        # macos passed. GitHub ships bash on the Windows image, so this runs
+        # identically on all three.
+        shell: bash
         run: |
+          set -euo pipefail
           unformatted=$(gofmt -l ./cmd ./internal)
           if [ -n "$unformatted" ]; then
             echo "These files need gofmt:"
             echo "$unformatted"
             exit 1
           fi
+          echo "formatting clean"
 
       - name: Test
         run: go test -race ./...
@@ -62,6 +71,11 @@ jobs:
 
       - name: Report coverage
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.23'
+        # `shell: bash` for the same reason as the formatting step: this job
+        # runs on windows-latest too, and pwsh does not accept a bare
+        # `| tail -1`. Guarded by `if:` so it only executes on Linux, but a
+        # step whose shell is wrong is still a step whose shell is wrong.
+        shell: bash
         run: go tool cover -func=coverage.out | tail -1
 
       - name: Upload coverage

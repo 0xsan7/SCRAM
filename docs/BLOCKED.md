@@ -96,3 +96,47 @@ grype find 14, and its v2 `scan source` JSON schema emits no
 
 The differential conclusion therefore rests on **syft 1.52.0** and
 **grype 0.119.0** only. See `REPRODUCIBILITY.md`.
+
+---
+
+## 5. Absolute host paths in git history
+
+Audited 2026-09-28 after the repository became public. Method: every blob
+in `git rev-list --all --objects` was read and searched for `/Users/`,
+`/home/`, the account name, and RFC1918-style hostnames.
+
+**Found: 3 committed `.pyc` files, since removed from the index.**
+
+| commit | file |
+|---|---|
+| `27d92cf` | `scripts/__pycache__/fetch_corpus.cpython-314.pyc` |
+| `160f3e6` | `scripts/__pycache__/diff_vulns.cpython-314.pyc` |
+| `160f3e6` | `scripts/__pycache__/differential.cpython-314.pyc` |
+
+A Python bytecode file records the absolute path of the source it was
+compiled from, so each one published `/Users/santiagojerald/scram/...`.
+Verified by compiling a file and reading the string back out of the
+resulting `.pyc`, so this is a property of the format rather than a guess.
+
+Fixed by `git rm --cached` plus a `__pycache__/` and `*.py[cod]` rule in
+`.gitignore`. The blobs **remain in history** and are still reachable at
+those commits.
+
+**Not fixed here:** history was not rewritten, per instruction. On a
+public repository this means the home directory path is permanently
+visible to anyone who reads those commits. A path is not a credential and
+reveals no secret, but it does disclose the account name and directory
+layout, and it is the kind of thing that should not be published. If it
+needs to be gone, the options are `git filter-repo --path scripts/__pycache__
+--invert-paths` followed by a force-push, or GitHub Support. Both rewrite
+history or require someone else's action, so neither was done.
+
+**Clean:** `/home/` (0 hits), the local hostname (0 hits),
+`/var/folders/...` TMPDIR paths (0 hits), and `*.local`/`*.lan` hostnames
+(0 hits). The single `env.local` hit is a `.gitignore` entry naming a file
+to exclude, not a hostname.
+
+**Also present and correct:** one `/Users/runner/...` string inside
+`testdata/fixtures/pypi/real/pp/pydantic/pydantic/pyproject.toml`. That is
+pydantic's own CI path, part of the upstream file, and part of what the
+fixture is for.

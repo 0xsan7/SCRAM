@@ -33,3 +33,10 @@ coverage.html
 .env
 .env.local
 *.pem
+
+# Python bytecode caches. These are build output, and a committed .pyc
+# embeds the absolute path of the machine that compiled it -- so committing
+# one publishes that machine's home directory. They were tracked in
+# 27d92cf and 160f3e6 before this rule existed.
+__pycache__/
+*.py[cod]

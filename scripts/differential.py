@@ -179,7 +179,7 @@ def main():
     ap.add_argument("--only", default=None)
     ap.add_argument("--vulns", action="store_true",
                     help="also run grype and osv-scanner (slow, networked)")
-    ap.add_argument("--out", default=os.path.join(ROOT, "differential.json"))
+    ap.add_argument("--out", default=os.path.join(ROOT, "docs", "differential.json"))
     args = ap.parse_args()
 
     syft = os.path.join(args.tools, "syft")

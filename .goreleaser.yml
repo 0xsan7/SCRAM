@@ -2,7 +2,7 @@
 #
 # Prepared but never executed: cutting a tag is a human decision, so this
 # file exists to make that decision cheap and reproducible rather than to
-# automate it away. See STATUS.md and BLOCKED.md.
+# automate it away. See docs/STATUS.md and docs/BLOCKED.md.
 #
 # The release it produces is the project's own supply-chain claim, so the
 # parts that matter are the ones a security tool cannot skip:

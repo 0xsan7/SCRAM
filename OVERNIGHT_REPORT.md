@@ -160,7 +160,7 @@ runner default that has moved since this was written.
 
 ## What is still incomplete
 
-From `STATUS.md`, honestly:
+From [`docs/STATUS.md`](docs/STATUS.md), honestly:
 
 - **Abandonment prediction** — not started, and correctly out of scope.
 - **SLSA provenance** — not started. cosign signs the blobs; there is no
@@ -191,7 +191,7 @@ the finding I would keep:
 - A test-runner capture saved a file before stdout finished, which looked
   like a badge bug and was not.
 - `REPRODUCIBILITY.md`'s first draft named four repositories that are not
-  in the corpus. Its list is now read from `differential.json` rather than
+  in the corpus. Its list is now read from `docs/differential.json` rather than
   retyped.
 - `.scram-trend.json` was tracked, so the NFR-1 benchmark runs appended
   four entries for a 492-component fixture to SCRAM's own sparkline. Now

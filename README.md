@@ -4,11 +4,13 @@
 answers the question PR gates actually ask: *what did this change?*
 
 ```
-   _  ___ ___  __  _ __  ___  __  __
-  | || | _ \\|  \\| |  \\/   \\|  \\/ /
-  | __ |   /| |\\/| | |> | - || |\\/|
-  |_||_|_|_\\ |_|  |_|_| |_|_||_|  |_|   v0.1.0 · pre-release
+ ___  ___ ___    _   __  __ 
+/ __|/ __| _ \  /_\ |  \/  |
+\__ \ (__|   / / _ \| |\/| |
+|___/\___|_|_\/_/ \_\_|  |_|
 ```
+
+`v0.1.0` · pre-release · no release tag published yet
 
 Most scanners tell you the current state. Almost none tell you what a
 specific pull request *changed* — and that is the only question a reviewer
@@ -38,8 +40,11 @@ FAIL  (fail-on: high, new findings only: true)
   - GHSA-r5fr-rjxr-66jc affects pkg:npm/lodash@4.17.21 (severity high, at or above fail-on high)
 ```
 
-*Real output: `lodash` 4.17.11 → 4.17.21 in a git repo with a committed
-baseline. Reproduce it in under a minute — see [Quick start](#quick-start).*
+*Real output, from `./examples/lodash-drift/run.sh`: `lodash` 4.17.11 →
+4.17.21 in a git repo with a committed baseline. The `commit` line is the
+one field that differs on every run; everything else is reproduced
+byte-for-byte, including the FAIL and the exit code. Run the script to
+confirm it against whatever OSV says today.*
 
 ---
 
@@ -69,7 +74,7 @@ and treats a baseline as a first-class input.
 | Situation | Default result |
 |---|---|
 | 200 pre-existing mediums, PR changes nothing | **Passes** |
-| PR bumps `lodash`, exposes a 7.4 advisory | **Fails**, naming the advisory |
+| PR bumps `lodash` 4.17.11 → 4.17.21, which *resolves* four findings and pulls in an 8.1 one | **Fails**, naming `GHSA-r5fr-rjxr-66jc` |
 | A known-unreachable finding with a current waiver | **Passes** |
 | Same finding, waiver expired yesterday | **Fails** — expired waivers re-trigger |
 | OSV is unreachable | **Fails** — see [Failing closed](#failing-closed) |
@@ -83,20 +88,20 @@ Two supporting commands exist for the case where *when* something landed
 matters as much as what it is:
 
 ```console
-$ scram blame pkg:npm/lodash@4.17.21
+$ cd /tmp && git clone https://github.com/lodash/lodash.git && cd lodash
+$ scram blame pkg:npm/ajv@6.10.2
 
-pkg:npm/lodash@4.17.21
-  current version   4.17.21
-  introduced        5.7y ago, b61c7aa, by T
-                     at 2.10
-  last changed      3.7y ago, c8da5ea, by T
-                     to 2.10 — re-add jinja2
-  commits scanned   3
+pkg:npm/ajv@6.10.2
+  current version   6.10.2
+  introduced       8.1y ago, eaa9f36, by John-David Dalton
+                     at 5.5.2
+  last changed      7.2y ago, b185fce, by John-David Dalton
+                     to 6.10.2 — Rebuild lodash and docs.
+  commits scanned   16
 
   Version history:
-   * 2.10       b61c7aa       5.7y ago  T
-     3.1.4      4c586aa       4.7y ago  T
-     2.10       3db2f8a       3.7y ago  T
+   * 5.5.2      eaa9f36       8.1y ago  John-David Dalton
+     6.10.2     b185fce       7.2y ago  John-David Dalton
 ```
 
 An advisory disclosed against a package that has been pinned for two years
@@ -105,13 +110,24 @@ week. `scram why` answers the related question of *how* it got in —
 direct or transitive, and via what.
 
 In a **shallow clone** (`git clone --depth 1`, which is what CI does by
-default) blame refuses to guess:
+default) blame refuses to guess, and says so rather than reporting the
+clone date as the arrival date:
 
 ```
-  WARNING           shallow clone: this is the first commit in the LOCAL
-                    history, not necessarily when the dependency arrived
-  first seen       4.7y ago, 4c586aa, by T
+$ git clone --depth 1 https://github.com/lodash/lodash.git && cd lodash
+$ scram blame pkg:npm/ajv@6.10.2
+
+pkg:npm/ajv@6.10.2
+  current version   6.10.2
+  WARNING           shallow clone: this is the first commit in the LOCAL history, not necessarily when the dependency arrived
+  first seen       17d ago, 2b5e6f7, by Jon Church
+                     at 6.10.2
+  commits scanned   1
 ```
+
+Note the difference against the same command in the full clone above:
+`17d ago ... first seen` instead of `8.1y ago ... introduced at 5.5.2`. The
+commit hash and date are the clone's, not the project's.
 
 ## Quick start
 
@@ -134,8 +150,18 @@ Then change a dependency and scan again:
 ```
 
 The second run reports what changed against the baseline and gates on what
-is new. Try it against `lodash` 4.17.11 → 4.17.21 to reproduce the output
-at the top of this file.
+is new.
+
+To reproduce the output at the top of this file exactly, run the script
+that generates it. It builds the project, the git repository, the
+baseline, and the bump — every step, nothing transcribed:
+
+```bash
+./examples/lodash-drift/run.sh
+```
+
+It takes about ten seconds, needs no Node toolchain, and prints the
+summary above along with the exit code the gate returned.
 
 ## What a real finding looks like
 
@@ -143,8 +169,8 @@ at the top of this file.
    MEDIUM    pkg:npm/lodash@4.17.11
          score 41/100, 5 finding(s)
            GHSA-jf85-cpcp-j695 cvss 9.1  epss 5.01%  fixed in 4.17.12
-           GHSA-35jh-r3h4-6jhm cvss 8.1  epss 21.33%  fixed in 4.17.21
            GHSA-p6mc-m468-83gw cvss 7.4  epss 5.21%  fixed in 4.17.19
+           GHSA-35jh-r3h4-6jhm cvss 7.2  epss 21.33%  fixed in 4.17.21
            GHSA-f23m-r3pf-42rh cvss 6.5  epss   -    fixed in 4.18.0
            GHSA-29mw-wpgm-hmr9 cvss 5.3  epss 7.34%  fixed in 4.17.21
 ```
@@ -184,8 +210,8 @@ pkg:npm/lodash@4.17.11
 
   severity         36 / 40   (max CVSS v3 across 5 known vulns)
       GHSA-jf85-cpcp-j695 CVSS 9.1     EPSS 0.0501
-      GHSA-35jh-r3h4-6jhm CVSS 8.1     EPSS 0.2133
       GHSA-p6mc-m468-83gw CVSS 7.4     EPSS 0.0521
+      GHSA-35jh-r3h4-6jhm CVSS 7.2     EPSS 0.2133
       GHSA-f23m-r3pf-42rh CVSS 6.5     no EPSS
       GHSA-29mw-wpgm-hmr9 CVSS 5.3     EPSS 0.0734
 
@@ -340,7 +366,7 @@ cache_ttl_hours: 6
 | Ecosystem | Reads | Direct/transitive from |
 |---|---|---|
 | npm | `package-lock.json` (v1, v2, v3), `npm-shrinkwrap.json` | `package.json` |
-| PyPI | `requirements.txt` and 14 other requirements filenames, `poetry.lock`, `Pipfile.lock`, `pyproject.toml` (PEP 621 + Poetry) | `pyproject.toml`, `package.json`-style manifests |
+| PyPI | `requirements.txt` and 14 other requirements filenames (`requirements-dev.txt`, `dev.txt`, `constraints.txt`, …), `poetry.lock`, `Pipfile.lock`, `pyproject.toml` (PEP 621 + Poetry) | `pyproject.toml`, `requirements.txt` |
 | Go | `go.sum` | `go.mod` |
 
 Lockfiles are parsed directly — no `npm install`, no build step, no network
@@ -500,7 +526,7 @@ fixed bug to confirm the test suite catches its return.
 
 ```bash
 go build ./cmd/scram
-go test ./...                                   # 210 tests
+go test ./...                                   # 229 tests
 go test ./internal/resolve/ -run '^$' -bench . -benchmem
 
 # validation tooling, all runnable offline against the committed corpus

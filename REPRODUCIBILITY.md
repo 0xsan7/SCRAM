@@ -22,7 +22,7 @@ python3 scripts/differential.py --tools /path/to/binaries   # component counts
 python3 scripts/diff_vulns.py   --tools /path/to/binaries   # vulnerability ID sets
 ```
 
-`differential.py` writes `differential.json` for inspection.
+`differential.py` writes `docs/differential.json` for inspection.
 
 **Neither script is a pass/fail gate.** The differences below are real and
 mostly expected; a gate would either fail constantly or be tuned until it
@@ -31,7 +31,7 @@ passed, and either outcome would be worse than a documented comparison.
 ## What was compared
 
 15 real corpus repositories spanning all three ecosystems and every npm
-lockfileVersion. The exact list is in `differential.json` and was taken
+lockfileVersion. The exact list is in `docs/differential.json` and was taken
 from it rather than retyped:
 
 `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`
@@ -60,7 +60,7 @@ SCRAM's 180 non-`dev` names are a subset of syft's 190, with no name
 SCRAM misses. The 10 extra are syft entries carrying
 version `UNKNOWN`: npm workspace links (`node_modules/@nestjs/core` is a
 `link: true` pointer whose real version lives in `packages/core`), which
-syft cannot follow; `differential.json` lists 9 such entries for this
+syft cannot follow; `docs/differential.json` lists 9 such entries for this
 fixture.
 
 **Why this matters beyond a count:** an `UNKNOWN` version matches nothing

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -15,12 +16,27 @@ import (
 // unformatted files, and it must not report the deliberately malformed
 // files under testdata/.
 
+// buildChecker compiles the checker and returns a path that is executable
+// on the current platform.
+//
+// The `.exe` suffix is the whole point of this function's history: naming
+// the output "gofmtcheck" works on Linux and macOS and produces a file
+// Windows refuses to run, so every test in this file failed there with
+// `executable file not found in %PATH%` while passing locally. A test that
+// only runs where its author works is a test that has not been run.
 func buildChecker(t *testing.T) string {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "gofmtcheck")
+	name := "gofmtcheck"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	bin := filepath.Join(t.TempDir(), name)
 	cmd := exec.Command("go", "build", "-o", bin, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("building the checker: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(bin); err != nil {
+		t.Fatalf("checker was not produced at %s: %v", bin, err)
 	}
 	return bin
 }

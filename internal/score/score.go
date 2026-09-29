@@ -122,6 +122,7 @@ func (e *Engine) Score(comps []model.Component) model.Summary {
 
 	return model.Summary{
 		RepoScore:       maxScore,
+		RepoScoreMax:    model.PresentedMax,
 		RepoBucket:      escalate(maxScore, counts),
 		TotalComponents: len(comps),
 		Counts:          counts,

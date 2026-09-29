@@ -338,3 +338,40 @@ func TestExplainOutput(t *testing.T) {
 		t.Error("explain output missing the finding")
 	}
 }
+
+// TestTheReportStatesItsOwnDenominator is the JSON half of the /65 rescale.
+//
+// repo_score is a PRESENTED score out of 65, and in JSON it is a bare
+// integer. A consumer written against schema 1.0.0 parses it successfully and
+// renders "25/100", which is wrong by 35%, with nothing in the document to
+// contradict it. The document therefore carries the denominator itself, so the
+// scale is a fact in the data rather than something the reader has to know.
+func TestTheReportStatesItsOwnDenominator(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Write(&buf, sampleScan(), sampleDiff(), FormatJSON); err != nil {
+		t.Fatal(err)
+	}
+	var doc JSONDocument
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+
+	got := doc.Scan.Summary.RepoScoreMax
+	if got != model.PresentedMax {
+		t.Errorf("summary.repo_score_max = %d, want %d. Without it a consumer "+
+			"cannot tell what repo_score is out of, and a 1.0.0 consumer will "+
+			"assume 100 and be wrong by 35%%.", got, model.PresentedMax)
+	}
+	if got != 0 && doc.Scan.Summary.RepoScore > got {
+		t.Errorf("repo_score %d exceeds its own stated maximum %d",
+			doc.Scan.Summary.RepoScore, got)
+	}
+	// A MAJOR bump, because the field NAMES did not change -- which is
+	// exactly what makes an old consumer wrong without erroring.
+	if doc.SchemaVersion == "1.0.0" {
+		t.Error("schema_version is still 1.0.0, but repo_score changed meaning " +
+			"silently. That is a breaking change and needs a major bump.")
+	}
+	t.Logf("repo_score=%d of repo_score_max=%d, schema %s",
+		doc.Scan.Summary.RepoScore, got, doc.SchemaVersion)
+}

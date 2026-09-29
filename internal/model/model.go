@@ -8,7 +8,18 @@ import "path/filepath"
 
 // SchemaVersion is written into every JSON report so downstream tooling can
 // detect breaking changes rather than silently mis-parsing.
-const SchemaVersion = "1.0.0"
+//
+//	1.0.0  initial
+//	2.0.0  repo_score is a PRESENTED score out of 65, not a raw total out of
+//	       100, and summary.repo_score_max was added to state the denominator.
+//
+// The minor version stayed at 0 and the major moved deliberately. The field
+// NAMES did not change, which is exactly what makes this breaking: a consumer
+// written against 1.0.0 keeps parsing `repo_score` successfully and keeps
+// rendering it as "25/100", which is wrong by 35%, with nothing in the
+// document to tell it. That is a semantic break, so it is a major bump, and
+// the new field is the thing that makes it detectable without one.
+const SchemaVersion = "2.0.0"
 
 // Ecosystem names. Kept as string constants rather than an enum type so that
 // unknown ecosystems parsed from a config file don't blow up unmarshalling.
@@ -180,7 +191,20 @@ type Scan struct {
 
 // Summary is the repo-level rollup.
 type Summary struct {
-	RepoScore       int            `json:"repo_score"`
+	RepoScore int `json:"repo_score"`
+	// RepoScoreMax is the denominator for RepoScore.
+	//
+	// This is not a convenience field. RepoScore is a PRESENTED score, out
+	// of 65, and the value is a bare integer in JSON. A consumer that reads
+	// it as out of 100 -- which the previous schema_version implied -- is
+	// wrong by 35%, silently, with no field to contradict it. Emitting the
+	// denominator alongside the numerator makes the document self-describing,
+	// so the scale is a fact in the data rather than something the reader has
+	// to know.
+	//
+	// The raw formula total (0-100) is a different number and is NOT this
+	// one; see --explain, which prints both.
+	RepoScoreMax    int            `json:"repo_score_max"`
 	RepoBucket      string         `json:"repo_bucket"`
 	TotalComponents int            `json:"total_components"`
 	Counts          map[string]int `json:"counts_by_bucket"`

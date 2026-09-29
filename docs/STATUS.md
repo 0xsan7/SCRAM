@@ -8,6 +8,28 @@ missing rather than implying otherwise.
 
 ---
 
+
+### JSON consumers: `schema_version` is now 2.0.0
+
+`summary.repo_score` changed meaning and kept its name. It is now a presented
+score out of **65**; it used to be a raw total out of **100**. A consumer
+written against `1.0.0` keeps parsing it successfully and keeps rendering
+`25/100`, which is wrong by 35%, with nothing in the document to contradict
+it — so this is a **major** version bump, not a minor one.
+
+Two things changed in the JSON:
+
+- `summary.repo_score_max` was **added**. It carries the denominator, so the
+  scale is a fact in the data instead of something a reader has to know. Read
+  `repo_score_max` rather than assuming any maximum.
+- `repo_bucket` boundaries moved with the scale: critical 58–65, high 45–57,
+  medium 26–44, low 1–25, clean 0. Previously 90/70/40/1 on the old scale.
+
+`repo_score` is still the same underlying severity ordering, so a consumer
+that only *sorts* by it is unaffected. One that renders a fraction is not.
+`scram badge` reads a scan document, so it picked this up automatically and
+now emits `25/65`.
+
 ## BREAKING: scores are now out of 65, not 100
 
 **Any score printed by SCRAM after this commit is not comparable to one

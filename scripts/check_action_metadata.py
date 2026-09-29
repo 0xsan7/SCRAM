@@ -31,6 +31,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ACTION = ROOT / "action.yml"
+GO_MODEL = ROOT / "internal" / "model" / "model.go"
 SCHEMA_CACHE = ROOT / ".github" / "action-metadata.schema.json"
 
 SCHEMA_URL = "https://json.schemastore.org/github-action.json"
@@ -263,6 +264,62 @@ def main() -> int:
                     f"asset name, but .goreleaser.yml publishes "
                     f"{template!r}"
                 )
+
+    # The score scale, checked where a consumer reads it.
+    go_model = ""
+    try:
+        go_model = GO_MODEL.read_text()
+    except OSError as e:
+        print(f"could not read {GO_MODEL}: {e}", file=sys.stderr)
+
+    #
+    # The action renders the repo score into a PR comment that lands in a
+    # public thread, and publishes it as an output. When the presented scale
+    # moved from 100 to 65, two sites kept saying 0-100: the output's
+    # description, and the comment row itself. Nothing failed -- the action
+    # still ran, the comment still rendered, the number was just wrong by 35%
+    # in a place a reader would take at face value.
+    #
+    # So the denominator is asserted here, against the value the scanner
+    # actually writes, rather than left to a code review to notice.
+    presented = re.search(r"const\s+PresentedMax\s*=\s*(\w+)\s*\+\s*(\w+)",
+                          go_model)
+    want_max = None
+    if presented:
+        a, b = presented.group(1), presented.group(2)
+        consts = dict(re.findall(r"^\s*(\w+)\s*=\s*(\d+)\s*$", go_model, re.M))
+        if a in consts and b in consts:
+            want_max = int(consts[a]) + int(consts[b])
+
+    if want_max is None:
+        problems.append(
+            "could not determine the presented score maximum from "
+            "internal/model/model.go; the denominator check needs it"
+        )
+    else:
+        # The output description and the comment row are both text, so both
+        # are checked for a hardcoded wrong denominator.
+        # Each spelling a wrong denominator has actually taken in this file.
+        # The first attempt checked only "/100" and therefore MISSED the
+        # output description, which said "0-100" -- so the check was proved
+        # by restoring the old text and watching it pass. Both spellings are
+        # now listed, and the loop below is exercised by the mutation audit
+        # rather than trusted.
+        for label, needles in (
+            ("repo-score output description", ("/100", "0-100", "0\u2013100")),
+            ("PR comment score row", (")/100 ", "/100 ", "0-100")),
+        ):
+            hit = [n for n in needles if n in raw]
+            if hit:
+                problems.append(
+                    f"{label} still hardcodes {hit[0]!r}, but the presented "
+                    f"scale is {want_max}; use {want_max}"
+                )
+        # And positively: the comment must state the right denominator.
+        if f")/{want_max} " not in raw and f"/{want_max}" not in raw:
+            problems.append(
+                f"the PR comment does not render the score out of {want_max}"
+            )
 
     if problems:
         print(f"{len(problems)} problem(s) in action.yml:", file=sys.stderr)

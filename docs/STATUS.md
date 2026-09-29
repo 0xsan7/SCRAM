@@ -94,7 +94,7 @@ reading tests:
 | Resolver walkthrough executed | **DONE** | `6f837aa`; 4 steps applied, verified, reverted |
 | Self-scan | **DONE** | resolves 6 components, no findings |
 | Secret scan | **DONE** | clean at every push |
-| GitHub Actions runs | **VERIFIED** | read from the Actions REST API on every commit; 12/12 jobs green on the tagged commit |
+| GitHub Actions runs | **VERIFIED** | read from the Actions REST API on every commit; on the tagged commit 11 jobs green and `govulncheck (self)` correctly skipped (it is schedule-only) |
 | Signing / provenance | **VERIFIED** | 5/5 `cosign verify-blob` → `Verified OK` against the published release |
 | Pages deploy / Homebrew | **NOT BUILT** | no site, no formula; see ROADMAP.md |
 

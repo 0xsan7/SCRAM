@@ -1,0 +1,34 @@
+module github.com/opencontainers/runc
+
+go 1.26.0
+
+require (
+	cyphar.com/go-pathrs v0.2.6
+	github.com/checkpoint-restore/go-criu/v8 v8.4.0
+	github.com/containerd/console v1.0.5
+	github.com/coreos/go-systemd/v22 v22.7.0
+	github.com/cyphar/filepath-securejoin v0.7.0
+	github.com/docker/go-units v0.5.0
+	github.com/godbus/dbus/v5 v5.2.2
+	github.com/moby/sys/capability v0.4.0
+	github.com/moby/sys/devices v0.1.0
+	github.com/moby/sys/mountinfo v0.7.2
+	github.com/moby/sys/user v0.4.1
+	github.com/moby/sys/userns v0.2.1
+	github.com/mrunalp/fileutils v0.5.1
+	github.com/opencontainers/cgroups v0.1.0
+	github.com/opencontainers/runtime-spec v1.3.0
+	github.com/opencontainers/selinux v1.15.1
+	github.com/seccomp/libseccomp-golang v0.12.0
+	github.com/sirupsen/logrus v1.10.2
+	github.com/urfave/cli/v3 v3.11.0
+	github.com/vishvananda/netlink v1.3.1
+	github.com/vishvananda/netns v0.0.5
+	golang.org/x/net v0.59.0
+	golang.org/x/sys v0.48.0
+)
+
+require (
+	github.com/aperturerobotics/protobuf-go-lite v0.15.0 // indirect
+	github.com/cilium/ebpf v0.17.3 // indirect
+)

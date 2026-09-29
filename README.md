@@ -646,13 +646,29 @@ cache_ttl_hours: 6
 
 | Ecosystem | Reads | Direct/transitive from |
 |---|---|---|
-| npm | `package-lock.json` (v1, v2, v3), `npm-shrinkwrap.json` | `package.json` |
+| npm | `package-lock.json` (v1, v2, v3), `npm-shrinkwrap.json`, `yarn.lock` (classic **and** Berry), `pnpm-lock.yaml` (5.x, 6.x, 9.x) | `package.json` |
 | PyPI | `requirements.txt` and 14 other requirements filenames (`requirements-dev.txt`, `dev.txt`, `constraints.txt`, …), `poetry.lock`, `Pipfile.lock`, `pyproject.toml` (PEP 621 + Poetry) | `pyproject.toml`, `requirements.txt` |
-| Go | `go.sum` | `go.mod` |
+| Go | `go.sum`, falling back to `go.mod` | `go.mod` |
+| Rust | `Cargo.lock` (v1–v4) | `Cargo.toml` |
 
 Lockfiles are parsed directly — no `npm install`, no build step, no network
-access to a package registry. Maven, Cargo, and RubyGems are not
-implemented.
+access to a package registry. Maven and RubyGems are not implemented;
+`ROADMAP.md` says why Maven is not a parser problem.
+
+`yarn.lock` and `pnpm-lock.yaml` resolve into the **npm** ecosystem rather
+than one each, because that is what OSV matches on — a Yarn or pnpm
+package *is* an npm package, and a separate ecosystem key would silently
+match nothing.
+
+`go.mod` is a **fallback**, not a peer of `go.sum`, and it is worth being
+precise about what that costs. `go.sum` records what was downloaded,
+transitive modules included; `go.mod` records only what the author
+declared. So a project with no `go.sum` — a fresh clone, a tree vendored
+before `go mod download`, or any module that has never committed one —
+scans as a **floor** on its real dependency set, not a full inventory.
+Reporting nothing there instead would be a silent false clean, which is
+worse than an undercount, so the floor is reported and the gap is stated
+here rather than left for you to discover.
 
 Two behaviours worth knowing, both tested:
 
@@ -699,9 +715,11 @@ const (
 )
 ```
 
-`detect.go` uses plain strings rather than these constants, so in step 4
-write the literal (`{Ecosystem: "cargo", ...}`) — the package does not
-import `model`.
+If your ecosystem shares a package namespace with an existing one — Yarn
+and pnpm are both `npm` — reuse that constant rather than adding a new
+one. `detect.go` uses plain strings rather than these constants, so in
+step 4 write the literal (`{Ecosystem: "cargo", ...}`): the package does
+not import `model`.
 
 **3. Teach OSV about it** in `osvEcosystem` in `internal/vuln/osv.go`. The
 map is small and it returns `false` for anything unknown, so without this
@@ -726,7 +744,7 @@ func osvEcosystem(eco string) (string, bool) {
 ```
 
 **Expect one test to fail and fix it.** `TestResolverRegistry` in
-`internal/resolve/resolve_test.go` asserts `len(Supported()) == 3` and
+`internal/resolve/resolve_test.go` asserts an exact ecosystem count and
 expects `cargo` to be unregistered. Both are correct today and both are
 wrong the moment you add an ecosystem:
 
@@ -740,13 +758,30 @@ wrong the moment you add an ecosystem:
 +	if _, err := GetFor("nonesuch", "nope.lock"); err != ErrUnsupported {
 +		t.Error("expected ErrUnsupported for an unregistered ecosystem")
 +	}
-+	if len(Supported()) != 4 {
-+		t.Errorf("Supported() = %v, want 4 ecosystems", Supported())
++	if got, want := len(Supported()), 5; got != want {
++		t.Errorf("Supported() = %v (%d ecosystems), want %d", Supported(), got, want)
 +	}
 ```
 
 Only the first matching candidate per ecosystem per directory is used, so
 ordering is a fallback chain: a lockfile must come before a manifest.
+
+**If your ecosystem already has a resolver**, you are adding a second
+file for the same ecosystem, and the registry then has to choose between
+them. Declare the priority explicitly, or dispatch will fall back to
+`init()` ordering and the choice will be arbitrary:
+
+```go
+func (myResolver) Priority() Priority { return PriorityLockfile }
+func (myResolver) Handles(path string) bool { return filepath.Base(path) == "my.lock" }
+```
+
+Every sibling then needs the same, **and** the existing one needs a
+`Handles` it may not have had — with one resolver per ecosystem the
+interface only had to ask "do you handle this?", and with two it has to be
+answered explicitly. `TestSingleResolverEcosystemsUnaffected` in
+`dispatch_test.go` fails on the ecosystem that did not declare its
+priorities, which is the behaviour you want.
 
 That is the whole change. Detection, SBOM generation (both formats),
 scoring, drift, policy, and every output format pick it up automatically —

@@ -311,3 +311,176 @@ func fuzzTargetFor(filename string) string {
 		return ""
 	}
 }
+
+// The three lockfile parsers added for yarn, pnpm and Cargo read files that
+// anyone with push access controls, so they get the same treatment as the
+// original three. They additionally assert a third property, because the
+// first two parsers to ship here both passed "no panic" and "no silent
+// zero" while still being wrong:
+//
+//   3. Every component the parser emits is internally consistent -- the
+//      name and version it reports are both findable in the PURL it builds.
+//
+// That third property is the one that would have caught both real defects
+// found during this work. The yarn key splitter could emit a NAME
+// containing an entire descriptor list ("@babel/code-frame@npm:^7.0.0,
+// @babel/code-frame@npm:^7.10.4"), and the pnpm v9 key splitter could emit
+// a VERSION taken from inside a peer-resolution suffix ("zod@4.1.12" ->
+// version 4.1.12). Neither crashed. Neither returned an empty list. Both
+// produced inventories that look populated and can never match an OSV
+// advisory, so the scanner would report a clean bill of health for a
+// project it never actually looked at -- a silent false clean, which is
+// the specific failure this project treats as unrecoverable.
+
+// purlAgreesWithFields reports whether a component's PURL actually carries
+// the name and version the component claims to have.
+//
+// The comparison is against the percent-ENCODED form, because that is what
+// a PURL contains. A module named "A.!" legitimately yields
+// "pkg:golang/A.%21@v0" -- the encoding is the spec, not a corruption --
+// and a naive substring check on the raw name reports a false failure on
+// correct output.
+//
+// The property being guarded is the one that actually broke: a name or
+// version that is a FRAGMENT of the real one, or that contains more than
+// the real one. Comparing the full encoded name and version against the
+// PURL catches that, and cannot be satisfied by a shortened value.
+func purlAgreesWithFields(c model.Component) bool {
+	if c.Purl == "" || c.Name == "" || c.Version == "" {
+		return false
+	}
+	return strings.Contains(c.Purl, purlEscape(c.Name)) &&
+		strings.Contains(c.Purl, purlEscape(c.Version))
+}
+
+// purlEscape applies the percent-encoding a PURL uses for each character
+// that is not allowed verbatim. It is deliberately a small, explicit
+// subset: a Go module path and semver never legitimately contain anything
+// outside the unreserved set plus the separators PURL leaves alone.
+func purlEscape(s string) string {
+	const safe = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if strings.IndexByte(safe, c) >= 0 {
+			b.WriteByte(c)
+			continue
+		}
+		const hex = "0123456789ABCDEF"
+		b.WriteByte('%')
+		b.WriteByte(hex[c>>4])
+		b.WriteByte(hex[c&0x0f])
+	}
+	return b.String()
+}
+
+func checkPurlConsistency(t *testing.T, comps []model.Component) {
+	t.Helper()
+	for _, c := range comps {
+		if !purlAgreesWithFields(c) {
+			t.Errorf("PURL does not agree with the fields it was built from: "+
+				"name=%q version=%q purl=%q", c.Name, c.Version, c.Purl)
+		}
+	}
+}
+
+// FuzzYarnLock covers yarn.lock in both dialects: classic's individually
+// quoted descriptor list and Berry's single quoted key.
+func FuzzYarnLock(f *testing.F) {
+	seedFromCorpus(f, "yarn", "yarn.lock")
+	f.Add([]byte(""))
+	f.Add([]byte("# yarn lockfile v1\n"))
+	f.Add([]byte("lodash@^4.17.21:\n  version \"4.17.21\"\n  integrity sha512-x\n"))
+	// Berry: ONE pair of quotes around the whole key.
+	f.Add([]byte("\"@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.10.4\":\n  version: 7.10.4\n"))
+	// Classic: a quote around EACH descriptor.
+	f.Add([]byte("\"a@npm:^1\", \"b@npm:^2\":\n  version: 1.0.0\n"))
+	f.Add([]byte("__metadata:\n  version: 10\n"))
+	// Unterminated quote, empty version, and a key with no @.
+	f.Add([]byte("\"unterminated:\n"))
+	f.Add([]byte("a@:\n  version: \n"))
+	f.Add([]byte("@@@:\n"))
+
+	dir := f.TempDir()
+	f.Fuzz(func(t *testing.T, data []byte) {
+		comps := fuzzResolveIn(dir, "yarn.lock", data)
+		checkPurlConsistency(t, comps)
+	})
+}
+
+// FuzzPnpmLock covers both pnpm key schemas, since a versioned lockfile
+// format is exactly the case where a parser can be quietly half-right.
+func FuzzPnpmLock(f *testing.F) {
+	seedFromCorpus(f, "pnpm", "pnpm-lock.yaml")
+	f.Add([]byte(""))
+	f.Add([]byte("lockfileVersion: '9.0'\n"))
+	f.Add([]byte("lockfileVersion: '9.0'\n\npackages:\n\n  lodash@4.17.21:\n    resolution: {integrity: sha512-x}\n"))
+	// The peer-context key that broke LastIndex("@").
+	f.Add([]byte("lockfileVersion: '9.0'\n\npackages:\n\n  '@ai-sdk/anthropic@3.0.58(zod@4.1.12)':\n    resolution: {integrity: x}\n"))
+	// The older slash schema, scoped and with the underscore peer suffix.
+	f.Add([]byte("lockfileVersion: '5.4'\n\npackages:\n\n  /@algolia/core/1.5.0_algoliasearch@4.11.0:\n    resolution: {integrity: x}\n"))
+	f.Add([]byte("packages:\n  a@1.0.0:\n  'b@2.0.0':\n  c@3.0.0:\n"))
+
+	dir := f.TempDir()
+	f.Fuzz(func(t *testing.T, data []byte) {
+		comps := fuzzResolveIn(dir, "pnpm-lock.yaml", data)
+		checkPurlConsistency(t, comps)
+		for _, c := range comps {
+			// A pnpm version is a bare semver; a paren or underscore means
+			// peer-resolution context survived into the component.
+			if strings.ContainsAny(c.Version, "()_ ") {
+				t.Errorf("version carries peer context: %q -> %s", c.Version, c.Purl)
+			}
+		}
+	})
+}
+
+// FuzzCargoLock covers [[package]] blocks, including workspace-local
+// packages that carry no source line at all.
+func FuzzCargoLock(f *testing.F) {
+	seedFromCorpus(f, "cargo", "Cargo.lock")
+	f.Add([]byte(""))
+	f.Add([]byte("version = 4\n"))
+	f.Add([]byte("version = 4\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.18\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n"))
+	f.Add([]byte("version = 3\n\n[[package]]\nname = \"a\"\nversion = \"1.0.0\"\nsource = \"git+https://github.com/x/y?branch=main#abc123\"\n"))
+	// A workspace member: name and version, no source.
+	f.Add([]byte("[[package]]\nname = \"my-crate\"\nversion = \"0.1.0\"\n"))
+	// The versioned-dependency form that disambiguates duplicate versions.
+	f.Add([]byte("version = 4\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.18\"\ndependencies = [\n \"ryu 1.0.18\",\n]\n"))
+	f.Add([]byte("[[package]]\nname = \"\"\nversion = \"\"\n"))
+
+	dir := f.TempDir()
+	f.Fuzz(func(t *testing.T, data []byte) {
+		comps := fuzzResolveIn(dir, "Cargo.lock", data)
+		checkPurlConsistency(t, comps)
+	})
+}
+
+// FuzzGoMod covers the go.mod fallback, which is the one path with no
+// upstream source of truth in the old corpus: a project with no go.sum is
+// now inventoried from go.mod instead of silently scanning as empty.
+func FuzzGoMod(f *testing.F) {
+	seedFromCorpus(f, "go", "go.mod")
+	f.Add([]byte(""))
+	f.Add([]byte("module github.com/go-chi/chi/v5\n\n// Chi supports the four most recent major versions of Go.\ngo 1.24\n"))
+	f.Add([]byte("module x\ngo 1.24\n\nrequire github.com/pkg/errors v0.9.1\n"))
+	f.Add([]byte("module x\ngo 1.24\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgithub.com/c/d v2.0.0 // indirect\n)\n"))
+	f.Add([]byte("module x\n// require github.com/a/b v1.0.0\n"))
+	f.Add([]byte("module x\ntoolchain go1.24.0\n\nreplace github.com/a/b => ../local\n"))
+	f.Add([]byte("require \n"))
+
+	dir := f.TempDir()
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// fuzzResolveIn writes go.mod beside any go.sum already in dir;
+		// there is none, so this is the fallback branch specifically.
+		path := filepath.Join(dir, "go.mod")
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		comps, err := goResolver{}.Resolve(dir, "go.mod")
+		if err != nil {
+			return
+		}
+		checkPurlConsistency(t, comps)
+	})
+}

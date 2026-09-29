@@ -248,6 +248,16 @@ func osvEcosystem(eco string) (string, bool) {
 		return "PyPI", true
 	case model.EcoGo:
 		return "Go", true
+	case model.EcoCargo:
+		// crates.io, the name OSV uses for the Rust ecosystem.
+		//
+		// Returning false here is the quiet failure the walkthrough warns
+		// about: components are still detected, scored and shipped into
+		// the SBOM, and simply never matched, with a warning rather than
+		// a failure. A scanner that reports a Rust project as having no
+		// vulnerabilities because it never asked looks exactly like a
+		// secure project.
+		return "crates.io", true
 	}
 	return "", false
 }

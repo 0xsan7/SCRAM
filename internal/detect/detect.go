@@ -36,8 +36,20 @@ type Project struct {
 // last resort and covers the large population of modern Python projects that
 // ship no lockfile at all -- see D27.
 var candidates = []Project{
+	// The JS package managers, all under the "npm" ecosystem because that
+	// is what their components are and what OSV indexes them as. Order is a
+	// preference, not a requirement: only the first hit per ecosystem per
+	// directory is used, and a project commits exactly one of these. The
+	// entries are not ranked against package-lock.json because a repo with
+	// two of them is misconfigured, not a case to guess about.
 	{Ecosystem: "npm", File: "package-lock.json", RelPath: "package.json"},
 	{Ecosystem: "npm", File: "npm-shrinkwrap.json", RelPath: "package.json"},
+	{Ecosystem: "npm", File: "yarn.lock", RelPath: "package.json"},
+	{Ecosystem: "npm", File: "pnpm-lock.yaml", RelPath: "package.json"},
+	// Rust. Cargo.lock pins exact versions; Cargo.toml declares ranges, so
+	// it is only consulted for which crates are direct.
+	{Ecosystem: "cargo", File: "Cargo.lock", RelPath: "Cargo.toml"},
+
 	{Ecosystem: "pypi", File: "poetry.lock", RelPath: "pyproject.toml"},
 	{Ecosystem: "pypi", File: "Pipfile.lock", RelPath: "Pipfile"},
 	// The requirements variants, most-specific first. Only the FIRST hit per
@@ -72,6 +84,18 @@ var candidates = []Project{
 	{Ecosystem: "pypi", File: "constraints.txt", RelPath: "constraints.txt"},
 	{Ecosystem: "pypi", File: "pyproject.toml", RelPath: "pyproject.toml"},
 	{Ecosystem: "go", File: "go.sum", RelPath: "go.mod"},
+	// go.mod is a FALLBACK and must stay AFTER go.sum, because the
+	// candidate list is a preference chain and only the first hit per
+	// ecosystem is used. go.sum records what was downloaded, transitives
+	// included; go.mod records only what the author declared, so a
+	// project with both must be read through go.sum.
+	//
+	// It belongs in the list at all because "no go.sum" is not the same
+	// as "no dependencies": a fresh clone, a tree vendored before `go
+	// mod download`, and every module that has never committed one all
+	// look identical from here, and reporting nothing for them is a
+	// silent false clean.
+	{Ecosystem: "go", File: "go.mod", RelPath: "go.mod"},
 }
 
 // CandidateFilenames returns every filename the detector looks for, so user-

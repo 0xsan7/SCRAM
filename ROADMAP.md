@@ -40,15 +40,41 @@ like `nestjs/nest` that is most of the noise. This is the single largest
 gap between what the tool reports and what is exploitable, and it needs
 call-graph data this project does not collect.
 
-**More ecosystems.** Cargo, Maven, and RubyGems are absent, and the README
-says so. The resolver interface and the registry dispatch are what a new
-one needs; the walkthrough in the README is verified end to end against
-the current registry.
+**More ecosystems.** Tracked, not in this pass:
 
-**Published release, and therefore a real `@v1` action tag.** No tag has
-been cut. `uses: 0xsan7/SCRAM@v1` in the README is marked pending for
-this reason, and the Action currently downloads from
-`releases/latest/download/`, which 404s until a release exists.
+- **Maven** — `pom.xml` and Gradle lockfiles. Not started. The reason is
+  that Maven is the one ecosystem here where a correct inventory is not
+  derivable from the file alone. `pom.xml` declares *ranges* plus parent
+  and BOM imports, and the resolved set only exists after an effective-POM
+  computation, so anything short of running Maven's own resolver risks
+  reporting versions the build would never select. Given this project's
+  rule that an inventory may be under- or over-stated but must never be
+  silently wrong, the honest sequence is: get an effective-pom (via
+  `mvn help:effective-pom`, or `mvn dependency:tree -DoutputType=json`)
+  and pin that output as the corpus, then write the resolver against it.
+  It is tracked rather than dropped because the walkthrough in the README
+  covers everything except this, and this is the part that is not a
+  parser.
+- **RubyGems** — `Gemfile.lock`. Genuinely missing. The format is a
+  simple indented lockfile, closer to npm v2 than to pnpm, and would be
+  the cheapest of the outstanding ecosystems.
+- **.NET** — `packages.lock.json`. Also missing, and it has the same
+  transitive-resolution problem Maven does, for the same reason.
+
+`yarn.lock` (classic and Berry), `pnpm-lock.yaml` and `Cargo.lock` were
+added in this pass, each with a real fixture corpus. The resolver
+interface, the registry dispatch, and the README walkthrough are what a
+new one needs, and the walkthrough is verified end to end against the
+current registry.
+
+**A moving `@v1` action tag.** Resolved. `v0.1.0` is published, and the
+Action resolves its release from the ref it is invoked at, so
+`uses: 0xsan7/SCRAM@v0.1.0` installs exactly that build with a verified
+checksum. What does not exist is a *moving* `@v1` tag: pinning to one is
+the correct default here precisely because the Action executes a
+downloaded binary, and a floating tag would make a review gate
+non-reproducible. A user who wants to track HEAD can pass the branch ref
+and accept that the action refuses it, by design.
 
 **Abandonment prediction.** Named in the original scope, deliberately not
 built. It is a prediction about maintainer behaviour, and a scanner's

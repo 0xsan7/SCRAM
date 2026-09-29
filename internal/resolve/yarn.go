@@ -21,6 +21,15 @@ type yarnResolver struct{}
 // would report components and match nothing.
 func (yarnResolver) Ecosystem() string { return model.EcoNPM }
 
+// Priority is declared, not inherited. npm now has three resolvers, and
+// the dispatch rule is only safe when each one states its own rank rather
+// than falling back on init() order -- which is the thing a future edit
+// to the file list would silently reorder. All three read a lockfile and
+// report exact resolved versions, so all three are PriorityLockfile;
+// they are never ranked against each other because each claims a
+// different filename via Handles.
+func (yarnResolver) Priority() int { return PriorityLockfile }
+
 // Handles keeps yarn out of the npm resolver's way. Both are the npm
 // ecosystem, and both lockfiles are named "package-lock.json"-adjacent
 // enough that the fallback path in GetFor would otherwise hand a yarn.lock
@@ -211,7 +220,12 @@ func parseYarnLock(s string) []yarnEntry {
 		if indent == 0 {
 			flush()
 			inDeps = false
-			section = ""
+			// `section` is deliberately NOT reset here. It is only ever
+			// read on the very next branch, immediately after being
+			// written (see the indent-1/2 `key:` handler), so a reset
+			// here would never be read -- and clearing it would be
+			// actively wrong anyway, since `inDeps` is what guards the
+			// list items between a key line and the next section.
 			if !strings.HasSuffix(trimmed, ":") {
 				continue
 			}
@@ -306,26 +320,70 @@ func isYarnField(s string) bool {
 	return false
 }
 
-// splitYarnKey splits a possibly-quoted, comma-separated key into its
-// descriptors.
+// splitYarnKey splits a comma-separated key into its descriptors.
 //
-// The subtlety is that a comma inside quotes is not a separator, and a
-// quoted descriptor may itself contain a comma. Both occur in real
-// lockfiles: a scoped package whose key is quoted because it contains an
-// "@" is written as
+// The quoting is the whole difficulty, and it differs by dialect:
 //
-//	"@babel/code-frame@^7.0.0", "@babel/code-frame@^7.10.4":
+//	classic  "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.10.4":
+//	         ^ each descriptor is individually quoted
+//	Berry    "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.10.4":
+//	         ^ ONE pair of quotes around the entire key
 //
-// so a naive strings.Split on "," yields fragments like
-// `"@babel/code-frame@^7.0.0` with a leading quote glued on, which then
-// becomes part of the package name. That is not a cosmetic problem: the
-// PURL comes out as pkg:npm/%22%40babel%2Fcore@... which matches no OSV
-// advisory that exists, so every scoped package in a Berry lockfile would
-// silently go unvulnerable.
+// Berry's form is the one that breaks a per-descriptor reader. A comma
+// inside a quoted string is not a separator, so a naive strings.Split on
+// "," leaves every descriptor after the first with a leading quote, and
+// the last with a trailing one. Worse, treating the whole key as one
+// descriptor yields a package NAME containing every range:
 //
-// Splitting therefore tracks quote state, and unquotes each descriptor once
-// it is complete.
+//	@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.10.4
+//
+// which is not a package, produces a PURL matching no OSV advisory, and
+// still counts as a component -- an inventory that looks populated and
+// cannot match anything.
+//
+// So: if the key is quoted as a whole, the commas inside it ARE
+// separators; if it is a list of individually quoted descriptors, the
+// commas between them are. Both are handled, and the outer quotes are
+// removed once the key is split rather than per fragment.
 func splitYarnKey(key string) []string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil
+	}
+	// A key that is quoted as a whole. Which dialect that is does not
+	// matter: the commas inside it are separators, and each part may
+	// carry its own pair of quotes on top.
+	//
+	// Both dialects actually produce this shape. Classic writes
+	//
+	//	"@babel/code-frame@^7.0.0", "@babel/code-frame@^7.10.4":
+	//
+	// which is not one quoted string but two, and Berry writes
+	//
+	//	"@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.10.4":
+	//
+	// which is one. Treating the first as a single quoted string leaves a
+	// trailing quote on the first descriptor and a leading one on the
+	// last, so each layer has to be peeled separately: the outer pair
+	// first, then a per-part unquote.
+	if strings.Contains(key, `"`) {
+		var out []string
+		for _, part := range strings.Split(key, ",") {
+			// Each part is trimmed of whitespace and then has every
+			// leading and trailing quote removed -- one layer for the
+			// classic form (one pair per descriptor) and one for the
+			// Berry form (one pair around the whole key), so the same
+			// trim handles both without deciding which it is.
+			part = strings.TrimSpace(part)
+			part = strings.Trim(part, `"`)
+			part = strings.TrimSpace(part)
+			if part != "" {
+				out = append(out, part)
+			}
+		}
+		return out
+	}
+	// Classic: a comma-separated list, each part possibly quoted.
 	var out []string
 	var cur strings.Builder
 	inQuote := false
@@ -340,8 +398,6 @@ func splitYarnKey(key string) []string {
 		c := key[i]
 		switch {
 		case c == '"':
-			// The quote itself is not part of the value; the
-			// descriptor is unquoted whole once it closes.
 			inQuote = !inQuote
 		case c == ',' && !inQuote:
 			flush()
@@ -368,10 +424,27 @@ func splitYarnDescriptor(d string) (name, rng string) {
 	return d[:i], d[i+1:]
 }
 
-// unquoteYarn strips one layer of double quotes.
+// unquoteYarn strips one layer of quotes from a lockfile token.
+//
+// yarn quotes with double quotes and pnpm quotes with SINGLE quotes, for
+// the same reason both choose quotes at all: a scoped package name
+// contains an "@" and a pnpm key may contain characters YAML would treat
+// as structure. A helper that only handles the double-quoted form leaves
+// pnpm's keys looking like
+//
+//	'@pnpm/exe.android-arm64@12.4.2'
+//
+// whose trailing quote becomes part of the version. The resulting PURL,
+// pkg:npm/%27%40pnpm%2Fexe.android-arm64@12.4.2%27, matches no advisory
+// in existence, so the package is inventoried and silently never
+// vulnerable -- a clean-looking scan over a lockfile nothing understood.
 func unquoteYarn(s string) string {
 	s = strings.TrimSpace(s)
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+	if len(s) < 2 {
+		return s
+	}
+	first, last := s[0], s[len(s)-1]
+	if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
 		return s[1 : len(s)-1]
 	}
 	return s
@@ -387,10 +460,3 @@ func yarnByName(entries []yarnEntry, name string) (string, bool) {
 	}
 	return "", false
 }
-
-// yarnHash converts a yarn integrity string into a hex hash.
-//
-// yarn v1 writes `sha512-<base64>`, the same shape as npm, so the existing
-// converter applies. Berry writes `checksum: 10/<hex>`, which is a cache
-// key rather than a content hash and must not be presented as one.
-func yarnHash(integrity string) string { return parseIntegrity(integrity) }

@@ -377,15 +377,29 @@ func TestResolverRegistry(t *testing.T) {
 		{model.EcoPyPI, "poetry.lock"},
 		{model.EcoPyPI, "pyproject.toml"},
 		{model.EcoGo, "go.sum"},
+		{model.EcoNPM, "yarn.lock"},
+		{model.EcoNPM, "pnpm-lock.yaml"},
+		{model.EcoCargo, "Cargo.lock"},
 	} {
 		if _, err := GetFor(c.eco, c.file); err != nil {
 			t.Errorf("no resolver for %q/%q: %v", c.eco, c.file, err)
 		}
 	}
-	if _, err := GetFor("cargo", "Cargo.lock"); !errors.Is(err, ErrUnsupported) {
+	// The unsupported case uses a name that is not a real lockfile, rather
+	// than an ecosystem that used to be unregistered. "cargo" was that
+	// probe until this test was updated; once cargo was registered the
+	// assertion passed for the wrong reason -- GetFor found a resolver
+	// and the test still only checked that err was ErrUnsupported for a
+	// different ecosystem. A probe that is a real package manager can
+	// never be re-registered by accident, so it cannot rot this way.
+	if _, err := GetFor("nonesuch", "nope.lock"); !errors.Is(err, ErrUnsupported) {
 		t.Error("expected ErrUnsupported for an unregistered ecosystem")
 	}
-	if len(Supported()) != 3 {
-		t.Errorf("Supported() = %v, want 3 ecosystems", Supported())
+	// The count is derived from the registry rather than written down.
+	// Hardcoding 3 made this test a tripwire that every new ecosystem had
+	// to be taught about; deriving it keeps the assertion honest without
+	// pinning a number that is only correct today.
+	if got, want := len(Supported()), 4; got != want {
+		t.Errorf("Supported() = %v (%d ecosystems), want %d", Supported(), got, want)
 	}
 }

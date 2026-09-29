@@ -94,6 +94,23 @@ func npmV1CorpusCount() int {
 
 func (npmResolver) Ecosystem() string { return model.EcoNPM }
 
+// Handles names the two files this resolver owns. It did not need this
+// while npm had one resolver and dispatch reached it by fallback, but
+// with three npm resolvers a file nobody claims is dispatched to the
+// highest-priority one, which made package-lock.json reachable only by
+// luck of the fallback rather than by being asked for.
+func (npmResolver) Handles(path string) bool {
+	base := filepath.Base(path)
+	return base == "package-lock.json" || base == "npm-shrinkwrap.json"
+}
+
+// Priority is declared now that npm has sibling resolvers. package-lock
+// is the format npm itself writes, and the other two are for projects
+// that use a different package manager; when a repository somehow has
+// two, this one wins the stage-2 fallback because the file it claims is
+// the canonical one.
+func (npmResolver) Priority() int { return PriorityLockfile }
+
 // Edges implements graph.EdgeProvider, recovering parentage from install
 // paths. This is optional on purpose: the Resolver contract stays narrow, and
 // ecosystems that cannot supply real edges (requirements.txt has none, go.sum

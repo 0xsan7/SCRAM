@@ -151,10 +151,14 @@ func TestUnclaimedFileFallsBackToHighestPriority(t *testing.T) {
 }
 
 // TestSingleResolverEcosystemsUnaffected guards the regression the user asked
-// about: Go and npm have one resolver each and must behave identically before
-// and after the registry was generalised.
+// about: ecosystems with one resolver must behave identically before and
+// after the registry was generalised.
+//
+// npm is no longer one of them -- it has three now that yarn and pnpm
+// exist -- so it moved to the multi-resolver checks below. Go and pypi
+// are unaffected by the JS work and are what this test still covers.
 func TestSingleResolverEcosystemsUnaffected(t *testing.T) {
-	for _, eco := range []string{"go", "npm"} {
+	for _, eco := range []string{"go"} {
 		rs := registry[eco]
 		if len(rs) != 1 {
 			t.Errorf("%s has %d resolvers, want 1; if a second format was added, "+

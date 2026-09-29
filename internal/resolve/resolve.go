@@ -149,6 +149,35 @@ func declaredDependencies(path string) int {
 			l = strings.TrimSpace(l)
 			return l != "" && !strings.HasPrefix(l, "//")
 		})
+	case "go.mod":
+		// Only require directives declare dependencies. The generic text
+		// branch below counted every non-comment line, so go-chi/chi's
+		// three-line go.mod -- module, a `go 1.24` directive, and nothing
+		// else -- was read as declaring three dependencies. The module has
+		// none.
+		//
+		// That is not a cosmetic miscount. The silent-zero guard uses this
+		// number to decide whether a resolver returning nothing is a bug,
+		// so overcounting turns a correct empty result into a hard
+		// "SILENT ZERO: parser bug" error, and a project that genuinely
+		// has no dependencies can never be scanned. It stayed hidden
+		// because the corpus held go.sum files only and go.sum is counted
+		// correctly.
+		//
+		// The same regex the resolver uses, deliberately: a count that
+		// disagreed with the parser would make the two unable to agree
+		// about what the file declares.
+		n := 0
+		for _, line := range strings.Split(string(b), "\n") {
+			t := strings.TrimSpace(line)
+			if t == "" || strings.HasPrefix(t, "//") {
+				continue
+			}
+			if goModRequire.MatchString(t) {
+				n++
+			}
+		}
+		return n
 	case "pyproject.toml":
 		// TOML cannot be counted line-wise. The first version of this
 		// function used the text branch and counted EVERY non-comment line,

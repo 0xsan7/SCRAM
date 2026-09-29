@@ -25,6 +25,51 @@
     "why": "caught by internal/scorecard"
   },
   {
+    "id": "B1-pnpm-peer-suffix-not-stripped",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B1-pnpm-returns-nothing",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B1-pnpm-v5-scope-dropped",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B1-yarn-key-split-ignores-quotes",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B1-yarn-returns-nothing",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B2-gomod-fallback-returns-nothing",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B2-gomod-host-dot-check",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B2-gomod-require-keyword-required",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B3-cargo-returns-nothing",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
     "id": "CVSS-scope",
     "status": "killed",
     "why": "caught by internal/vuln"
@@ -67,7 +112,7 @@
   {
     "id": "D28-registry",
     "status": "killed",
-    "why": "caught by internal/resolve"
+    "why": "caught by internal/resolve internal/scan"
   },
   {
     "id": "D29-precedence",

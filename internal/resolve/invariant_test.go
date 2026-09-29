@@ -37,10 +37,21 @@ import (
 // passing on empty results.
 func TestInvariantNoSilentZeroOverCorpus(t *testing.T) {
 	checked, empty := 0, 0
-	for _, eco := range Supported() {
-		files := corpusFiles(t, filepath.Join(corpusSubdir(eco), "real"), isAnyLockfile)
+	// Iterate corpus DIRECTORIES, not ecosystems. An ecosystem can have
+	// several fixture directories -- npm has npm/, yarn/ and pnpm/, because
+	// yarn and pnpm resolve npm packages but have lockfiles of their own.
+	//
+	// Iterating Supported() instead looked correct and quietly checked
+	// only npm/, so the yarn and pnpm resolvers were outside the silent-zero
+	// check entirely. Both were then demonstrated to be outside it: making
+	// each return nothing produced zero failures, while the same change to
+	// the cargo resolver produced twelve. A check that is silently scoped
+	// to less than it appears to be is worse than no check, because it is
+	// reported as passing.
+	for _, dir := range corpusDirs() {
+		files := corpusFiles(t, filepath.Join(dir, "real"), isAnyLockfile)
 		if len(files) == 0 {
-			t.Logf("%s corpus absent; run scripts/fetch_corpus.py %s", eco, eco)
+			t.Logf("%s corpus absent; run scripts/fetch_corpus.py %s", dir, dir)
 			continue
 		}
 		for _, f := range files {
@@ -191,6 +202,20 @@ func TestDeclaredDependenciesCountsIndependently(t *testing.T) {
 		{"requirements ranged", "requirements.txt", "# c\nflask>=1\nrequests\n-r other\n", 2},
 		{"requirements all comment", "requirements.txt", "# just\n# comments\n", 0},
 		{"poetry.lock", "poetry.lock", "[[package]]\nname = \"a\"\n[[package]]\nname = \"b\"\n", 4},
+		// go.mod counts require directives only. The generic text branch
+		// used to count every non-comment line, so a dependency-free
+		// module was read as declaring three dependencies and the
+		// silent-zero guard rejected a correct empty result.
+		{"go.mod empty of requires", "go.mod",
+			"module github.com/go-chi/chi/v5\n\n// a comment\ngo 1.24\n", 0},
+		{"go.mod one require", "go.mod",
+			"module x\ngo 1.24\n\nrequire github.com/pkg/errors v0.9.1\n", 1},
+		{"go.mod block", "go.mod",
+			"module x\ngo 1.24\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgithub.com/c/d v2.0.0\n)\n", 2},
+		{"go.mod commented require", "go.mod",
+			"module x\n// require github.com/a/b v1.0.0\n", 0},
+		{"go.mod toolchain and replace", "go.mod",
+			"module x\ngo 1.24\n\ntoolchain go1.24.0\n\nreplace github.com/a/b => ../local\n", 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -231,14 +256,30 @@ func (f fakeResolver) Resolve(root, path string) ([]model.Component, error) {
 	return out, nil
 }
 
-// corpusSubdir maps an ecosystem to the directory its fixtures live in.
-// They are not the same string: the Go ecosystem is "go" but its corpus
-// lives in "gomod", matching the layout scripts/fetch_corpus.py writes.
-func corpusSubdir(eco string) string {
-	if eco == "go" {
-		return "gomod"
+// corpusDirs lists every corpus directory that holds lockfile fixtures.
+//
+// Derived from what is on disk rather than from a written-down list, so a
+// new ecosystem's fixtures are covered by the invariant without anyone
+// remembering to add them here -- which is the whole point of the change
+// that introduced this function. Directories without a "real" subdirectory
+// are skipped, so a scratch directory cannot silently reduce coverage to
+// nothing and have the test pass on zero files.
+func corpusDirs() []string {
+	entries, err := os.ReadDir(corpusDir)
+	if err != nil {
+		return nil
 	}
-	return eco
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(corpusDir, e.Name(), "real")); err == nil && info.IsDir() {
+			out = append(out, e.Name())
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // isAnyLockfile recognises lockfile NAMES without hardcoding a list. It

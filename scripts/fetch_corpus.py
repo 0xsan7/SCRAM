@@ -283,7 +283,7 @@ GO: dict[str, list[str]] = {
     "go-gitea/gitea": [""], "gogs/gogs": [""], "mattermost/mattermost-server": [""],
     "grafana/oncall": [""], "sourcegraph/sourcegraph": [""], "sigstore/fulcio": [""],
 }
-GO_FILES = ("go.sum",)
+GO_FILES = ("go.sum", "go.mod")
 
 
 def probe_one(repo: str, filename: str, subpaths: list[str]) -> tuple[str, bytes] | None:
@@ -510,6 +510,52 @@ def fetch_eco_yarn() -> None:
             + (" ..." if len(absent) > 12 else ""))
 
 
+
+def fetch_pnpm_old() -> None:
+    """Fetch pre-9.0 pnpm lockfiles from pinned tags.
+
+    pnpm 9 rewrote the key format and split the document into `packages`
+    and `snapshots`. Every project that has run `pnpm install` recently has
+    the new shape, so a corpus fetched from default branches would contain
+    nothing but lockfileVersion 9.0 and the older parser path would never
+    execute. A 5.3 file still on a tag is the only way to reach it.
+
+    vite is used because its release tags predate the pnpm 9 upgrade and
+    therefore still carry 5.3/5.4 lockfiles.
+    """
+    dest_dir = os.path.join(CORPUS, "pnpm", "real", "pnpm-old")
+    pins = [("vitejs/vite", "v3.2.5", "5.4"),
+            ("vitejs/vite", "v2.9.14", "5.3"),
+            ("vitejs/vite", "v2.8.6", "5.3")]
+    fetched = cached = 0
+    versions: list[str] = []
+    with cf.ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        futs = {ex.submit(get, RAW.format(repo=r, branch=t, path="pnpm-lock.yaml")):
+                (r, t, want) for r, t, want in pins}
+        for fut in cf.as_completed(futs):
+            repo, tag, want = futs[fut]
+            data = fut.result()
+            if not data or not valid(data, ".yaml"):
+                continue
+            found = ""
+            for line in data[:400].decode("utf-8", "replace").splitlines():
+                if line.strip().startswith("lockfileVersion:"):
+                    found = line.split(":", 1)[1].strip().strip("\"'")
+                    break
+            dest = os.path.join(dest_dir, f"{repo.replace('/', '-')}@{tag}.yaml")
+            if os.path.exists(dest) and os.path.getsize(dest) > 2:
+                cached += 1
+            else:
+                write(dest, data)
+                fetched += 1
+            versions.append(f"{tag}={found}")
+    log(f"  pnpm pre-9: {fetched} fetched, {cached} cached ({', '.join(sorted(versions))})")
+    if not versions:
+        log("  WARNING: zero pre-9.0 pnpm fixtures. The pnpm 5.x/6.x key "
+            "format would have no corpus, and that parser path would be "
+            "untested rather than absent.")
+
+
 def main() -> int:
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
     if which in ("npm", "all"):
@@ -548,6 +594,7 @@ def main() -> int:
     if which in ("pnpm", "all"):
         log("pnpm: probing")
         fetch_eco(PNPM, ("pnpm-lock.yaml",), "pnpm", "pnpm")
+        fetch_pnpm_old()
     if which in ("cargo", "all"):
         log("cargo: probing")
         fetch_eco(CARGO, ("Cargo.lock",), "cargo", "cargo")

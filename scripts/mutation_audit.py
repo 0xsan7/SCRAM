@@ -162,6 +162,67 @@ MUTANTS = [
      "\tif len(payload.Checks) == 0 {\n\t\treturn nil, fmt.Errorf(\"scorecard: %s: response contained no checks\", name)\n\t}",
      "\tif false {\n\t\treturn nil, nil\n\t}",
      ["internal/scorecard"]),
+    # --- B1/B3: yarn, pnpm and cargo resolvers ---------------------
+    # Each reverts a new resolver to the state that makes it inventory
+    # nothing. The silent-zero invariant must catch that, or a real project
+    # on that lockfile reports a clean scan.
+    ("B1-yarn-returns-nothing", "internal/resolve/yarn.go",
+     "func parseYarnLock(s string) []yarnEntry {",
+     "func parseYarnLock(s string) []yarnEntry {\n\treturn nil",
+     ["internal/resolve"]),
+    ("B1-pnpm-returns-nothing", "internal/resolve/pnpm.go",
+     "func parsePnpmLock(s string) []pnpmPackage {",
+     "func parsePnpmLock(s string) []pnpmPackage {\n\treturn nil",
+     ["internal/resolve"]),
+    ("B3-cargo-returns-nothing", "internal/resolve/cargo.go",
+     "func parseCargoLock(s string) []cargoPackage {",
+     "func parseCargoLock(s string) []cargoPackage {\n\treturn nil",
+     ["internal/resolve"]),
+    # The pnpm key-format split. Before this fix, LastIndex("@") was applied
+    # to a v9 `snapshots` key carrying a peer context, producing a component
+    # named "@ai-sdk/anthropic@3.0.58(zod" at version "4.1.12" --
+    # inventoried, never matched, and looking perfectly fine.
+    ("B1-pnpm-peer-suffix-not-stripped", "internal/resolve/pnpm.go",
+     "\t\tbase := stripPnpmPeerSuffix(key)",
+     "\t\tbase := key",
+     ["internal/resolve"]),
+    # The yarn key splitter that tracks quote state. A naive comma split left
+    # a leading quote on every scoped package in a Berry lockfile, and the
+    # PURL it produced matched no OSV advisory that exists.
+    ("B1-yarn-key-split-ignores-quotes", "internal/resolve/yarn.go",
+     "\tif strings.Contains(key, `\"`) {",
+     "\tif false {",
+     ["internal/resolve"]),
+    # The pnpm v5 slash-key scope. A SCOPED name makes the key three
+    # segments, so parts[len-2] dropped the scope and the component was
+    # filed under a name that does not exist.
+    ("B1-pnpm-v5-scope-dropped", "internal/resolve/pnpm.go",
+     "\tname := strings.Join(parts[:len(parts)-1], \"/\")",
+     "\tname := parts[len(parts)-2]",
+     ["internal/resolve"]),
+
+    # --- B2: the go.mod fallback --------------------------------
+    # The silent-zero failure itself: no go.sum, no inventory.
+    ("B2-gomod-fallback-returns-nothing", "internal/resolve/golang.go",
+     "\t\t\tif len(out) > 0 {\n\t\t\t\treturn out, nil\n\t\t\t}",
+     "\t\t\tif false {\n\t\t\t\treturn out, nil\n\t\t\t}",
+     ["internal/resolve"]),
+    # The validation rule that rejected 467 of trivy's 472 requires: it
+    # required the dot in the LAST path segment rather than the host.
+    ("B2-gomod-host-dot-check", "internal/resolve/golang.go",
+     "\thost := segments[0]\n\tdot := strings.Index(host, \".\")",
+     "\thost := segments[len(segments)-1]\n\tdot := strings.Index(host, \".\")",
+     ["internal/resolve"]),
+    # The directive/comment filter, without which `go 1.24` and
+    # `replace` lines become dependencies.
+    # The `require` keyword is optional in the regex, so this line
+    # distinguishes the single-line form from a bare path+version. Without
+    # it, only `require x v1.0.0` is found and every requirement inside a
+    # require ( ... ) block is missed.
+    ("B2-gomod-require-keyword-required", "internal/resolve/golang.go",
+     "^\\s*(?:require\\s+)?(\\S+)\\s+(v[0-9][\\w.\\-+]*)",
+     "^\\s*(?:require\\s+)(\\S+)\\s+(v[0-9][\\w.\\-+]*)",
+     ["internal/resolve"]),
 ]
 
 

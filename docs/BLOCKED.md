@@ -39,6 +39,19 @@ the mutation audit reporting `killed 16 survived 0 invalid 0 broken 0`.
 tag are now verified rather than pending — see `docs/STATUS.md` for the
 full evidence table.
 
+### v0.1.0-rc1 and v0.1.0-rc2 must not be used
+
+Both tags and both releases are still public and both still resolve.
+Neither Action works: rc1's cannot be loaded by the runner at all, and
+rc2's loads and scans but inverts its own drift gate, reporting every
+pre-existing finding as new. `v0.1.0-rc3` supersedes both. They were
+left in place deliberately rather than deleted, because deleting a
+published release destroys the evidence for why the fixes exist.
+
+The `v1` ref still does not resolve, and `releases/latest` still has no
+non-prerelease target. `uses: 0xsan7/SCRAM@v1` requires a real v0.1.0
+tag, which is not cut and is not mine to cut.
+
 What remains unverified is now only:
 
 - `govulncheck (self)` — the schedule is nightly and has not come round

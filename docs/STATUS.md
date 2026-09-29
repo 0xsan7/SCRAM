@@ -95,66 +95,83 @@ reading tests:
 | Self-scan | **DONE** | resolves 6 components, no findings |
 | Secret scan | **DONE** | clean at every push |
 | GitHub Actions runs | **VERIFIED** | read from the Actions REST API on every commit; on the tagged commit 11 jobs green and `govulncheck (self)` correctly skipped (it is schedule-only) |
-| Signing / provenance | **VERIFIED** | 5/5 `cosign verify-blob` → `Verified OK` against the published release |
+| Signing / provenance | **VERIFIED** | 5/5 `cosign verify-blob` → `Verified OK` on v0.1.0-rc3, downloaded and re-verified locally |
 | Pages deploy / Homebrew | **NOT BUILT** | no site, no formula; see ROADMAP.md |
 
 ---
 
-## Release status — v0.1.0-rc1
+## Release status — v0.1.0-rc3
 
-Published and verified. <https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0-rc1>
+<https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0-rc3>
 
 18 assets: 5 binaries (darwin/linux × amd64/arm64, windows-amd64.exe),
-5 `.sig` + 5 `.pem` signature files, `scram_0.1.0-rc1_checksums.txt`,
-and CycloneDX + SPDX SBOMs.
+5 `.sig` + 5 `.pem` signature files, `scram_0.1.0-rc3_checksums.txt`, and
+CycloneDX + SPDX SBOMs.
 
 Verified by downloading the release assets and running the published
-instructions against them, not by reading the CI badge:
+instructions against them:
 
 | Check | Result |
 |---|---|
-| `shasum -a 256 -c scram_0.1.0-rc1_checksums.txt` | 5/5 `OK` |
-| `cosign verify-blob` on each of the 5 binaries | 5/5 `Verified OK` |
-| Signature with a wrong `--certificate-identity-regexp` | correctly **rejected** |
-| Certificate subject | `https://github.com/0xsan7/SCRAM/.github/workflows/ci.yml@refs/tags/v0.1.0-rc1` |
-| `scram --version` with the release ldflags | `v0.1.0-rc1`, commit, and date all populated |
+| `shasum -a 256 -c scram_0.1.0-rc3_checksums.txt` | 5/5 `OK` |
+| `cosign verify-blob` on each binary | 5/5 `Verified OK` |
+| Signature with a wrong identity regexp | correctly **rejected** |
 | Release job on the tagged commit | `success` |
-| CI / Testability / secret-scan on the tagged commit | `success` / `success` / `success` |
+| CI / Testability / secret-scan on the tagged commit | `success` ×3 |
 
-### What the first tag exposed
+### The Action took three release candidates
 
-The release path had never been executed. Five real defects surfaced,
-each of which had passed every local check because the local checks
-skipped the broken part:
+`v0.1.0-rc1` and `v0.1.0-rc2` both remain on the repository and neither
+should be used. Seven defects in `action.yml`, all of the same kind: a
+question about what happens when the file *runs*, which no linter,
+schema validator, or unit test in this repository can answer.
 
-1. **No `tags:` trigger** — the workflow only fired on `push` to `main`,
-   so the release job's `if: startsWith(github.ref, 'refs/tags/v')` was
-   a gate on a job that was never scheduled. The tag did nothing.
-2. **`-X main.commit` / `-X main.date`** — neither symbol exists. The
-   linker accepts a `-X` for an unknown path and discards it, so release
-   binaries reported a version and nothing else. Now stamped into
-   `internal/cli` and printed by `--version`, with a test that builds
-   the binary and fails if a stamp does not appear.
-3. **cosign not installed, then installed too late** — the first run
-   failed with `executable file not found`; adding the install step in
-   the position the old signing step had left produced the *same*
-   error, because that position is after GoReleaser. The step now runs
-   first and ends with `cosign version`, so a broken install names
-   itself.
-4. **A signature upload glob matching zero files** — `dist/*.pem` is one
-   level deep; GoReleaser writes signatures to `dist/scram_<target>/`.
-   `fail_on_unmatched_files: false` meant the step exited 0 having
-   uploaded nothing. GoReleaser was already publishing all ten signature
-   files itself, so the step was removed entirely.
-5. **A release footer using artifact-only template keys** — `{{ .Os }}`
-   and `{{ .Arch }}` are not in scope for a release footer. GoReleaser
-   builds, signs, and generates the changelog, then fails while
-   publishing the notes: everything works and the release still does not
-   happen.
+| # | Defect | Effect | Found by |
+|---|---|---|---|
+| 1 | `secrets.GITHUB_TOKEN` in a composite step | runner refuses to load the manifest; the action is unusable | pointing it at a scratch repo |
+| 2 | URL `scram-linux-amd64`; GoReleaser publishes `scram-<version>-<os>-<arch>` | both URLs 404 | reading the release asset list |
+| 3 | `$OUT_DIR` never created | redirect fails, scanner never runs, reported as "policy check failed" | first end-to-end run |
+| 4 | binary name hardcoded to `scram` | Windows gets `scram.exe` | reading the install step |
+| 5 | base commit absent from the default depth-1 checkout | `fatal: invalid reference`; **the action cannot run on a PR at all** | running it on a real pull request |
+| 6 | `case "$version" in [0-9]*)` | accepts any commit SHA starting with a hex digit (~62%), builds a nonsense asset name | pinning the action to a SHA to test #5 |
+| 7 | baseline written as a scan report, not a baseline | `ReadBaseline` finds no top-level `components`, so the gate reports **every pre-existing finding as new** | comparing two baseline files on the same tree |
 
-The tag was moved four times during this, each move recorded in the tag
-message itself. No published artifact was retracted, because none
-existed until the final move. Commit `a0cb565` records the reasoning.
+Defect 7 deserves emphasis: it is the failure that looks like a working
+security tool. The gate fires, the comment renders, the numbers are
+plausible, and every one of them is wrong in the direction that makes
+the tool look useful. It was only visible by running the gate against a
+tree with unchanged dependencies and asking why it failed.
+
+### The Action, verified on a GitHub-hosted runner
+
+Push, using the documented minimum and no `with:` block at all:
+
+    - uses: 0xsan7/SCRAM@v0.1.0-rc3
+    Installing scram-0.1.0-rc3-linux-amd64 (action ref: v0.1.0-rc3)
+    scram-0.1.0-rc3-linux-amd64: OK
+    scram version 0.1.0-rc3
+    repo-score: 36   repo-bucket: low
+
+Pull request, against a `lodash@4.17.11` fixture:
+
+- **unchanged tree** → `PASS`, and the comment reports
+  `New vulnerabilities | 0` with all 5 real advisories still present
+- **added `minimist@0.0.8`** → `FAIL`, naming exactly one finding —
+  `GHSA-xvch-5gv4-984h affects pkg:npm/minimist@0.0.8 (severity
+  critical)` — and nothing else, with the pre-existing lodash findings
+  correctly suppressed
+
+That pair is the product working. Both halves, on the same repository,
+for the first time.
+
+### Checks added so these cannot recur silently
+
+`scripts/check_action_metadata.py` now rejects `secrets.` in any
+composite step, and cross-checks the install step's asset name against
+`.goreleaser.yml`'s `archives[].name_template`. Mutation-tested,
+including the rc1 URL verbatim. It cannot catch defects 3, 5 or 7 --
+those need a runner, and the honest conclusion is that this file needs
+an end-to-end test, not another static check.
 
 ## Gaps carried forward
 

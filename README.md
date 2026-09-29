@@ -51,6 +51,7 @@ confirm it against whatever OSV says today.*
 ## Contents
 
 - [Why drift beats a score](#why-drift-beats-a-score)
+- [Install](#install)
 - [Quick start](#quick-start)
 - [What a real finding looks like](#what-a-real-finding-looks-like)
 - [Failing closed](#failing-closed)
@@ -128,6 +129,49 @@ pkg:npm/ajv@6.10.2
 Note the difference against the same command in the full clone above:
 `17d ago ... first seen` instead of `8.1y ago ... introduced at 5.5.2`. The
 commit hash and date are the clone's, not the project's.
+
+## Install
+
+SCRAM is a single static binary with no runtime dependencies. Every
+release is published for five platforms, checksummed, and signed
+keyless.
+
+```bash
+# Pick the asset for your platform and verify it before running it.
+VERSION=0.1.0-rc1
+BASE=https://github.com/0xsan7/SCRAM/releases/download/v$VERSION
+
+curl -sSfLO "$BASE/scram_${VERSION}_checksums.txt"      # note: underscores
+curl -sSfLO "$BASE/scram-$VERSION-linux-amd64"          # or -darwin-arm64, -linux-arm64, -windows-amd64.exe
+curl -sSfLO "$BASE/scram-$VERSION-linux-amd64.pem"
+curl -sSfLO "$BASE/scram-$VERSION-linux-amd64.sig"
+
+# Verify just the binary you downloaded; -c against the whole file would
+# also report the four platforms you did not download as failures.
+grep "linux-amd64$" scram_${VERSION}_checksums.txt | shasum -a 256 -c -
+# Linux: the same works with sha256sum
+
+cosign verify-blob \
+  --certificate scram-$VERSION-linux-amd64.pem \
+  --signature    scram-$VERSION-linux-amd64.sig \
+  --certificate-identity-regexp 'https://github.com/0xsan7/SCRAM/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  scram-$VERSION-linux-amd64
+```
+
+`Verified OK` means the binary is the one this repository's CI built and
+signed for this tag; the signature is in the public Rekor log, so you
+do not have to trust GitHub to tell you so. See
+[the v0.1.0-rc1 release](https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0-rc1)
+for the full asset list, and the release notes there for the same
+instructions in copy-pasteable form.
+
+Build from source instead:
+
+```bash
+git clone https://github.com/0xsan7/SCRAM.git && cd SCRAM
+go build -o scram ./cmd/scram
+```
 
 ## Quick start
 

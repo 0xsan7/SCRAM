@@ -94,28 +94,69 @@ reading tests:
 | Resolver walkthrough executed | **DONE** | `6f837aa`; 4 steps applied, verified, reverted |
 | Self-scan | **DONE** | resolves 6 components, no findings |
 | Secret scan | **DONE** | clean at every push |
-| GitHub Actions runs | **UNVERIFIED** | `gh` is not installed and the repo is private; see "Blockers" |
-| Signing / provenance | **UNVERIFIED** | requires a real tag, which is forbidden here |
-| Pages deploy / Homebrew | **UNVERIFIED** | same |
+| GitHub Actions runs | **VERIFIED** | read from the Actions REST API on every commit; 12/12 jobs green on the tagged commit |
+| Signing / provenance | **VERIFIED** | 5/5 `cosign verify-blob` → `Verified OK` against the published release |
+| Pages deploy / Homebrew | **NOT BUILT** | no site, no formula; see ROADMAP.md |
 
 ---
 
-## Blockers
+## Release status — v0.1.0-rc1
 
-1. **`gh` is not installed**, so the Actions run on `origin/main` cannot be
-   inspected. CI status is **unverified**, not "passing".
-2. **The repository is private.** `https://api.github.com/repos/0xsan7/SCRAM`
-   returns 404 unauthenticated and `raw.githubusercontent.com` returns 404,
-   while `git push` succeeds using a stored credential for user `232798030`.
-   This is why commits do not appear on the `0xsan7` contribution graph —
-   see `OVERNIGHT_REPORT.md` for the full explanation.
-3. **No release automation can be verified end to end** without a tag, and
-   cutting one is out of scope by instruction. Everything in Phase 3A is
-   therefore config-only until a human cuts the first tag.
+Published and verified. <https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0-rc1>
+
+18 assets: 5 binaries (darwin/linux × amd64/arm64, windows-amd64.exe),
+5 `.sig` + 5 `.pem` signature files, `scram_0.1.0-rc1_checksums.txt`,
+and CycloneDX + SPDX SBOMs.
+
+Verified by downloading the release assets and running the published
+instructions against them, not by reading the CI badge:
+
+| Check | Result |
+|---|---|
+| `shasum -a 256 -c scram_0.1.0-rc1_checksums.txt` | 5/5 `OK` |
+| `cosign verify-blob` on each of the 5 binaries | 5/5 `Verified OK` |
+| Signature with a wrong `--certificate-identity-regexp` | correctly **rejected** |
+| Certificate subject | `https://github.com/0xsan7/SCRAM/.github/workflows/ci.yml@refs/tags/v0.1.0-rc1` |
+| `scram --version` with the release ldflags | `v0.1.0-rc1`, commit, and date all populated |
+| Release job on the tagged commit | `success` |
+| CI / Testability / secret-scan on the tagged commit | `success` / `success` / `success` |
+
+### What the first tag exposed
+
+The release path had never been executed. Five real defects surfaced,
+each of which had passed every local check because the local checks
+skipped the broken part:
+
+1. **No `tags:` trigger** — the workflow only fired on `push` to `main`,
+   so the release job's `if: startsWith(github.ref, 'refs/tags/v')` was
+   a gate on a job that was never scheduled. The tag did nothing.
+2. **`-X main.commit` / `-X main.date`** — neither symbol exists. The
+   linker accepts a `-X` for an unknown path and discards it, so release
+   binaries reported a version and nothing else. Now stamped into
+   `internal/cli` and printed by `--version`, with a test that builds
+   the binary and fails if a stamp does not appear.
+3. **cosign not installed, then installed too late** — the first run
+   failed with `executable file not found`; adding the install step in
+   the position the old signing step had left produced the *same*
+   error, because that position is after GoReleaser. The step now runs
+   first and ends with `cosign version`, so a broken install names
+   itself.
+4. **A signature upload glob matching zero files** — `dist/*.pem` is one
+   level deep; GoReleaser writes signatures to `dist/scram_<target>/`.
+   `fail_on_unmatched_files: false` meant the step exited 0 having
+   uploaded nothing. GoReleaser was already publishing all ten signature
+   files itself, so the step was removed entirely.
+5. **A release footer using artifact-only template keys** — `{{ .Os }}`
+   and `{{ .Arch }}` are not in scope for a release footer. GoReleaser
+   builds, signs, and generates the changelog, then fails while
+   publishing the notes: everything works and the release still does not
+   happen.
+
+The tag was moved four times during this, each move recorded in the tag
+message itself. No published artifact was retracted, because none
+existed until the final move. Commit `a0cb565` records the reasoning.
 
 ## Gaps carried forward
 
 - **`why` and `trend` have not been mutation-audited.** `blame` has; the
   other two have only been run.
-- **The test suite is green but CI is unobserved.** A CI-only failure (a
-  missing tool, a workflow syntax error) would not show up locally.

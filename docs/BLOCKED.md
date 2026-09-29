@@ -35,52 +35,46 @@ enumerated from the source (so a new target cannot silently never be
 fuzzed), the committed corpus replayed, all 16 fuzzed with no crash, and
 the mutation audit reporting `killed 16 survived 0 invalid 0 broken 0`.
 
+`v0.1.0-rc1` has since been tagged, and the items that were waiting on a
+tag are now verified rather than pending — see `docs/STATUS.md` for the
+full evidence table.
+
 What remains unverified is now only:
 
 - `govulncheck (self)` — the schedule is nightly and has not come round
-- the `Release` job, cosign signing, and the release SBOM attachment —
-  all gated on a tag, and no tag may be cut here
 - coverage measured locally at 67.0%; the CI job that reports it is
   green, but no badge is published because no service is configured
 
-## 2. The repository is private, so contributions do not appear on the
-`0xsan7` profile
+## 2. ~~The repository is private~~ — RESOLVED, and the original diagnosis was wrong
 
-**Found by:** checking, in order, the commit authors, the global git
-identity, the repository visibility, and the stored credentials.
+**This section previously asserted that `0xsan7/SCRAM` was private, on the
+strength of a 404 from the unauthenticated API.** That inference was
+wrong. The repository is public, `https://api.github.com/repos/0xsan7/SCRAM`
+returns 200 unauthenticated, and `raw.githubusercontent.com` serves
+`main` without a token. Confirmed again after the release was published.
 
-**Evidence:**
+**Why the 404 happened, and why it mattered.** An unauthenticated 404 is
+indistinguishable from "private" and "does not exist", and the section
+below it turned that ambiguity into a confident claim, then built a
+detailed explanation — two identities, a contribution-graph mechanism,
+a two-step unblock — on top of it. The push credential belongs to
+account `232798030` while commits are authored by `0xsan7`, which is
+real and is still worth knowing. But it was not the cause of anything,
+because the repository was never private.
 
-- Every commit is authored by `0xsan7 <santiagojerald734@gmail.com>`, and
-  `git config --global user.name` is `0xsan7`. The author is right.
-- `https://api.github.com/users/0xsan7` → 200, and reports
-  **`public_repos: 0`**.
-- `https://api.github.com/repos/0xsan7/SCRAM` → **404**.
-- `https://raw.githubusercontent.com/0xsan7/SCRAM/main/README.md` → **404**.
-- `git push` succeeds, using an `osxkeychain` credential whose
-  `username` is **`232798030`**, not `0xsan7`.
+The lesson is the one this project keeps re-learning: a 404 is evidence
+of *absence of permission*, not evidence of *absence of object*.
 
-**What this means.** Two different GitHub identities are in play. The
-commits are written into a repository under `0xsan7` by a token belonging
-to user `232798030`. The push is accepted, so that token has write access
-— but GitHub attributes the contribution to the account that owns the
-pushing credential, and a **private** repository contributes nothing to a
-public profile's contribution graph regardless of who authored it.
+**Still true, and still unexplained:** commits pushed with a credential
+belonging to `232798030` may not appear on the `0xsan7` contribution
+graph, because GitHub attributes a push to the pushing account. That is
+a question about GitHub's attribution rules and the account's own
+contribution-visibility settings, not about SCRAM, and it is not
+something this repository can fix or verify from here.
 
-So the empty contribution bar is expected on both counts, and neither is a
-bug in SCRAM.
-
-**To unblock (a human must do this; both are repo settings, which are out
-of scope here):**
-
-1. Make `0xsan7/SCRAM` public, if that is the intent. Private-repo
-   contributions are not shown publicly at all.
-2. Push with a credential belonging to `0xsan7` itself, so the commits are
-   attributed to that account.
-
-**Explicitly not done here:** no repo visibility was changed and no
-credential was created, rotated, or modified. Both are forbidden by the
-brief, and both are the kind of change a human should make deliberately.
+**Not done here:** no repository setting was changed as part of this
+investigation. Visibility, topics, and description were set separately and
+explicitly, at the maintainer's request.
 
 ---
 

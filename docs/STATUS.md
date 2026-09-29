@@ -8,6 +8,53 @@ missing rather than implying otherwise.
 
 ---
 
+## BREAKING: scores are now out of 65, not 100
+
+**Any score printed by SCRAM after this commit is not comparable to one
+printed by v0.1.0 or earlier.** This is a presentation change, not a
+detection change — the same vulnerabilities are found, the same terms are
+computed, and the ranking of projects relative to each other is unchanged.
+But the number a user sees has a different denominator, and CI jobs,
+dashboards or policy files that hard-code a score threshold need checking.
+
+| | before | after |
+|---|---|---|
+| denominator | 100 | 65 |
+| the lodash demo project | 37/100 | 37/65 |
+| a clean-looking tree | 39/100 | 25/65 |
+| bucket boundaries | 90 / 70 / 40 / 1 | 58 / 45 / 26 / 1 |
+| scores changing bucket | — | 69 and 89 only, both upward |
+
+**Why.** `scripts/measure_score_terms.sh` runs all six ecosystems and
+reports which score terms actually carry data. Severity is the only term
+that scores without an opt-in flag; exploitability is the only other that
+can, and it returns nothing when FIRST.org is unreachable. Freshness needs
+latest-version data this project does not collect, so it is structurally 0
+everywhere. Presenting a total out of 100 therefore claimed 35 points of
+signal that the tool usually cannot produce, and made a project with real
+findings look like it had lost most of a scale it was never competing on.
+
+**Bucket boundaries, and two exceptions.** Boundaries moved
+proportionally (90/70/40/1 → 58/45/26/1) and were rounded down. Dividing by
+0.65 is monotonic but not bucket-preserving: checked over all 101 inputs,
+**two scores change bucket, both upward** — 69 (medium → high) and 89
+(high → critical) — and none are demoted. A score just under an old
+threshold can land just over the new one, and those are the two that do.
+`TestRescalePromotesOnlyTheTwoBoundaryScores` pins the list.
+
+**What did not change.** The formula. Severity, exploitability, maintenance
+and freshness are still computed in their own units with the same weights
+(40/25/20/15), and `--explain` prints all four plus the 0–100 subtotal they
+sum to. Only the denominator the total is reported against changed.
+
+**One bug this surfaced.** `BucketFor` was used in two places to band raw
+CVSS v3 scores (`CVSSv3 * 10`, i.e. 0–100) — in drift and in policy, the
+two paths that decide whether a pull request fails. That worked only
+because the presented scale and the CVSS scale happened to be the same
+number. Rescaling would have reported a 9.8 critical as "high". The CVSS
+path now has its own function with the specification's boundaries, and
+`TestBucketForCVSSKeepsTheSpecificationBoundaries` pins it.
+
 ## Phase 0 — state audit
 
 **DONE.** This file. The audit was performed against the code, not against
@@ -32,6 +79,7 @@ which the earlier summaries had understated.
 | 1d. Nightly fuzz + mutation audit | **DONE** | `.github/workflows/fuzz.yml`; targets derived from source (16), nightly 02:17 UTC, runs `scripts/mutation_audit.py`; **verified green**: dispatched at `ca15f8f`, 16 targets enumerated and fuzzed, no crashes; mutation audit `killed 16 survived 0` |
 | 1d. Corpus/invariant job on every PR | **PARTIAL** | `internal/resolve/invariant_test.go` runs in `ci.yml` via `go test ./...`, but as part of the test job, not a named gate |
 | 1d. TESTING.md / CONTRIBUTING.md rules | **PARTIAL** | `CONTRIBUTING.md` has resolver/fixture rules; **`TESTING.md` does not exist** |
+| Score terms measured, not assumed | **DONE** | `scripts/measure_score_terms.sh` runs all six ecosystems and prints the per-term breakdown. Result: severity is the only term that scores without an opt-in flag; exploitability returns nothing when FIRST.org is unreachable; freshness needs latest-version data the project does not collect. This is the evidence behind the 0-65 presented scale |
 
 ## Phase 2 — unreviewed features
 
@@ -44,7 +92,7 @@ which the earlier summaries had understated.
 | `blame` — real-repo verification | **DONE** | checked by hand against `git log --oneline -- requirements.txt`; SHAs match |
 | `why` — review | **PARTIAL** | runs, output inspected on a real corpus repo; no git-history input, so no edge cases apply; not mutation-audited |
 | `trend` / sparkline | **PARTIAL** | renders in `scram scan`; not audited for edge cases |
-| `badge` — review | **DONE** | verified on real scan JSON, `6f837aa`; correct output `36/100 low` |
+| `badge` — review | **DONE** | verified on real scan JSON, `6f837aa`; correct output `36/65 low` (denominator rescaled; see the BREAKING note at the top) |
 | Self-score in CI | **DONE** | `ci.yml` job `dogfood`: builds, scans, renders the badge, uploads it as an artifact |
 | Abandonment prediction | **NOT STARTED** | correctly out of scope; nothing built |
 | B. Testability workflow | **DONE** | `testability.yml`; coverage + race on main, never gating a PR diff |

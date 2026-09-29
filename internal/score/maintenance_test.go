@@ -132,15 +132,40 @@ func TestScoreIncludesMaintenance(t *testing.T) {
 	if s1.TotalComponents != 1 || s2.TotalComponents != 1 {
 		t.Fatalf("unexpected component counts: %d %d", s1.TotalComponents, s2.TotalComponents)
 	}
-	// Severity is the only other live term here (no EPSS, no freshness
-	// signal), so the delta is exactly the maintenance budget at Scorecard 10.
-	want := model.MaxMaintenancePoints
-	if s2.RepoScore-s1.RepoScore != want {
-		t.Errorf("repo score moved by %d with a perfect Scorecard, want %d",
-			s2.RepoScore-s1.RepoScore, want)
+	// Two scales are in play and both are asserted, because the rescale
+	// deliberately left the formula alone:
+	//
+	//   - Score.Total is the FORMULA's 0-100 figure, and the delta there
+	//     is exactly the maintenance budget at a perfect Scorecard. This
+	//     is what pins the arithmetic.
+	//   - Summary.RepoScore is the PRESENTED 0-65 figure, and its delta is
+	//     that same change rescaled.
+	//
+	// Checking only the presented number would let a refactor quietly
+	// halve the maintenance budget, since 20 points of 100 is 13 points
+	// of 65 and both look like "a number went up". So the formula-scale
+	// delta is checked too, via the component's own Score.Total.
+	eng := New()
+	eng.SetMaintenance(10, 11, 3, "2026-09-28", "abc123")
+	// Score writes back into the slice it is given, so the component has
+	// to be addressed through it rather than through a copy.
+	slice := []model.Component{base}
+	eng.Score(slice)
+	if slice[0].Score == nil {
+		t.Fatal("Score did not attach a score to the component")
 	}
-	t.Logf("no scorecard: %d | perfect scorecard: %d (delta %d)",
-		s1.RepoScore, s2.RepoScore, s2.RepoScore-s1.RepoScore)
+	if got, want := slice[0].Score.Maintenance, model.MaxMaintenancePoints; got != want {
+		t.Errorf("Score.Maintenance = %d, want %d: the formula budget moved", got, want)
+	}
+
+	// The presented delta is the formula delta rescaled onto 0-65.
+	wantPresented := Presented(model.MaxScore) - Presented(model.MaxScore-model.MaxMaintenancePoints)
+	if got := s2.RepoScore - s1.RepoScore; got != wantPresented {
+		t.Errorf("presented repo score moved by %d with a perfect Scorecard, want %d",
+			got, wantPresented)
+	}
+	t.Logf("presented: no scorecard %d -> perfect %d (delta %d of %d)",
+		s1.RepoScore, s2.RepoScore, s2.RepoScore-s1.RepoScore, model.PresentedMax)
 }
 
 // TestMaintenanceScaledFormula pins the arithmetic so a future refactor

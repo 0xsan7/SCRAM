@@ -72,7 +72,7 @@ func Diff(base, head model.Scan) model.DiffResult {
 				// Rate by the vulnerability's own CVSS, for the same reason
 				// as the version-changed branch: a brand-new component can
 				// aggregate into the medium bucket while carrying a 9.8.
-				vb := score.BucketFor(int(v.CVSSv3 * 10))
+				vb := score.BucketForCVSS(int(v.CVSSv3 * 10))
 				if model.AtLeast(vb, model.BucketHigh) {
 					newHigh++
 				}
@@ -141,7 +141,7 @@ func Diff(base, head model.Scan) model.DiffResult {
 			if d.Change == model.ChangeVersionChanged {
 				for _, nv := range h.Vulnerabilities {
 					if !baseVulns[nv.ID] {
-						vb := score.BucketFor(int(nv.CVSSv3 * 10))
+						vb := score.BucketForCVSS(int(nv.CVSSv3 * 10))
 						if model.AtLeast(vb, model.BucketHigh) {
 							newHigh++
 						}

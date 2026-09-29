@@ -70,6 +70,26 @@
     "why": "caught by internal/resolve"
   },
   {
+    "id": "C-badge-not-clamped",
+    "status": "killed",
+    "why": "caught by internal/badge"
+  },
+  {
+    "id": "C-cvss-uses-presented-buckets",
+    "status": "killed",
+    "why": "caught by internal/score"
+  },
+  {
+    "id": "C-presented-is-identity",
+    "status": "killed",
+    "why": "caught by internal/score"
+  },
+  {
+    "id": "C-presented-not-clamped",
+    "status": "killed",
+    "why": "caught by internal/score"
+  },
+  {
     "id": "CVSS-scope",
     "status": "killed",
     "why": "caught by internal/vuln"

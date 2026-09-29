@@ -223,6 +223,32 @@ MUTANTS = [
      "^\\s*(?:require\\s+)?(\\S+)\\s+(v[0-9][\\w.\\-+]*)",
      "^\\s*(?:require\\s+)(\\S+)\\s+(v[0-9][\\w.\\-+]*)",
      ["internal/resolve"]),
+    # --- C: the presented scale ----------------------------------
+    # Presented() rescales onto 0-65. Removing it means the tool divides
+    # by a denominator it cannot earn, which is the whole defect.
+    ("C-presented-is-identity", "internal/score/score.go",
+     "\tscaled := (total*model.PresentedMax + model.MaxScore/2) / model.MaxScore",
+     "\tscaled := total",
+     ["internal/score"]),
+    # The clamp: without it a score above 65 prints as "66/65", a badge
+    # claiming 101% of the maximum.
+    ("C-presented-not-clamped", "internal/score/score.go",
+     "\tif scaled > model.PresentedMax {\n\t\treturn model.PresentedMax\n\t}",
+     "\tif false {\n\t\treturn model.PresentedMax\n\t}",
+     ["internal/score"]),
+    # The badge clamp, which is the last line of defence for a document
+    # this tool does not control.
+    ("C-badge-not-clamped", "internal/badge/badge.go",
+     "\tif v > model.PresentedMax {\n\t\treturn model.PresentedMax\n\t}",
+     "\tif false {\n\t\treturn model.PresentedMax\n\t}",
+     ["internal/badge"]),
+    # BucketForCVSS must keep the CVSS boundaries. Folding it back into
+    # the presented scale would report a 9.8 critical as "high" in the two
+    # call sites that decide whether a PR fails.
+    ("C-cvss-uses-presented-buckets", "internal/score/score.go",
+     "\tcase cvssTimesTen >= 90:",
+     "\tcase cvssTimesTen >= criticalBucketMin:",
+     ["internal/score"]),
 ]
 
 

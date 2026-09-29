@@ -40,6 +40,28 @@ like `nestjs/nest` that is most of the noise. This is the single largest
 gap between what the tool reports and what is exploitable, and it needs
 call-graph data this project does not collect.
 
+**A score that can be out of 100.** The presented scale is 0-65, because
+that is what the tool can currently measure: severity, plus exploitability
+when EPSS is reachable. The formula still computes 0-100 internally, and
+the gap is data, not arithmetic. Restoring a 100-point claim needs the
+missing terms to actually produce values:
+
+- **Latest-version data for freshness** (15 points). Freshness is
+  structurally 0 today because nothing collects a component's latest
+  release. This needs a version-source per ecosystem (npm registry,
+  PyPI, crates.io, proxy.golang.org), which is a fetch and a cache
+  problem rather than a resolver one. Until it exists, freshness cannot
+  distinguish "one patch release behind" from "abandoned since 2019".
+- **Reliable EPSS coverage** (25 points). Exploitability works and is
+  tested; it returns 0 when FIRST.org is unreachable, which is common
+  offline and in air-gapped CI. A cached or vendored EPSS feed would make
+  the term dependable rather than opportunistic.
+
+Neither is hard; both are new subsystems. The choice made for now was to
+present the 65 points the tool can earn rather than the 100 it was
+promised, because a denominator that overstates the evidence makes every
+score look worse than the measurement justifies.
+
 **More ecosystems.** Tracked, not in this pass:
 
 - **Maven** — `pom.xml` and Gradle lockfiles. Not started. The reason is

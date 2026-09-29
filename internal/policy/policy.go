@@ -196,7 +196,7 @@ func Evaluate(cfg *Config, scan model.Scan, diff *model.DiffResult, degraded boo
 			// (41/100, dragged down by a low exploitability score) while
 			// carrying a newly introduced CVSS 9.8. Gating on the component
 			// alone would let that 9.8 through under `fail_on: high`.
-			vulnBucket := score.BucketFor(int(v.CVSSv3 * 10))
+			vulnBucket := score.BucketForCVSS(int(v.CVSSv3 * 10))
 			f := finding{
 				id:     v.ID,
 				purl:   c.Purl,

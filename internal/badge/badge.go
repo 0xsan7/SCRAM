@@ -17,6 +17,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/0xsan7/scram/internal/model"
 )
 
 // ShieldResponse is the subset of the shields.io endpoint schema that
@@ -75,7 +77,7 @@ func FromScanReport(r ScanReport) ShieldResponse {
 	return ShieldResponse{
 		SchemaVersion: 1,
 		Label:         Label,
-		Message:       fmt.Sprintf("%d/100 %s", r.Scan.Summary.RepoScore, r.Scan.Summary.RepoBucket),
+		Message:       fmt.Sprintf("%d/%d %s", clampedScore(r.Scan.Summary.RepoScore), model.PresentedMax, r.Scan.Summary.RepoBucket),
 		Color:         ColorFor(r.Scan.Summary.RepoBucket),
 	}
 }
@@ -98,4 +100,22 @@ func Serve(w io.Writer, r io.Reader) error {
 	}
 	_, err = w.Write(out)
 	return err
+}
+
+// clampedScore keeps a presented score inside 0..model.PresentedMax.
+//
+// The input is whatever a document claimed, and a document is not trusted:
+// a scan report from an older version carries a 0-100 score, and a
+// hand-edited one can carry anything. Without the clamp the badge renders
+// "95/65", which is a public claim of 146% of the maximum. Clamping here,
+// at the last step before the string is built, is the only place that
+// holds for every caller.
+func clampedScore(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > model.PresentedMax {
+		return model.PresentedMax
+	}
+	return v
 }

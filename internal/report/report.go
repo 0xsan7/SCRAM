@@ -179,7 +179,7 @@ func writeTable(w io.Writer, scan model.Scan, diff *model.DiffResult, tr *Trend)
 	fmt.Fprintf(&b, "  findings    %d vulnerability record(s)\n", scan.Summary.VulnTotal)
 
 	bucket := scan.Summary.RepoBucket
-	fmt.Fprintf(&b, "  repo score  %d/100  %s\n", scan.Summary.RepoScore,
+	fmt.Fprintf(&b, "  repo score  %d/%d  %s\n", scan.Summary.RepoScore, model.PresentedMax,
 		paint(bucketColor(bucket), bucketLabel(bucket)))
 	fmt.Fprintf(&b, "  breakdown   critical %d  high %d  medium %d  low %d  clean %d\n",
 		scan.Summary.Counts[model.BucketCritical],
@@ -243,7 +243,7 @@ func writeTable(w io.Writer, scan model.Scan, diff *model.DiffResult, tr *Trend)
 			marker,
 			paint(bucketColor(c.Bucket), fmt.Sprintf("%-8s", bucketLabel(c.Bucket))),
 			c.Purl)
-		fmt.Fprintf(&b, "         score %s/100, %d finding(s)\n", scoreStr, len(c.Vulnerabilities))
+		fmt.Fprintf(&b, "         score %s/%d, %d finding(s)\n", scoreStr, model.PresentedMax, len(c.Vulnerabilities))
 		for _, v := range c.Vulnerabilities {
 			flag := " "
 			if newVulns[v.ID] {

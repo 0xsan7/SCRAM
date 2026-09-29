@@ -40,7 +40,7 @@ SCRAM supply chain scan
   repo        demo-app
   components  1
   findings    2 vulnerability record(s)
-  repo score  37/100  LOW
+  repo score  37/65  LOW
   breakdown   critical 0  high 0  medium 0  low 1  clean 0
 
   Drift since baseline
@@ -49,7 +49,7 @@ SCRAM supply chain scan
         new high 1, new critical 0
 
 CHG  LOW       pkg:npm/lodash@4.17.21
-         score 37/100, 2 finding(s)
+         score 37/65, 2 finding(s)
          N GHSA-r5fr-rjxr-66jc cvss 8.1  epss 21.33%  fixed in 4.18.0
            GHSA-f23m-r3pf-42rh cvss 6.5  epss  1.85%  fixed in 4.18.0
 
@@ -357,7 +357,7 @@ summary above along with the exit code the gate returned.
 
 ```
    MEDIUM    pkg:npm/lodash@4.17.11
-         score 41/100, 5 finding(s)
+         score 41/65, 5 finding(s)
            GHSA-jf85-cpcp-j695 cvss 9.1  epss 5.01%  fixed in 4.17.12
            GHSA-p6mc-m468-83gw cvss 7.4  epss 5.21%  fixed in 4.17.19
            GHSA-35jh-r3h4-6jhm cvss 7.2  epss 21.33%  fixed in 4.17.21
@@ -441,13 +441,43 @@ Two things about that line matter more than the number:
 `--scorecard` defaults to the repository's git origin, so the common case
 needs no flag. `--no-scorecard` opts out and stops the request.
 
-| Bucket | Score |
-|---|---|
-| Critical | 90–100 |
-| High | 70–89 |
-| Medium | 40–69 |
-| Low | 1–39 |
-| Clean | 0 |
+| Bucket | Score (of 65) | was (of 100) |
+|---|---|---|
+| Critical | 58–65 | 90–100 |
+| High | 45–57 | 70–89 |
+| Medium | 26–44 | 40–69 |
+| Low | 1–25 | 1–39 |
+| Clean | 0 | 0 |
+
+**The denominator is 65, not 100, and the reason is measured rather than
+asserted.** `scripts/measure_score_terms.sh` runs all six ecosystems and
+prints which terms carry data. The result: severity is the only term that
+scores without an opt-in flag, and exploitability is the only other one
+that can. Freshness is structurally 0 everywhere — it needs latest-version
+data this project does not collect — and exploitability needs EPSS, which
+is a per-CVE fetch that returns nothing when FIRST is unreachable.
+Dividing by 100 therefore advertised 35 points the tool usually cannot
+earn, and a clean-ish repository read as "39/100" when 39 was all the
+evidence there was.
+
+The formula is untouched. Severity, exploitability, maintenance and
+freshness are still computed in their own units with the same weights, and
+`--explain` prints all four plus the 0–100 subtotal they sum to, so the
+arithmetic stays checkable. Only the total the score is *reported* against
+changed. Bucket boundaries moved proportionally, rounded down.
+
+That is a monotonic rescale, not a bucket-preserving one, and the
+difference is exact rather than approximate: checked over all 101 inputs,
+**two scores change bucket, both upward** — 69 (medium → high) and 89
+(high → critical) — and **none are demoted**. Dividing by 0.65 pushes a
+value just under an old threshold just over the new one, and 69 and 89 are
+the two that land there. A 40/100 medium is 26/65, still medium;
+`TestRescalePromotesOnlyTheTwoBoundaryScores` pins the list so a future
+threshold change cannot quietly widen it.
+
+**Scores before and after this change are not comparable.** A project that
+scored 39/100 now reads 25/65. The ranking among projects is unchanged —
+it is the same number divided by 0.65 — but the absolute figure is not.
 
 Two deliberate choices, both load-bearing:
 
@@ -571,13 +601,13 @@ scram badge --in scan.json
 Run against this repository:
 
 ```json
-{"schemaVersion":1,"label":"self score","message":"0/100 clean","color":"brightgreen"}
+{"schemaVersion":1,"label":"self score","message":"0/65 clean","color":"brightgreen"}
 ```
 
 `scram badge` reads a scan document rather than taking a number, so the
 badge cannot report a score that was never measured. A document with no
 `repo_bucket` — that is, something that is not a scan report — is
-refused outright rather than rendered as `0/100`.
+refused outright rather than rendered as `0/65`.
 
 SCRAM's own CI runs this on every push and publishes `badge.json` as a
 build artifact. It is deliberately **not** committed to this repository:
@@ -598,7 +628,7 @@ SCRAM supply chain scan
   repo        app
   components  3
   findings    21 vulnerability record(s)
-  repo score  39/100  LOW
+  repo score  39/65  LOW
   breakdown   critical 0  high 0  medium 0  low 3  clean 0
   trend       ▁▁▁▁▁▁▁  flat across 7 scans
 ```

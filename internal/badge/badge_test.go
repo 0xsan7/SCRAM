@@ -3,8 +3,11 @@ package badge
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/0xsan7/scram/internal/model"
 )
 
 func TestServeFromRealScanShape(t *testing.T) {
@@ -21,8 +24,8 @@ func TestServeFromRealScanShape(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
 		t.Fatalf("badge output is not valid JSON: %v\n%s", err, out.String())
 	}
-	if got.Message != "32/100 low" {
-		t.Errorf("message = %q, want %q", got.Message, "32/100 low")
+	if got.Message != "32/65 low" {
+		t.Errorf("message = %q, want %q", got.Message, "32/65 low")
 	}
 	if got.Label != "self score" {
 		t.Errorf("label = %q, want %q", got.Label, "self score")
@@ -81,24 +84,48 @@ func TestColorFor(t *testing.T) {
 // A critical score must never render as a reassuring colour, whatever the
 // input shape.
 func TestCriticalIsNeverGreen(t *testing.T) {
+	// RepoScore is the PRESENTED figure (0-65), so the fixture is written
+	// in those units. 65 is the top of the presented scale.
 	r := ScanReport{}
-	r.Scan.Summary.RepoScore = 95
+	r.Scan.Summary.RepoScore = 65
 	r.Scan.Summary.RepoBucket = "critical"
 	got := FromScanReport(r)
 	if got.Color == "brightgreen" || got.Color == "yellowgreen" {
 		t.Errorf("critical score rendered as %q", got.Color)
 	}
-	if !strings.Contains(got.Message, "95/100") {
+	if !strings.Contains(got.Message, "65/65") {
 		t.Errorf("message = %q, missing the score", got.Message)
 	}
 }
 
 func TestFromScanReportCarriesScore(t *testing.T) {
 	r := ScanReport{}
-	r.Scan.Summary.RepoScore = 7
+	r.Scan.Summary.RepoScore = 5
 	r.Scan.Summary.RepoBucket = "clean"
 	got := FromScanReport(r)
-	if !strings.HasPrefix(got.Message, "7/100") {
+	if !strings.HasPrefix(got.Message, "5/65") {
 		t.Errorf("message = %q, want it to start with the score", got.Message)
+	}
+}
+
+// TestBadgeCannotExceedItsOwnDenominator is the guard against the one
+// presentation this tool must never emit.
+//
+// FromScanReport takes whatever RepoScore is in the document. A scan
+// report written by an older SCRAM, a hand-edited file, or a document that
+// carries formula-scale points in a presented-scale field would otherwise
+// render "95/65" -- a badge claiming 146% of the maximum, on a public
+// README. Clamping in the badge rather than trusting the input is the only
+// place that can guarantee it, because the badge is what a stranger reads.
+func TestBadgeCannotExceedItsOwnDenominator(t *testing.T) {
+	for _, score := range []int{65, 66, 80, 95, 100, 1000} {
+		r := ScanReport{}
+		r.Scan.Summary.RepoScore = score
+		r.Scan.Summary.RepoBucket = "critical"
+		got := FromScanReport(r)
+		want := fmt.Sprintf("%d/65", model.PresentedMax)
+		if got.Message != want+" critical" {
+			t.Errorf("RepoScore %d -> message %q, want %q", score, got.Message, want+" critical")
+		}
 	}
 }

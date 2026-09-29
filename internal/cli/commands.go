@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/0xsan7/scram/internal/drift"
+	"github.com/0xsan7/scram/internal/model"
 	"github.com/0xsan7/scram/internal/policy"
 	"github.com/0xsan7/scram/internal/report"
 	"github.com/0xsan7/scram/internal/scan"
@@ -193,7 +194,7 @@ diffs cleanly in review.`,
 			fmt.Printf("Wrote baseline to %s\n", outPath)
 			fmt.Printf("  components   %d\n", s.TotalComponents)
 			fmt.Printf("  findings     %d\n", s.VulnTotal)
-			fmt.Printf("  repo score   %d/100 (%s)\n", s.RepoScore, s.RepoBucket)
+			fmt.Printf("  repo score   %d/%d (%s)\n", s.RepoScore, model.PresentedMax, s.RepoBucket)
 			if len(result.Scan.Warnings) > 0 {
 				fmt.Println("  warnings:")
 				for _, w := range result.Scan.Warnings {

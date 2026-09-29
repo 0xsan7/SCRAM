@@ -10,6 +10,7 @@ import (
 	"github.com/0xsan7/scram/internal/model"
 	"github.com/0xsan7/scram/internal/report"
 	"github.com/0xsan7/scram/internal/scan"
+	"github.com/0xsan7/scram/internal/score"
 	"github.com/spf13/cobra"
 )
 
@@ -71,7 +72,7 @@ are reported as having no known path rather than being given an invented one.`,
 					fmt.Printf("  license    %s\n", comp.License)
 				}
 				if comp.Score != nil {
-					fmt.Printf("  score      %d/100 (%s)\n", comp.Score.Total, comp.Bucket)
+					fmt.Printf("  score      %d/%d (%s)\n", score.Presented(comp.Score.Total), model.PresentedMax, comp.Bucket)
 				}
 			}
 			fmt.Println()

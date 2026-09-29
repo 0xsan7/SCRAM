@@ -91,7 +91,92 @@ func TestNoVulnMeansZeroSeverity(t *testing.T) {
 	}
 }
 
+// TestBucketForBoundaries pins the presented 0–65 thresholds.
+//
+// The boundaries are the old 0–100 ones scaled by 65/100 and rounded down,
+// so the same underlying risk keeps the same bucket:
+//
+//	>= 90  ->  >= 58      >= 70  ->  >= 45
+//	>= 40  ->  >= 26      >= 1   ->  >= 1
+//
+// Rounding down is deliberate. Rounding 45.5 to 46 would promote a score
+// of 46 from "high" to "critical", i.e. a risk the old scale called High
+// would be reported as Critical after a presentation change. Rounding down
+// can only ever keep a bucket or lower it, never raise one.
 func TestBucketForBoundaries(t *testing.T) {
+	cases := map[int]string{
+		0:  model.BucketClean,
+		1:  model.BucketLow,
+		25: model.BucketLow,
+		26: model.BucketMedium,
+		44: model.BucketMedium,
+		45: model.BucketHigh,
+		57: model.BucketHigh,
+		58: model.BucketCritical,
+		65: model.BucketCritical,
+	}
+	for score, want := range cases {
+		if got := BucketFor(score); got != want {
+			t.Errorf("BucketFor(%d) = %q, want %q", score, got, want)
+		}
+	}
+}
+
+// TestPresentedIsMonotoneAndClamped is the property the rescale rests on.
+// A presented score must never exceed its own denominator, and a worse
+// input must never present as better -- otherwise the badge would be
+// able to claim a score above 100% of what the tool can express.
+func TestPresentedIsMonotoneAndClamped(t *testing.T) {
+	if model.PresentedMax != 65 {
+		t.Fatalf("PresentedMax = %d, want 65; the presented scale is documented as 0-65", model.PresentedMax)
+	}
+	prev := -1
+	for total := 0; total <= model.MaxScore; total++ {
+		got := Presented(total)
+		if got < 0 {
+			t.Fatalf("Presented(%d) = %d, negative", total, got)
+		}
+		if got > model.PresentedMax {
+			t.Fatalf("Presented(%d) = %d, above the presented maximum %d: a badge would read %d/%d",
+				total, got, model.PresentedMax, got, model.PresentedMax)
+		}
+		if got < prev {
+			t.Errorf("Presented(%d) = %d, less than the previous %d: the mapping is not monotone",
+				total, got, prev)
+		}
+		prev = got
+	}
+	// Endpoints are exact, so the extremes of the scale still mean what
+	// they did.
+	if Presented(0) != 0 {
+		t.Errorf("Presented(0) = %d, want 0", Presented(0))
+	}
+	if Presented(model.MaxScore) != model.PresentedMax {
+		t.Errorf("Presented(%d) = %d, want %d", model.MaxScore, Presented(model.MaxScore), model.PresentedMax)
+	}
+	// Half-up rounding, pinned at the boundaries that matter.
+	for _, c := range []struct{ in, want int }{
+		{1, 1},    // 0.65 -> 1
+		{2, 1},    // 1.3  -> 1
+		{26, 17},  // 16.9 -> 17
+		{40, 26},  // 26.0 -> 26
+		{100, 65}, //
+	} {
+		if got := Presented(c.in); got != c.want {
+			t.Errorf("Presented(%d) = %d, want %d", c.in, got, c.want)
+		}
+	}
+}
+
+// TestBucketForCVSSKeepsTheSpecificationBoundaries guards the split made
+// when the presented scale diverged from the CVSS scale.
+//
+// BucketForCVSS is used to band raw CVSS v3 scores in drift and policy.
+// Before the split, one function served both a 0-100 presented score and a
+// 0-100 CVSS-times-ten, which only worked because the scales were equal.
+// Reusing the 0-65 function for CVSS would report a 9.8 critical as "high"
+// -- and those two call sites decide whether a pull request fails.
+func TestBucketForCVSSKeepsTheSpecificationBoundaries(t *testing.T) {
 	cases := map[int]string{
 		0:   model.BucketClean,
 		1:   model.BucketLow,
@@ -103,10 +188,15 @@ func TestBucketForBoundaries(t *testing.T) {
 		90:  model.BucketCritical,
 		100: model.BucketCritical,
 	}
-	for score, want := range cases {
-		if got := BucketFor(score); got != want {
-			t.Errorf("BucketFor(%d) = %q, want %q", score, got, want)
+	for cvss, want := range cases {
+		if got := BucketForCVSS(cvss); got != want {
+			t.Errorf("BucketForCVSS(%d) = %q, want %q", cvss, got, want)
 		}
+	}
+	// The specific regression: a critical CVSS must not be banded with the
+	// presented scale's threshold, which is 58 on a 0-65 range.
+	if got := BucketForCVSS(90); got != model.BucketCritical {
+		t.Errorf("BucketForCVSS(90) = %q, want critical", got)
 	}
 }
 
@@ -302,9 +392,22 @@ func TestRepoScoreIsMaxComponentScore(t *testing.T) {
 			Vulnerabilities: []model.Vuln{{ID: "V2", CVSSv3: 9.0}}},
 	}
 	s := e.Score(comps)
-	// 9.0/10*40 = 36
-	if s.RepoScore != 36 {
-		t.Errorf("repo score: got %d, want 36 (the max component score)", s.RepoScore)
+	// The formula scores 9.0 CVSS as 9.0/10*40 = 36 of 100. RepoScore is
+	// the PRESENTED figure, so it is 36 rescaled onto 0-65.
+	want := Presented(36)
+	if s.RepoScore != want {
+		t.Errorf("repo score: got %d, want %d (Presented(36))", s.RepoScore, want)
+	}
+	// And the component's own Score.Total stays in formula units, which is
+	// what --explain itemises.
+	if got := comps[1].Score.Total; got != 36 {
+		t.Errorf("component Score.Total = %d, want 36 in the formula's own 0-100 units", got)
+	}
+	// The worst component is the one that sets the repo score, on both
+	// scales.
+	if comps[0].Score.Total >= comps[1].Score.Total {
+		t.Errorf("expected component b to outscore a: %d vs %d",
+			comps[0].Score.Total, comps[1].Score.Total)
 	}
 	if s.VulnTotal != 2 {
 		t.Errorf("vuln total: got %d, want 2", s.VulnTotal)
@@ -370,4 +473,85 @@ func TestAtLeast(t *testing.T) {
 	if model.AtLeast(model.BucketMedium, model.BucketHigh) {
 		t.Error("medium should not be at least high")
 	}
+}
+
+// TestPresentedClampIsLoadBearing pins the upper bound with the specific
+// inputs that motivated it.
+//
+// The early return for total >= MaxScore and the clamp after the division
+// are redundant with each other -- either alone holds the bound. That is
+// fine; what matters is that the bound holds for every input, including
+// ones a caller could plausibly produce. Removing one copy leaves the
+// other, which is why the mutation audit reports this as a survivor and
+// why the test is written against the property rather than the line: the
+// guarantee must not depend on two implementations of it staying in sync.
+func TestPresentedClampIsLoadBearing(t *testing.T) {
+	for _, total := range []int{100, 101, 150, 200, 1000, 100000} {
+		got := Presented(total)
+		if got > model.PresentedMax {
+			t.Errorf("Presented(%d) = %d, above the maximum %d", total, got, model.PresentedMax)
+		}
+		if got != model.PresentedMax {
+			t.Errorf("Presented(%d) = %d, want the maximum %d: a score at or over the\n"+
+				"formula maximum must present as the presented maximum", total, got, model.PresentedMax)
+		}
+	}
+	// And below the range, the lower bound.
+	for _, total := range []int{-100, -1, 0} {
+		if got := Presented(total); got != 0 {
+			t.Errorf("Presented(%d) = %d, want 0", total, got)
+		}
+	}
+}
+
+// TestRescalePromotesOnlyTheTwoBoundaryScores measures the exact blast
+// radius of the rescale, because the first draft of the README claimed no
+// component could be promoted by it and that claim was false.
+//
+// Dividing by 0.65 is monotonic -- a higher input always presents higher --
+// but a monotonic map does not preserve bandings: a score just under an old
+// threshold can land just over the new one. Exhaustive check over 0-100
+// finds exactly two such inputs, 69 and 89, and no demotions at all.
+//
+// The claim this pins is the corrected one: at most these two values
+// change bucket, and only upward. A future change to the thresholds must
+// re-run this test, because a rounding direction that promotes a third
+// value is a behaviour change that belongs in the changelog.
+func TestRescalePromotesOnlyTheTwoBoundaryScores(t *testing.T) {
+	// The old 0-100 boundaries, for comparison.
+	oldBucket := func(v int) string {
+		switch {
+		case v >= 90:
+			return model.BucketCritical
+		case v >= 70:
+			return model.BucketHigh
+		case v >= 40:
+			return model.BucketMedium
+		case v >= 1:
+			return model.BucketLow
+		}
+		return model.BucketClean
+	}
+	var promoted []int
+	for total := 0; total <= model.MaxScore; total++ {
+		was := oldBucket(total)
+		now := BucketFor(Presented(total))
+		switch {
+		case model.SeverityRank[now] > model.SeverityRank[was]:
+			promoted = append(promoted, total)
+		case model.SeverityRank[now] < model.SeverityRank[was]:
+			t.Errorf("score %d demoted: %s on the old scale, %s now",
+				total, was, now)
+		}
+	}
+	want := []int{69, 89}
+	if len(promoted) != len(want) {
+		t.Fatalf("promoted %v, want exactly %v; the rescale's blast radius changed", promoted, want)
+	}
+	for i, v := range want {
+		if promoted[i] != v {
+			t.Errorf("promoted %v, want %v", promoted, want)
+		}
+	}
+	t.Logf("checked 0-100: %d promotions (%v), 0 demotions", len(promoted), promoted)
 }

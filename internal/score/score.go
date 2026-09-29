@@ -107,10 +107,15 @@ func (e *Engine) Score(comps []model.Component) model.Summary {
 		}
 		s := e.scoreComponent(*c)
 		c.Score = &s
-		c.Bucket = BucketFor(s.Total)
+		// BucketFor takes the PRESENTED scale, so the component is
+		// rescaled before it is banded. The stored Score.Total stays in
+		// the 0–100 formula units that `--explain` itemises, so the
+		// arithmetic a reader checks still adds up to what is printed.
+		presented := Presented(s.Total)
+		c.Bucket = BucketFor(presented)
 		counts[c.Bucket]++
-		if s.Total > maxScore {
-			maxScore = s.Total
+		if presented > maxScore {
+			maxScore = presented
 		}
 		vulnTotal += len(c.Vulnerabilities)
 	}
@@ -277,19 +282,104 @@ func majorOf(v string) int {
 	return n
 }
 
-// BucketFor maps a 0–100 score to a severity bucket.
-func BucketFor(score int) string {
+// Bucket thresholds on the presented 0–65 scale.
+//
+// These are the previous 0–100 thresholds scaled by 65/100 and rounded
+// down, so a component keeps the same bucket at the same underlying risk:
+//
+//	0–100   ->  0–65
+//	>= 90   ->  >= 58   (0.90 x 65 = 58.5)
+//	>= 70   ->  >= 45   (0.70 x 65 = 45.5)
+//	>= 40   ->  >= 26   (0.40 x 65 = 26.0)
+//	>= 1    ->  >= 1
+//
+// The boundaries are the old ones scaled by 65/100 and rounded down.
+//
+// This is a monotonic rescale, not a bucket-preserving one, and the
+// difference is worth being exact about: dividing by 0.65 means a score
+// just UNDER an old threshold can land just OVER the new one. Checked
+// exhaustively over 0-100, exactly two inputs change bucket, both upward
+// -- 69 (medium -> high) and 89 (high -> critical) -- and none are
+// demoted. TestRescalePromotesOnlyTheTwoBoundaryScores pins that, and it
+// is why a fifth digit in any threshold below is not a detail.
+const (
+	criticalBucketMin = 58
+	highBucketMin     = 45
+	mediumBucketMin   = 26
+	lowBucketMin      = 1
+)
+
+// BucketForCVSS maps a raw CVSS v3 base score (0.0–10.0, times ten) to a
+// severity bucket.
+//
+// This exists because BucketFor takes a PRESENTED score, not a CVSS. Before
+// the rescale the two scales were both 0–100 and one function served both,
+// so drift and policy passed `CVSSv3 * 10` straight in. Reusing a
+// 0–65 function for a 0–100 input would score a critical CVSS 9.8 as
+// "high" -- a silent under-report of exactly the findings the tool exists
+// to catch, in the two code paths that decide whether a PR fails.
+//
+// CVSS severity boundaries are fixed by the specification and do not move
+// with the presented scale.
+func BucketForCVSS(cvssTimesTen int) string {
 	switch {
-	case score >= 90:
+	case cvssTimesTen >= 90:
 		return model.BucketCritical
-	case score >= 70:
+	case cvssTimesTen >= 70:
 		return model.BucketHigh
-	case score >= 40:
+	case cvssTimesTen >= 40:
 		return model.BucketMedium
-	case score >= 1:
+	case cvssTimesTen > 0:
 		return model.BucketLow
 	}
 	return model.BucketClean
+}
+
+// BucketFor maps a presented 0–65 score to a severity bucket.
+func BucketFor(score int) string {
+	switch {
+	case score >= criticalBucketMin:
+		return model.BucketCritical
+	case score >= highBucketMin:
+		return model.BucketHigh
+	case score >= mediumBucketMin:
+		return model.BucketMedium
+	case score >= lowBucketMin:
+		return model.BucketLow
+	}
+	return model.BucketClean
+}
+
+// Presented rescales a 0–100 computed score onto the 0–65 scale that is
+// presented to humans.
+//
+// The formula is untouched: severity, exploitability, maintenance and
+// freshness are still summed in their own units with the same weights.
+// This only changes which of those points are counted toward the displayed
+// total, so the arithmetic a reader can check in `--explain` stays
+// identical.
+//
+// Rounding is half-up, and the result is clamped into 0..PresentedMax so a
+// score can never exceed the denominator it is printed against -- a badge
+// reading "66/65" would be worse than the imprecision this change is
+// correcting.
+func Presented(total int) int {
+	if total <= 0 {
+		return 0
+	}
+	// (total/100)*65, half-up, in integer arithmetic: +50 before dividing
+	// by 100 is the standard rounding trick and avoids float.
+	//
+	// The single clamp at the end covers BOTH ends, including totals at or
+	// above the formula maximum. An early return for total >= MaxScore was
+	// tried first and removed: it is redundant with this clamp, and two
+	// implementations of one guarantee can drift apart while both tests
+	// still pass -- which is exactly what the mutation audit reported.
+	scaled := (total*model.PresentedMax + model.MaxScore/2) / model.MaxScore
+	if scaled > model.PresentedMax {
+		return model.PresentedMax
+	}
+	return scaled
 }
 
 // escalate applies the PRD's count-based escalation: a repo with many Highs
@@ -407,8 +497,28 @@ func ExplainWith(c model.Component, prov MaintenanceProvenance) string {
 		fmt.Fprintf(&b, "      %-18s %-12s %s\n", v.ID, cvss, epss)
 	}
 
-	fmt.Fprintf(&b, "\n  exploitability  %3d / %d   (EPSS probability x 25)\n",
-		s.Exploitability, model.MaxExploitabilityPoints)
+	// Whether any EPSS value was actually retrieved decides if the
+	// exploitability line is a measurement or a non-measurement. Printing
+	// "0 / 25" with no marker is the one presentation this tool cannot
+	// afford: a reader cannot tell "not exploitable in the next month" from
+	// "FIRST was unreachable", and those call for opposite conclusions.
+	epssKnown := false
+	for _, v := range c.Vulnerabilities {
+		if v.EPSS > 0 {
+			epssKnown = true
+			break
+		}
+	}
+	if epssKnown || len(c.Vulnerabilities) == 0 {
+		fmt.Fprintf(&b, "\n  exploitability  %3d / %d   (EPSS probability x 25)\n",
+			s.Exploitability, model.MaxExploitabilityPoints)
+	} else {
+		fmt.Fprintf(&b, "\n  exploitability  %3d / %d   (NO EPSS DATA: FIRST was not reachable for these %d\n",
+			s.Exploitability, model.MaxExploitabilityPoints, len(c.Vulnerabilities))
+		fmt.Fprintf(&b, "                                 advisories, so this term is unmeasured, not zero-risk;\n")
+		fmt.Fprintf(&b, "                                 the presented total below divides by the full %d points)\n",
+			model.PresentedMax)
+	}
 	if prov.Available {
 		fmt.Fprintf(&b, "  maintenance     %3d / %d   (OpenSSF Scorecard %.1f/10, scored %s at %s)\n",
 			s.Maintenance, model.MaxMaintenancePoints, prov.Score, shortCommit(prov.Commit), prov.Date)
@@ -424,8 +534,20 @@ func ExplainWith(c model.Component, prov MaintenanceProvenance) string {
 	fmt.Fprintf(&b, "  freshness       %3d / %d   (version distance behind latest)\n",
 		s.Freshness, model.MaxFreshnessPoints)
 
-	fmt.Fprintf(&b, "\n  = total         %3d / %d   bucket: %s\n",
-		s.Total, model.MaxScore, c.Bucket)
+	// Both scales, deliberately. The formula total is the arithmetic the
+	// four lines above add up to, so hiding it would break the one check a
+	// reader can perform; the presented total is the number the score is
+	// reported against everywhere else, so showing only the formula total
+	// would make `--explain` disagree with the badge and the scan table.
+	fmt.Fprintf(&b, "\n  = total         %3d / %d   (formula; the four terms above sum to this)\n",
+		s.Total, model.MaxScore)
+	fmt.Fprintf(&b, "    presented     %3d / %d   bucket: %s\n",
+		Presented(s.Total), model.PresentedMax, c.Bucket)
+	fmt.Fprintf(&b, "\n  The presented scale is %d points, not %d. Exploitability needs EPSS and\n",
+		model.PresentedMax, model.MaxScore)
+	fmt.Fprintf(&b, "  freshness needs latest-version data this tool does not collect, so neither\n")
+	fmt.Fprintf(&b, "  can usually be earned; dividing by %d would claim precision the inputs do\n", model.MaxScore)
+	fmt.Fprintf(&b, "  not support. See ROADMAP.md for what a %d-point scale would require.\n", model.MaxScore)
 	return b.String()
 }
 

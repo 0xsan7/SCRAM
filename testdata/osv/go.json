@@ -1,0 +1,12 @@
+{
+  "count": 5,
+  "eco": "Go",
+  "file": "go",
+  "ids": [
+    "GHSA-2c4m-59x9-fr2g",
+    "GHSA-3vp4-m3rf-835h",
+    "GHSA-h395-qcrw-5vmq"
+  ],
+  "name": "github.com/gin-gonic/gin",
+  "ver": "1.6.0"
+}

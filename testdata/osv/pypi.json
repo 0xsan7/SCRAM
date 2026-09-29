@@ -1,0 +1,12 @@
+{
+  "count": 4,
+  "eco": "PyPI",
+  "file": "pypi",
+  "ids": [
+    "GHSA-8q59-q68h-6hv4",
+    "GHSA-rprw-h62v-c2w7",
+    "PYSEC-2018-49"
+  ],
+  "name": "pyyaml",
+  "ver": "3.13"
+}

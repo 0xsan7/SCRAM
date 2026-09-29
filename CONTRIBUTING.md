@@ -97,6 +97,56 @@ synthetic fixtures miss exactly the fields that break parsers.
 A resolver test should cover at least: the current lockfile format, the
 previous format if one exists, and a file with unusual-but-valid content.
 
+See [TESTING.md](TESTING.md) for the full testing standard, including what
+the silent-zero invariant does **not** cover and the two failure shapes it
+structurally cannot see.
+
+## Known-vulnerable roundtrip (required)
+
+**Any resolver or vulnerability matcher, new or existing, must be validated
+with a known-vulnerable roundtrip.** Take one real package from the real
+corpus that has a known, currently-valid OSV advisory, and assert the matcher
+actually returns it.
+
+```bash
+go test ./internal/resolve/ -run TestKnownVulnerableRoundtripOffline -v
+```
+
+**A correct-looking PURL is not sufficient evidence that the lookup key is
+correct.** This is not a hypothetical. Two bugs shipped with perfect PURLs,
+plausible names, real versions and green CI:
+
+- **pnpm 6.0** (`9f4ae85`) parsed keys into names like `lodash@4.17.21` with
+  an empty version. The component looked plausible and matched nothing. 361
+  components instead of 1523, no error.
+- **The go.mod fallback** (`af8e58f`) set `Name` to the bare last path
+  segment, so `github.com/gin-gonic/gin` was sent to OSV as `gin`. OSV keys
+  its Go ecosystem on the **module path**, so it matched nothing and the scan
+  reported **CLEAN** — while the same project's `go.sum` reported 9 findings.
+
+The silent-zero invariant caught neither and cannot: it checks that
+*resolution produced components*, not that *matching found what a
+known-vulnerable package should yield*. A component with a good name and a
+correct PURL is exactly what it calls healthy. [TESTING.md](TESTING.md)
+documents this limit in full.
+
+Rules for the roundtrip:
+
+- **Use the production lookup path.** A test that constructs its own query
+  passes while the shipped code uses the wrong key. The committed test asserts
+  through `vuln.Client` and answers from recorded real OSV responses, so it
+  needs no network.
+- **The stub must return advisories only for the correct key.** A permissive
+  fake that answers anything passes while a real registry would not.
+- **Cover Go specially.** There is one OSV Go ecosystem, keyed on the module
+  path, reached by two different resolvers (`go.sum` and `go.mod`). Both must
+  be covered, and where a project ships both files, they must be asserted to
+  find the **same** vulnerabilities. That comparison is what exposed
+  `af8e58f`.
+- **If you add an ecosystem, add it to `scripts/record_osv_fixtures.py`** and
+  re-record. The script fails loudly if the recorded package has been
+  patched, because an empty recording would let a broken key pass.
+
 ## Design principles
 
 These are load-bearing. Please don't work around them.

@@ -263,7 +263,7 @@ func goModComponents(src string) []model.Component {
 		// GHSA-2c4m-59x9-fr2g: 3 findings before, 0 after.
 		out = append(out, model.Component{
 			Purl:      purl,
-			Name:      module,
+			Name:      goModuleName(module),
 			Version:   version,
 			Ecosystem: model.EcoGo,
 			// Everything in a go.mod require block is either a direct

@@ -1,0 +1,10 @@
+{
+  "count": 1,
+  "eco": "crates.io",
+  "file": "cargo",
+  "ids": [
+    "RUSTSEC-2026-0190"
+  ],
+  "name": "anyhow",
+  "ver": "1.0.100"
+}

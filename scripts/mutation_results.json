@@ -85,6 +85,16 @@
     "why": "caught by internal/resolve"
   },
   {
+    "id": "B3-go-lookup-key-is-the-package-name",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B3-go-lookup-key-truncated-to-first-segment",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
     "id": "C-badge-not-clamped",
     "status": "killed",
     "why": "caught by internal/badge"

@@ -274,6 +274,19 @@ MUTANTS = [
      "\t\t\tName:      goModuleName(module),",
      "\t\t\tName:      func() string { _, n := splitGoModule(module); return n }(),",
      ["internal/resolve"]),
+    # --- the known-vulnerable roundtrip: the lookup key each
+    # ecosystem sends to the registry. These are the mutants the
+    # silent-zero invariant structurally cannot see, because a
+    # wrong key still yields a component with a plausible name and
+    # a correct PURL.
+    ("B3-go-lookup-key-is-the-package-name", "internal/resolve/golang.go",
+     "func goModuleName(module string) string { return module }",
+     "func goModuleName(module string) string { _, n := splitGoModule(module); return n }",
+     ["internal/resolve"]),
+    ("B3-go-lookup-key-truncated-to-first-segment", "internal/resolve/golang.go",
+     "func goModuleName(module string) string { return module }",
+     "func goModuleName(module string) string { return strings.Split(module, \"/\")[0] }",
+     ["internal/resolve"]),
 ]
 
 

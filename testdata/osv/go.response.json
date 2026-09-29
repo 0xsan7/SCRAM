@@ -1,0 +1,470 @@
+{
+ "vulns": [
+  {
+   "affected": [
+    {
+     "database_specific": {
+      "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2023/05/GHSA-2c4m-59x9-fr2g/GHSA-2c4m-59x9-fr2g.json"
+     },
+     "package": {
+      "ecosystem": "Go",
+      "name": "github.com/gin-gonic/gin",
+      "purl": "pkg:golang/github.com/gin-gonic/gin"
+     },
+     "ranges": [
+      {
+       "events": [
+        {
+         "introduced": "1.3.1-0.20190301021747-ccb9e902956d"
+        },
+        {
+         "fixed": "1.9.1"
+        }
+       ],
+       "type": "SEMVER"
+      }
+     ]
+    }
+   ],
+   "aliases": [
+    "CVE-2023-29401",
+    "GO-2023-1737"
+   ],
+   "database_specific": {
+    "cwe_ids": [
+     "CWE-494"
+    ],
+    "github_reviewed": true,
+    "github_reviewed_at": "2023-05-12T20:19:25Z",
+    "nvd_published_at": "2023-06-08T21:15:16Z",
+    "severity": "MODERATE"
+   },
+   "details": "The filename parameter of the Context.FileAttachment function is not properly sanitized. A maliciously crafted filename can cause the Content-Disposition header to be sent with an unexpected filename value or otherwise modify the Content-Disposition header. For example, a filename of \"setup.bat&quot;;x=.txt\" will be sent as a file named \"setup.bat\".\n\nIf the FileAttachment function is called with names provided by an untrusted source, this may permit an attacker to cause a file to be served with a name different than provided. Maliciously crafted attachment file name can modify the Content-Disposition header.",
+   "id": "GHSA-2c4m-59x9-fr2g",
+   "modified": "2023-11-08T04:12:18.674169Z",
+   "published": "2023-05-12T20:19:25Z",
+   "references": [
+    {
+     "type": "ADVISORY",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-29401"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/issues/3555"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/3556"
+    },
+    {
+     "type": "PACKAGE",
+     "url": "https://github.com/gin-gonic/gin"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/releases/tag/v1.9.1"
+    },
+    {
+     "type": "WEB",
+     "url": "https://pkg.go.dev/vuln/GO-2023-1737"
+    }
+   ],
+   "schema_version": "1.9.0",
+   "severity": [
+    {
+     "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
+     "type": "CVSS_V3"
+    }
+   ],
+   "summary": "Gin Web Framework does not properly sanitize filename parameter of Context.FileAttachment function"
+  },
+  {
+   "affected": [
+    {
+     "database_specific": {
+      "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2023/05/GHSA-3vp4-m3rf-835h/GHSA-3vp4-m3rf-835h.json"
+     },
+     "package": {
+      "ecosystem": "Go",
+      "name": "github.com/gin-gonic/gin",
+      "purl": "pkg:golang/github.com/gin-gonic/gin"
+     },
+     "ranges": [
+      {
+       "events": [
+        {
+         "introduced": "0"
+        },
+        {
+         "fixed": "1.9.0"
+        }
+       ],
+       "type": "SEMVER"
+      }
+     ]
+    }
+   ],
+   "aliases": [
+    "CVE-2023-26125"
+   ],
+   "database_specific": {
+    "cwe_ids": [
+     "CWE-20",
+     "CWE-77"
+    ],
+    "github_reviewed": true,
+    "github_reviewed_at": "2023-05-05T02:20:00Z",
+    "nvd_published_at": "2023-05-04T05:15:09Z",
+    "severity": "MODERATE"
+   },
+   "details": "Versions of the package github.com/gin-gonic/gin before version 1.9.0 are vulnerable to Improper Input Validation by allowing an attacker to use a specially crafted request via the X-Forwarded-Prefix header, potentially leading to cache poisoning.\n\n**Note:** Although this issue does not pose a significant threat on its own it can serve as an input vector for other more impactful vulnerabilities. However, successful exploitation may depend on the server configuration and whether the header is used in the application logic.",
+   "id": "GHSA-3vp4-m3rf-835h",
+   "modified": "2023-11-08T04:11:58.943766Z",
+   "published": "2023-05-04T06:30:12Z",
+   "references": [
+    {
+     "type": "ADVISORY",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-26125"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/3500"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/3503"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/t0rchwo0d/gin/commit/fd9f98e70fb4107ee68c783482d231d35e60507b"
+    },
+    {
+     "type": "PACKAGE",
+     "url": "https://github.com/gin-gonic/gin"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/releases/tag/v1.9.0"
+    },
+    {
+     "type": "WEB",
+     "url": "https://security.snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGINGONICGIN-3324285"
+    }
+   ],
+   "schema_version": "1.9.0",
+   "severity": [
+    {
+     "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
+     "type": "CVSS_V3"
+    }
+   ],
+   "summary": "Improper input validation in github.com/gin-gonic/gin"
+  },
+  {
+   "affected": [
+    {
+     "database_specific": {
+      "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2021/06/GHSA-h395-qcrw-5vmq/GHSA-h395-qcrw-5vmq.json"
+     },
+     "package": {
+      "ecosystem": "Go",
+      "name": "github.com/gin-gonic/gin",
+      "purl": "pkg:golang/github.com/gin-gonic/gin"
+     },
+     "ranges": [
+      {
+       "events": [
+        {
+         "introduced": "0"
+        },
+        {
+         "fixed": "1.7.7"
+        }
+       ],
+       "type": "SEMVER"
+      }
+     ]
+    }
+   ],
+   "aliases": [
+    "CVE-2020-28483",
+    "GO-2021-0052",
+    "SNYK-GOLANG-GITHUBCOMGINGONICGIN-1041736"
+   ],
+   "database_specific": {
+    "cwe_ids": [
+     "CWE-113",
+     "CWE-444"
+    ],
+    "github_reviewed": true,
+    "github_reviewed_at": "2021-05-12T21:46:50Z",
+    "nvd_published_at": "2021-01-20T18:15:00Z",
+    "severity": "HIGH"
+   },
+   "details": "When gin is exposed directly to the internet, a client's IP can be spoofed by setting the X-Forwarded-For header. This affects all versions of package github.com/gin-gonic/gin under 1.7.7. ",
+   "id": "GHSA-h395-qcrw-5vmq",
+   "modified": "2026-09-10T03:49:05.801847827Z",
+   "published": "2021-06-23T17:53:21Z",
+   "references": [
+    {
+     "type": "ADVISORY",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-28483"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/issues/2232"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/issues/2473"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/issues/2862"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/2474"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/2474#23issuecomment-729696437"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/2632"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/2675"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/2844"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/2844/files#diff-e6ce689a25eaef174c2dd51fe869fabbe04a6c6afbd416b23eda138c82e761baR1432"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/commit/03e5e05ae089bc989f1ca41841f05504d29e3fd9"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/commit/5929d521715610c9dd14898ebbe1d188d5de8937"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/commit/bfc8ca285eb46dad60e037d57c545cd260636711"
+    },
+    {
+     "type": "WEB",
+     "url": "https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGINGONICGIN-1041736"
+    },
+    {
+     "type": "WEB",
+     "url": "https://pkg.go.dev/vuln/GO-2021-0052"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/releases/tag/v1.7.7"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/releases/tag/v1.7.0"
+    },
+    {
+     "type": "PACKAGE",
+     "url": "https://github.com/gin-gonic/gin"
+    }
+   ],
+   "schema_version": "1.9.0",
+   "severity": [
+    {
+     "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:N",
+     "type": "CVSS_V3"
+    }
+   ],
+   "summary": "Inconsistent Interpretation of HTTP Requests in github.com/gin-gonic/gin"
+  },
+  {
+   "affected": [
+    {
+     "database_specific": {
+      "source": "https://vuln.go.dev/ID/GO-2021-0052.json"
+     },
+     "ecosystem_specific": {
+      "imports": [
+       {
+        "path": "github.com/gin-gonic/gin",
+        "symbols": [
+         "Context.ClientIP",
+         "Context.Next",
+         "Context.RemoteIP",
+         "Engine.HandleContext",
+         "Engine.Run",
+         "Engine.RunFd",
+         "Engine.RunListener",
+         "Engine.RunTLS",
+         "Engine.RunUnix",
+         "Engine.ServeHTTP"
+        ]
+       }
+      ]
+     },
+     "package": {
+      "ecosystem": "Go",
+      "name": "github.com/gin-gonic/gin",
+      "purl": "pkg:golang/github.com/gin-gonic/gin"
+     },
+     "ranges": [
+      {
+       "events": [
+        {
+         "introduced": "0"
+        },
+        {
+         "fixed": "1.7.7"
+        }
+       ],
+       "type": "SEMVER"
+      }
+     ]
+    }
+   ],
+   "aliases": [
+    "CVE-2020-28483",
+    "GHSA-h395-qcrw-5vmq",
+    "SNYK-GOLANG-GITHUBCOMGINGONICGIN-1041736"
+   ],
+   "credits": [
+    {
+     "name": "@sorenisanerd"
+    }
+   ],
+   "database_specific": {
+    "review_status": "REVIEWED",
+    "url": "https://pkg.go.dev/vuln/GO-2021-0052"
+   },
+   "details": "Due to improper HTTP header sanitization, a malicious user can spoof their source IP address by setting the X-Forwarded-For header. This may allow a user to bypass IP based restrictions, or obfuscate their true source.",
+   "id": "GO-2021-0052",
+   "modified": "2026-07-08T05:56:36.895132392Z",
+   "published": "2021-04-14T20:04:52Z",
+   "references": [
+    {
+     "type": "REPORT",
+     "url": "https://github.com/gin-gonic/gin/issues/2862"
+    },
+    {
+     "type": "REPORT",
+     "url": "https://github.com/gin-gonic/gin/issues/2473"
+    },
+    {
+     "type": "REPORT",
+     "url": "https://github.com/gin-gonic/gin/issues/2232"
+    },
+    {
+     "type": "FIX",
+     "url": "https://github.com/gin-gonic/gin/pull/2844"
+    },
+    {
+     "type": "FIX",
+     "url": "https://github.com/gin-gonic/gin/commit/5929d521715610c9dd14898ebbe1d188d5de8937"
+    },
+    {
+     "type": "FIX",
+     "url": "https://github.com/gin-gonic/gin/pull/2632"
+    },
+    {
+     "type": "FIX",
+     "url": "https://github.com/gin-gonic/gin/commit/bfc8ca285eb46dad60e037d57c545cd260636711"
+    },
+    {
+     "type": "FIX",
+     "url": "https://github.com/gin-gonic/gin/pull/2675"
+    },
+    {
+     "type": "FIX",
+     "url": "https://github.com/gin-gonic/gin/commit/03e5e05ae089bc989f1ca41841f05504d29e3fd9"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/pull/2474"
+    }
+   ],
+   "schema_version": "1.7.5",
+   "summary": "Inconsistent interpretation of HTTP Requests in github.com/gin-gonic/gin"
+  },
+  {
+   "affected": [
+    {
+     "database_specific": {
+      "source": "https://vuln.go.dev/ID/GO-2023-1737.json"
+     },
+     "ecosystem_specific": {
+      "imports": [
+       {
+        "path": "github.com/gin-gonic/gin",
+        "symbols": [
+         "Context.FileAttachment"
+        ]
+       }
+      ]
+     },
+     "package": {
+      "ecosystem": "Go",
+      "name": "github.com/gin-gonic/gin",
+      "purl": "pkg:golang/github.com/gin-gonic/gin"
+     },
+     "ranges": [
+      {
+       "events": [
+        {
+         "introduced": "1.3.1-0.20190301021747-ccb9e902956d"
+        },
+        {
+         "fixed": "1.9.1"
+        }
+       ],
+       "type": "SEMVER"
+      }
+     ]
+    }
+   ],
+   "aliases": [
+    "CVE-2023-29401",
+    "GHSA-2c4m-59x9-fr2g"
+   ],
+   "credits": [
+    {
+     "name": "motoyasu-saburi"
+    }
+   ],
+   "database_specific": {
+    "review_status": "REVIEWED",
+    "url": "https://pkg.go.dev/vuln/GO-2023-1737"
+   },
+   "details": "The filename parameter of the Context.FileAttachment function is not properly sanitized. A maliciously crafted filename can cause the Content-Disposition header to be sent with an unexpected filename value or otherwise modify the Content-Disposition header. For example, a filename of \"setup.bat&quot;;x=.txt\" will be sent as a file named \"setup.bat\".\n\nIf the FileAttachment function is called with names provided by an untrusted source, this may permit an attacker to cause a file to be served with a name different than provided. Maliciously crafted attachment file name can modify the Content-Disposition header.",
+   "id": "GO-2023-1737",
+   "modified": "2024-05-20T16:03:47Z",
+   "published": "2023-05-11T18:59:56Z",
+   "references": [
+    {
+     "type": "REPORT",
+     "url": "https://github.com/gin-gonic/gin/issues/3555"
+    },
+    {
+     "type": "FIX",
+     "url": "https://github.com/gin-gonic/gin/pull/3556"
+    },
+    {
+     "type": "WEB",
+     "url": "https://github.com/gin-gonic/gin/releases/tag/v1.9.1"
+    }
+   ],
+   "schema_version": "1.7.3",
+   "summary": "Improper handling of filenames in Content-Disposition HTTP header in github.com/gin-gonic/gin"
+  }
+ ]
+}

@@ -144,7 +144,7 @@ func (c *Client) QueryOSV(ctx context.Context, comps []model.Component) error {
 	queryable := make([]int, 0, len(comps))
 	req := osvBatchRequest{Queries: []osvQuery{}}
 	for i, comp := range comps {
-		eco, ok := osvEcosystem(comp.Ecosystem)
+		eco, ok := OSVEcosystem(comp.Ecosystem)
 		if !ok {
 			continue
 		}
@@ -238,9 +238,9 @@ func (c *Client) batchQuery(ctx context.Context, req osvBatchRequest) ([]osvResu
 	return out, nil
 }
 
-// osvEcosystem maps our ecosystem names onto OSV's, which are capitalized
+// OSVEcosystem maps our ecosystem names onto OSV's, which are capitalized
 // ("PyPI", "Go", "npm") and differ from ours.
-func osvEcosystem(eco string) (string, bool) {
+func OSVEcosystem(eco string) (string, bool) {
 	switch eco {
 	case model.EcoNPM:
 		return "npm", true

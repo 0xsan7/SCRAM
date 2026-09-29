@@ -245,7 +245,34 @@ func pnpmUsesSlashKeys(s string) bool {
 		if i := strings.Index(v, "."); i > 0 {
 			major = v[:i]
 		}
+		// The KEY SCHEMA changed at 6.0, not at 9.0, and the change is
+		// not simply "slash vs no slash":
+		//
+		//	5.3 / 5.4   /name/version           (slash separated)
+		//	6.0        /name@version           (slash PREFIX, @ delimiter)
+		//	9.0 / 10   name@version            (no prefix, @ delimiter)
+		//
+		// Treating 6.0 as a 5.x file is wrong twice over: the delimiter is
+		// the one from 9.0, so a 5.x parse of `/lodash@4.17.21` yields
+		// name "lodash@4.17.21" at version "" and the component is
+		// dropped. Measured against a real pnpm 7 repository
+		// (lockfileVersion '6.0'), that cost 361 components where the
+		// same parser reads ~1650 from a 9.0 file -- a silent undercount
+		// of roughly 78% of the real dependency tree, from a file that
+		// parsed without error.
+		//
+		// So the question is not "is there a slash" but "is the last
+		// segment a bare version". parsePnpmKey decides per key, and
+		// this returns the DEFAULT for the generation.
 		switch major {
+		case "5":
+			return true
+		case "6":
+			// 6.0 keeps a leading slash on the key -- "/lodash@4.17.21" --
+			// but the delimiter is "@", the same as 9.0. The leading
+			// slash is stripped by the @-branch below, so this is a
+			// non-slash key as far as parsing is concerned.
+			return false
 		case "9", "10":
 			return false
 		default:
@@ -289,6 +316,17 @@ func parsePnpmKey(key string, slashFormat bool) (pnpmPackage, bool) {
 		// a component that exists in no registry, which OSV will never
 		// match, so a real dependency reads as clean.
 		base := stripPnpmPeerSuffix(key)
+		// A 6.0 key carries a LEADING SLASH that the 9.0 form does not:
+		//
+		//	6.0   /@scope/name@1.2.3
+		//	9.0   @scope/name@1.2.3
+		//
+		// Without stripping it, LastIndex("@") is still correct but the
+		// NAME comes out as "/@scope/name" -- with a slash in it, so the
+		// PURL names a package that does not exist and matches nothing.
+		// The same fix covers a 9.0 key that was quoted with the slash
+		// still attached.
+		base = strings.TrimPrefix(base, "/")
 		i := strings.LastIndex(base, "@")
 		if i <= 0 {
 			return pnpmPackage{}, false

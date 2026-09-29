@@ -25,6 +25,16 @@
     "why": "caught by internal/scorecard"
   },
   {
+    "id": "B1-pnpm-6.0-leading-slash-kept",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "B1-pnpm-6.0-treated-as-5.x",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
     "id": "B1-pnpm-peer-suffix-not-stripped",
     "status": "killed",
     "why": "caught by internal/resolve"

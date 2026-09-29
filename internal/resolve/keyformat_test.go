@@ -1,6 +1,7 @@
 package resolve
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -230,4 +231,172 @@ func TestYarnCorpusVersionsAndNamesAreBare(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestPnpmGenerationBoundaries pins the key schema of every pnpm
+// lockfile generation, because the delimiter moved at 6.0 and not at 9.0.
+//
+// The generations are:
+//
+//	5.3 / 5.4   /name/version          (unquoted lockfileVersion)
+//	6.0        /name@version          (quoted, SLASH-PREFIXED but @-delimited)
+//	9.0 / 10   name@version           (no prefix, @-delimited)
+//
+// 6.0 is the trap. It is the only generation that is slash-prefixed AND
+// @-delimited, so a parser that infers the format from "is there a slash"
+// handles 5.x and 9.0 and silently drops most of a 6.0 file: the name comes
+// out as "lodash@4.17.21" with an empty version. Measured against a real
+// pnpm 7 repository, that was 361 components instead of 1523 -- a 76%
+// undercount that raised no error, which is the failure mode this project
+// treats as unrecoverable.
+func TestPnpmGenerationBoundaries(t *testing.T) {
+	cases := []struct {
+		name     string
+		header   string
+		key      string
+		wantName string
+		wantVer  string
+	}{
+		{"5.3 unscoped", "lockfileVersion: 5.3", "/lodash/4.17.21", "lodash", "4.17.21"},
+		{"5.4 scoped", "lockfileVersion: 5.4", "/@algolia/core/1.5.0", "@algolia/core", "1.5.0"},
+		{"5.4 peer suffix", "lockfileVersion: 5.4",
+			"/@algolia/autocomplete-core/1.5.0_algoliasearch@4.11.0", "@algolia/autocomplete-core", "1.5.0"},
+		// The generation that was wrong.
+		{"6.0 unscoped", "lockfileVersion: '6.0'", "/lodash@4.17.21", "lodash", "4.17.21"},
+		{"6.0 scoped", "lockfileVersion: '6.0'", "/@aashutoshrathi/word-wrap@1.2.6",
+			"@aashutoshrathi/word-wrap", "1.2.6"},
+		{"6.0 peer suffix", "lockfileVersion: '6.0'", "/@ai-sdk/anthropic@3.0.58(zod@4.1.12)",
+			"@ai-sdk/anthropic", "3.0.58"},
+		{"9.0 unscoped", "lockfileVersion: '9.0'", "lodash@4.17.21", "lodash", "4.17.21"},
+		{"9.0 scoped", "lockfileVersion: '9.0'", "@babel/core@7.11.1", "@babel/core", "7.11.1"},
+		{"9.0 peer suffix", "lockfileVersion: '9.0'", "@ai-sdk/anthropic@3.0.58(zod@4.1.12)",
+			"@ai-sdk/anthropic", "3.0.58"},
+		{"10.0", "lockfileVersion: '9.0'", "@babel/core@7.11.1", "@babel/core", "7.11.1"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			slash := pnpmUsesSlashKeys(c.header)
+			got, ok := parsePnpmKey(c.key, slash)
+			if !ok {
+				t.Fatalf("parsePnpmKey(%q, slash=%v) refused the key", c.key, slash)
+			}
+			if got.name != c.wantName || got.version != c.wantVer {
+				t.Errorf("parsePnpmKey(%q, slash=%v) = {%q %q}, want {%q %q}",
+					c.key, slash, got.name, got.version, c.wantName, c.wantVer)
+			}
+		})
+	}
+}
+
+// TestPnpmCorpusCoversEveryGeneration records which generations the
+// committed corpus actually contains.
+//
+// A resolver that is only ever run against 5.4 and 9.0 files will pass every
+// test and still misparse 6.0, because 6.0 is a distinct schema that looks
+// like a hybrid of the two. The corpus has to contain it, or the gap is
+// invisible.
+func TestPnpmCorpusCoversEveryGeneration(t *testing.T) {
+	files := corpusFiles(t, "pnpm/real", func(n string) bool { return n == "pnpm-lock.yaml" })
+	if len(files) == 0 {
+		t.Skip("no pnpm corpus present; run scripts/fetch_corpus.py pnpm")
+	}
+	seen := map[string]bool{}
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		seen[pnpmGeneration(string(b))] = true
+	}
+	for _, want := range []string{"5", "6", "9"} {
+		if !seen[want] {
+			t.Errorf("the pnpm corpus has no lockfileVersion %s.x file; generations present: %v",
+				want, seen)
+		}
+	}
+	t.Logf("pnpm corpus generations: %v", seen)
+}
+
+// TestCargoCorpusCoversVersionlessLockfiles records the same fact for
+// Cargo.
+//
+// Cargo emits `version = N` only for the v3 and v4 formats. v1 and v2 omit
+// it entirely and are told apart by content alone: v1 puts checksums in a
+// [metadata] block and carries "(source)" in dependency strings, v2 writes
+// an inline `checksum` key. A parser that required the version line, or
+// that inferred the generation from it, would skip every pre-1.51 lockfile
+// -- which includes the ones in long-lived projects that have not run
+// `cargo update` in years.
+func TestCargoCorpusCoversVersionlessLockfiles(t *testing.T) {
+	files := corpusFiles(t, "cargo/real", func(n string) bool { return n == "Cargo.lock" })
+	if len(files) == 0 {
+		t.Skip("no cargo corpus present; run scripts/fetch_corpus.py cargo")
+	}
+	versioned, versionless := 0, 0
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		// The schema line is only a schema line BEFORE the first
+		// [[package]] block. After that, every `version = ` is a PACKAGE
+		// version, so searching the whole file -- or even just its first
+		// few hundred bytes -- reports a V1 lockfile as versioned. That
+		// mistake is the reason this test exists: it was the bug that
+		// made the research corpus look like it had no V1 files in it.
+		if cargoHasSchemaLine(string(b)) {
+			versioned++
+		} else {
+			versionless++
+		}
+		// And every one of them must actually parse, version line or not.
+		comps, err := cargoResolver{}.Resolve(filepath.Dir(f), filepath.Base(f))
+		if err != nil {
+			t.Errorf("%s: %v", f, err)
+			continue
+		}
+		if len(comps) == 0 {
+			t.Errorf("%s: resolved to ZERO components", f)
+		}
+	}
+	if versionless == 0 {
+		t.Errorf("no version-less Cargo.lock in the corpus; the v1/v2 formats are untested")
+	}
+	t.Logf("cargo corpus: %d with a version line, %d without (v1/v2)", versioned, versionless)
+}
+
+// pnpmGeneration returns the major component of a lockfileVersion, or "" if
+// the file has none.
+func pnpmGeneration(src string) string {
+	for _, line := range strings.SplitN(src, "\n", 40) {
+		t := strings.TrimSpace(line)
+		if !strings.HasPrefix(t, "lockfileVersion:") {
+			continue
+		}
+		v := unquoteYarn(strings.TrimSpace(strings.TrimPrefix(t, "lockfileVersion:")))
+		if i := strings.Index(v, "."); i > 0 {
+			return v[:i]
+		}
+		return v
+	}
+	return ""
+}
+
+// cargoHasSchemaLine reports whether a Cargo.lock carries the `version = N`
+// schema header.
+//
+// It is emitted only by the v3 and v4 formats. v1 and v2 omit it, and the
+// only reliable way to tell is positional: a schema line appears before the
+// first [[package]] block, whereas a package's own version line always
+// appears after it. A substring search for "version = " cannot make that
+// distinction and will call a v1 file versioned.
+func cargoHasSchemaLine(src string) bool {
+	firstPkg := strings.Index(src, "[[package]]")
+	if firstPkg < 0 {
+		// No packages at all; fall back to a whole-file search, since
+		// there is no package version to confuse it with.
+		return strings.Contains(src, "version = ")
+	}
+	head := src[:firstPkg]
+	return strings.Contains(head, "version = ")
 }

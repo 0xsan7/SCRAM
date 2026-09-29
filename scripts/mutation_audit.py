@@ -249,6 +249,22 @@ MUTANTS = [
      "\tcase cvssTimesTen >= 90:",
      "\tcase cvssTimesTen >= criticalBucketMin:",
      ["internal/score"]),
+    # --- the pnpm generation boundary at 6.0 --------------------
+    # pnpm 6.0 is slash-PREFIXED but @-delimited, the only generation
+    # that is both. Treating it as a 5.x file drops most of the
+    # dependency tree: 361 components instead of 1523 from a real
+    # pnpm 7 repository, with no error raised.
+    ("B1-pnpm-6.0-treated-as-5.x", "internal/resolve/pnpm.go",
+     "\t\tcase \"6\":",
+     "\t\tcase \"never6\":",
+     ["internal/resolve"]),
+    # And the leading slash on a 6.0 key, which without stripping
+    # leaves a "/" in the package name and builds a PURL that matches
+    # nothing.
+    ("B1-pnpm-6.0-leading-slash-kept", "internal/resolve/pnpm.go",
+     "\t\tbase = strings.TrimPrefix(base, \"/\")",
+     "\t\tbase = base",
+     ["internal/resolve"]),
 ]
 
 

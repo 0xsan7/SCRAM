@@ -39,18 +39,24 @@ the mutation audit reporting `killed 16 survived 0 invalid 0 broken 0`.
 tag are now verified rather than pending — see `docs/STATUS.md` for the
 full evidence table.
 
-### v0.1.0-rc1 and v0.1.0-rc2 must not be used
+### v0.1.0-rc1, -rc2, and -rc3 must not be used
 
-Both tags and both releases are still public and both still resolve.
-Neither Action works: rc1's cannot be loaded by the runner at all, and
-rc2's loads and scans but inverts its own drift gate, reporting every
-pre-existing finding as new. `v0.1.0-rc3` supersedes both. They were
-left in place deliberately rather than deleted, because deleting a
-published release destroys the evidence for why the fixes exist.
+All three tags and all three releases are still public and still
+resolve. rc1's Action cannot be loaded by the runner at all, and rc2's
+loads and scans but inverts its own drift gate, reporting every
+pre-existing finding as new. rc3 is the first of the three that works
+on both events. `v0.1.0` supersedes all three and is the same code
+with the release promoted.
 
-The `v1` ref still does not resolve, and `releases/latest` still has no
-non-prerelease target. `uses: 0xsan7/SCRAM@v1` requires a real v0.1.0
-tag, which is not cut and is not mine to cut.
+They were left in place deliberately rather than deleted, because
+deleting a published release destroys the evidence for why the fixes
+exist. Each carries a one-line note at the top of its notes saying so.
+
+`releases/latest` now resolves to `v0.1.0`, and `v0.1.0` is not marked
+as a prerelease. The `v1` ref still does not resolve and is not a
+substitute for the version tag: `uses: 0xsan7/SCRAM@v1` would install
+an unpinned binary, which is the thing the version-tag requirement
+exists to prevent.
 
 What remains unverified is now only:
 

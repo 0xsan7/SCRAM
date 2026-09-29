@@ -95,17 +95,20 @@ reading tests:
 | Self-scan | **DONE** | resolves 6 components, no findings |
 | Secret scan | **DONE** | clean at every push |
 | GitHub Actions runs | **VERIFIED** | read from the Actions REST API on every commit; on the tagged commit 11 jobs green and `govulncheck (self)` correctly skipped (it is schedule-only) |
-| Signing / provenance | **VERIFIED** | 5/5 `cosign verify-blob` → `Verified OK` on v0.1.0-rc3, downloaded and re-verified locally |
+| Signing / provenance | **VERIFIED** | 5/5 `cosign verify-blob` → `Verified OK` on v0.1.0, downloaded and re-verified locally; a wrong identity is rejected |
 | Pages deploy / Homebrew | **NOT BUILT** | no site, no formula; see ROADMAP.md |
 
 ---
 
-## Release status — v0.1.0-rc3
+## Release status — v0.1.0
 
-<https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0-rc3>
+<https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0>
+
+`prerelease: false`. `releases/latest` resolves to it, which is the first
+time either has been true.
 
 18 assets: 5 binaries (darwin/linux × amd64/arm64, windows-amd64.exe),
-5 `.sig` + 5 `.pem` signature files, `scram_0.1.0-rc3_checksums.txt`, and
+5 `.sig` + 5 `.pem` signature files, `scram_0.1.0_checksums.txt`, and
 CycloneDX + SPDX SBOMs.
 
 Verified by downloading the release assets and running the published
@@ -121,7 +124,7 @@ instructions against them:
 
 ### The Action took three release candidates
 
-`v0.1.0-rc1` and `v0.1.0-rc2` both remain on the repository and neither
+`v0.1.0-rc1`, `-rc2`, and `-rc3` all remain on the repository and none
 should be used. Seven defects in `action.yml`, all of the same kind: a
 question about what happens when the file *runs*, which no linter,
 schema validator, or unit test in this repository can answer.
@@ -146,10 +149,12 @@ tree with unchanged dependencies and asking why it failed.
 
 Push, using the documented minimum and no `with:` block at all:
 
-    - uses: 0xsan7/SCRAM@v0.1.0-rc3
-    Installing scram-0.1.0-rc3-linux-amd64 (action ref: v0.1.0-rc3)
-    scram-0.1.0-rc3-linux-amd64: OK
-    scram version 0.1.0-rc3
+    - uses: 0xsan7/SCRAM@v0.1.0
+    Installing scram-0.1.0-linux-amd64 (action ref: v0.1.0)
+    scram-0.1.0-linux-amd64: OK
+    scram version 0.1.0
+    commit:     de903ac4c09af34b0d1f6d50fecf49884eabcbfb
+    PASS  (fail-on: high, new findings only: true)
     repo-score: 36   repo-bucket: low
 
 Pull request, against a `lodash@4.17.11` fixture:

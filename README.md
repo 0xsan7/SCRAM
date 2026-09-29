@@ -10,7 +10,7 @@ answers the question PR gates actually ask: *what did this change?*
 |___/\___|_|_\/_/ \_\_|  |_|
 ```
 
-`v0.1.0` · pre-release · no release tag published yet
+[`v0.1.0`](https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0) · released · 5 signed binaries
 
 Most scanners tell you the current state. Almost none tell you what a
 specific pull request *changed* — and that is the only question a reviewer
@@ -138,7 +138,7 @@ keyless.
 
 ```bash
 # Pick the asset for your platform and verify it before running it.
-VERSION=0.1.0-rc3
+VERSION=0.1.0
 BASE=https://github.com/0xsan7/SCRAM/releases/download/v$VERSION
 
 curl -sSfLO "$BASE/scram_${VERSION}_checksums.txt"      # note: underscores
@@ -162,7 +162,7 @@ cosign verify-blob \
 `Verified OK` means the binary is the one this repository's CI built and
 signed for this tag; the signature is in the public Rekor log, so you
 do not have to trust GitHub to tell you so. See
-[the v0.1.0-rc3 release](https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0-rc3)
+[the v0.1.0 release](https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0)
 for the full asset list, and the release notes there for the same
 instructions in copy-pasteable form.
 
@@ -290,8 +290,8 @@ OpenSSF Scorecard integration is not built.
 ## CI integration
 
 > **The action ref must be a version tag.** It installs the binary published
-> under that same tag, so `uses: 0xsan7/SCRAM@v0.1.0-rc3` gets exactly
-> `0.1.0-rc3`. A branch or SHA cannot name a release, and the action fails
+> under that same tag, so `uses: 0xsan7/SCRAM@v0.1.0` gets exactly
+> `0.1.0`. A branch or SHA cannot name a release, and the action fails
 > with an explicit message rather than downloading something unverified.
 
 ```yaml
@@ -312,7 +312,7 @@ jobs:
         with:
           fetch-depth: 0        # blame needs real history; see above
 
-      - uses: 0xsan7/SCRAM@v0.1.0-rc3
+      - uses: 0xsan7/SCRAM@v0.1.0
         with:
           fail-on: high
           comment-on-pr: true
@@ -327,7 +327,7 @@ misindented out of `with:`) and redundant.
 The minimum is `uses` and nothing else:
 
 ```yaml
-      - uses: 0xsan7/SCRAM@v0.1.0-rc3
+      - uses: 0xsan7/SCRAM@v0.1.0
 ```
 
 **No token is required.** A composite action cannot read the `secrets`

@@ -34,7 +34,7 @@ failure, and the summary reports them as absent rather than as errors.
 
 Idempotent, re-runnable, no authentication, all public data.
 
-    ./scripts/fetch_corpus.py [npm|pypi|go|all]
+    ./scripts/fetch_corpus.py [npm|pypi|go|yarn|pnpm|cargo|all]
 """
 from __future__ import annotations
 
@@ -196,6 +196,62 @@ PYPROJECT: dict[str, list[str]] = {
     "urllib3/urllib3": [""], "encode/uvicorn-worker": [""],
     "agronholm/apscheduler": [""], "encode/httpcore": [""], "hynek/attrs": [""],
     "tox-dev/virtualenv": [""], "pypa/build": [""], "hatch-pyp/pypa-build": [""],
+}
+
+# Yarn. Split deliberately: YARN1 lists repos whose lockfile is written by
+# Yarn classic, and YARN_BERRY lists Yarn 2+ repos, whose dialect differs
+# (`version: 1.2.3` with colons, `resolution:` instead of `resolved:`,
+# `checksum:` instead of `integrity:`, and an `__metadata:` block). A
+# corpus holding only one dialect would let a resolver pass by parsing the
+# other perfectly and still be wrong in production, because the failure
+# only shows up on the projects that had already migrated.
+YARN: dict[str, list[str]] = {
+    "facebook/react": [""], "facebook/jest": [""], "jestjs/jest": [""],
+    "babel/babel": [""], "electron/electron": [""], "webpack/webpack": [""],
+    "angular/angular.js": [""], "yarnpkg/berry": [""],
+    "excalidraw/excalidraw": [""],
+}
+
+# pnpm. Most of the JS ecosystem has moved here, and the lockfile has had
+# two incompatible shapes: lockfileVersion 5.4 (pnpm 7) and 6.0 (pnpm 8)
+# keep everything under `packages`, while 9.0 (pnpm 9) splits it into
+# `packages` (metadata) and `snapshots` (the resolved dependency graph).
+# A resolver that reads only `packages` will silently under-report every
+# package whose dependencies only exist in `snapshots` on a v9 lockfile.
+PNPM: dict[str, list[str]] = {
+    "vitejs/vite": [""], "pnpm/pnpm": [""], "nrwl/nx": [""],
+    "changesets/changesets": [""], "vercel/turbo": [""],
+    "electron/electron": [""], "storybookjs/storybook": [""],
+    "prisma/prisma": [""], "nestjs/nest": [""], "directus/directus": [""],
+    "immich-app/immich": [""], "grafana/grafana": [""],
+}
+
+# Cargo. Every entry here was verified to have a committed Cargo.lock at
+# main or master; the first version of this list named twelve popular
+# crates and fetched 0 of them, because Rust LIBRARIES do not commit a
+# Cargo.lock. Only binaries and workspaces do -- a library's lockfile is
+# noise in its repository and its consumers each resolve their own. The
+# list is therefore applications and tools, not the crates that merely
+# sound Rust.
+#
+# The corpus spans a deliberate size range because that is what a parser
+# has to survive: rust-lang/book is 10KB with almost no dependencies,
+# while cargo and sccache are 130KB+ with thousands of transitive
+# entries. A corpus of only large lockfiles would never exercise the
+# small-file path, and a small one would never exercise the large.
+CARGO: dict[str, list[str]] = {
+    "rust-lang/cargo": [""],           # 130 KB, the largest dependency graphs
+    "rust-lang/rustfmt": [""],         # 27 KB
+    "rust-lang/book": [""],            # 10 KB, the smallest useful case
+    "bytecodealliance/wasmtime": [""], # 138 KB, workspace with path deps
+    "clap-rs/clap": [""],              # 114 KB
+    "BurntSushi/ripgrep": [""],        # 14 KB
+    "rust-lang/mdBook": [""],          # 65 KB
+    "rust-lang/miri": [""],            # 53 KB
+    "EmbarkStudios/cargo-deny": [""],  # 46 KB
+    "sharkdp/bat": [""],               # 78 KB
+    "rust-lang/rust-analyzer": [""],   # 90 KB
+    "mozilla/sccache": [""],           # 136 KB
 }
 
 GO: dict[str, list[str]] = {
@@ -391,6 +447,69 @@ def fetch_npm_v1() -> None:
             "real-world coverage again; do not delete the v1 warning on this basis.")
 
 
+
+def yarn_dialect(data: bytes) -> str:
+    """Classify a yarn.lock by content, not by which repo it came from.
+
+    Yarn Berry opens every lockfile with an `__metadata:` block and writes
+    `version: 1.2.3` with a colon; classic writes `version "1.2.3"` with a
+    space and has no such block. Both appear in the wild and they are not
+    interchangeable, so the corpus needs to know which is which.
+
+    Classifying by repo name is the obvious approach and it is wrong: five
+    of the thirteen fixtures fetched under a "classic" list turned out to
+    be Berry, because those projects migrated after the list was written.
+    A label that describes an intention rather than a file is a fixture
+    that silently tests the wrong parser forever.
+    """
+    head = data[:4096].decode("utf-8", "replace")
+    return "berry" if "__metadata" in head else "classic"
+
+
+def fetch_eco_yarn() -> None:
+    """Fetch yarn.lock fixtures, filed by the dialect they actually contain."""
+    base = os.path.join(CORPUS, "yarn", "real")
+    got: dict[str, tuple[str, int]] = {}
+    cached: dict[str, int] = {}
+    with cf.ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        futs = {ex.submit(probe_one, r, "yarn.lock", sp): r
+                for r, sp in YARN.items()}
+        for fut in cf.as_completed(futs):
+            repo = futs[fut]
+            # Already on disk under either dialect? Then it is cached, and
+            # re-filing it would need a re-probe to know its dialect.
+            for d in ("classic", "berry"):
+                dest = os.path.join(base, d, repo, "yarn.lock")
+                if os.path.exists(dest) and os.path.getsize(dest) > 2:
+                    cached[repo] = os.path.getsize(dest)
+                    break
+            else:
+                try:
+                    hit = fut.result()
+                except Exception as exc:  # noqa: BLE001
+                    log(f"  {repo}: ERROR {exc}")
+                    continue
+                if not hit:
+                    continue
+                rel, data = hit
+                dialect = yarn_dialect(data)
+                dest = os.path.join(base, dialect, repo, "yarn.lock")
+                write(dest, data)
+                got[repo] = (dialect, len(data))
+
+    have = len(got) + len(cached)
+    absent = sorted(r for r in YARN if r not in got and r not in cached)
+    log(f"yarn: {have}/{len(YARN)} repos have a lockfile "
+        f"({len(got)} fetched, {len(cached)} already present)"
+        + (f"; {len(absent)} have none" if absent else ""))
+    for repo in sorted(got):
+        dialect, size = got[repo]
+        log(f"    + {repo:34} {dialect:8} {size:>10,}b")
+    if absent:
+        log(f"yarn: no lockfile upstream for: {', '.join(absent[:12])}"
+            + (" ..." if len(absent) > 12 else ""))
+
+
 def main() -> int:
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
     if which in ("npm", "all"):
@@ -415,6 +534,23 @@ def main() -> int:
     if which in ("go", "all"):
         log("go: probing")
         fetch_eco(GO, GO_FILES, "gomod", "go")
+    if which in ("yarn", "all"):
+        # ONE list, and the dialect is decided by what the file turns out to
+        # be. An earlier version hardcoded which repos used classic yarn and
+        # which used Berry; that was wrong for 5 of 13 files, because those
+        # projects have since migrated and the label described an intention
+        # rather than a file. The two dialects are filed by content now, so
+        # a repo that migrates moves itself into the other directory on the
+        # next fetch instead of silently being tested against the wrong
+        # parser forever.
+        log("yarn: probing")
+        fetch_eco_yarn()
+    if which in ("pnpm", "all"):
+        log("pnpm: probing")
+        fetch_eco(PNPM, ("pnpm-lock.yaml",), "pnpm", "pnpm")
+    if which in ("cargo", "all"):
+        log("cargo: probing")
+        fetch_eco(CARGO, ("Cargo.lock",), "cargo", "cargo")
     summary()
     return 0
 

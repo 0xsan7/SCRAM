@@ -394,3 +394,28 @@ func integrityMap(integrity string) map[string]string {
 	}
 	return nil
 }
+
+// npmDirectFromPackageJSON extracts the set of directly requested package
+// names from a package.json.
+//
+// Shared by the npm, yarn, and pnpm resolvers: all three read the same file
+// to answer the same question, and "what did the project actually ask for"
+// cannot be derived from a lockfile -- a lockfile records every range that
+// was ever resolved, direct or transitive.
+func npmDirectFromPackageJSON(b []byte) map[string]bool {
+	out := map[string]bool{}
+	var pj struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+		OptionalDeps    map[string]string `json:"optionalDependencies"`
+	}
+	if json.Unmarshal(b, &pj) != nil {
+		return out
+	}
+	for _, m := range []map[string]string{pj.Dependencies, pj.DevDependencies, pj.OptionalDeps} {
+		for n := range m {
+			out[n] = true
+		}
+	}
+	return out
+}

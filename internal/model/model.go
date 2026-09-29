@@ -4,6 +4,8 @@
 // The JSON tags here are the stable, versioned public schema (FR-602).
 package model
 
+import "path/filepath"
+
 // SchemaVersion is written into every JSON report so downstream tooling can
 // detect breaking changes rather than silently mis-parsing.
 const SchemaVersion = "1.0.0"
@@ -11,10 +13,49 @@ const SchemaVersion = "1.0.0"
 // Ecosystem names. Kept as string constants rather than an enum type so that
 // unknown ecosystems parsed from a config file don't blow up unmarshalling.
 const (
-	EcoNPM  = "npm"
-	EcoPyPI = "pypi"
-	EcoGo   = "go"
+	EcoNPM   = "npm"
+	EcoPyPI  = "pypi"
+	EcoGo    = "go"
+	EcoCargo = "cargo"
 )
+
+// LockfileFormat names a package manager's lockfile. It is NOT an
+// ecosystem: yarn and pnpm produce npm packages, and they resolve under
+// EcoNPM so their components match OSV records for npm rather than going
+// unmatched under a name OSV has never heard of.
+//
+// The format is tracked separately because a yarn.lock, a pnpm-lock.yaml
+// and a package-lock.json describe the same dependency graph three
+// different ways, and silently treating them as one format is how a
+// resolver ends up parsing a pnpm lockfile with an npm parser and
+// reporting a parse error -- or worse, zero components and a clean scan.
+const (
+	FormatNPM       = "package-lock.json"
+	FormatYarn      = "yarn.lock"
+	FormatPnpm      = "pnpm-lock.yaml"
+	FormatPyPI      = "requirements.txt"
+	FormatPoetry    = "poetry.lock"
+	FormatPyProject = "pyproject.toml"
+	FormatGoSum     = "go.sum"
+	FormatGoMod     = "go.mod"
+	FormatCargo     = "Cargo.lock"
+)
+
+// EcoForFormat maps a lockfile name to the ecosystem its components belong
+// to. Returning "" means the file is not a lockfile this build knows.
+func EcoForFormat(name string) string {
+	switch filepath.Base(name) {
+	case FormatNPM, FormatYarn, FormatPnpm:
+		return EcoNPM
+	case FormatPyPI, FormatPoetry, FormatPyProject:
+		return EcoPyPI
+	case FormatGoSum, FormatGoMod:
+		return EcoGo
+	case FormatCargo:
+		return EcoCargo
+	}
+	return ""
+}
 
 // Component is a single resolved dependency.
 type Component struct {

@@ -119,20 +119,24 @@ runs:
         # An explicit scram-version input overrides that.
         version="${WANTED_VERSION:-${ACTION_REF#v}}"
 
-        # A ref that is not a version (a branch, a SHA, or empty when the
-        # action is used by path) cannot name a release. Fail loudly rather
-        # than download something unverified.
-        case "$version" in
-          [0-9]*)
-            ;;
-          *)
-            echo "::error::cannot determine which scram version to install."
-            echo "::error::The action was referenced as '$ACTION_REF', which is not a version tag."
-            echo "::error::Pin it to a release tag (uses: 0xsan7/SCRAM@v0.1.0-rc2)"
-            echo "::error::or set the scram-version input explicitly."
-            exit 1
-            ;;
-        esac
+        # A ref that is not a version cannot name a release: a branch, a
+        # SHA, or the empty ref you get when the action is used by path.
+        # Fail loudly rather than download something unverified.
+        #
+        # The test is a full-semver shape, deliberately. An earlier version
+        # of this step accepted anything starting with a digit, which a
+        # 40-character commit SHA does whenever its first hex digit is
+        # numeric -- roughly 62% of them. Those refs then built an asset
+        # name like `scram-03c5a1c67e00...-linux-amd64` and 404'd, with a
+        # message about a missing release rather than about the ref.
+        if ! printf '%s' "$version" \
+             | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$'; then
+          echo "::error::cannot determine which scram version to install."
+          echo "::error::The action was referenced as '${ACTION_REF:-<empty>}', which is not a version tag."
+          echo "::error::Pin it to a version tag (uses: 0xsan7/SCRAM@v0.1.0-rc2)"
+          echo "::error::or set the scram-version input explicitly."
+          exit 1
+        fi
 
         # windows-amd64.exe is the only asset with an extension.
         ext=""
@@ -143,7 +147,22 @@ runs:
         url="${base}/${asset}"
 
         echo "Installing ${asset} (action ref: ${ACTION_REF:-<none>})"
-        curl -sSfL "$url" -o "$RUNNER_TEMP/scram${ext}"
+
+        # A 404 here is almost always "this tag has no release", which is a
+        # different problem from a network failure and deserves a different
+        # message. curl -f prints "The requested URL returned error: 404"
+        # and exits 22, which says nothing about which of the two happened.
+        if ! curl -sSfL "$url" -o "$RUNNER_TEMP/scram${ext}"; then
+          echo "::error::could not download $url"
+          if curl -sSfL -o /dev/null "${base}/scram_${version}_checksums.txt" 2>/dev/null; then
+            echo "::error::that release exists but does not publish $asset for $os/$arch."
+          else
+            echo "::error::there is no published release for version ${version}."
+            echo "::error::Every version tag needs a GitHub Release built from it;"
+            echo "::error::pushing the tag alone does not create one."
+          fi
+          exit 1
+        fi
         chmod +x "$RUNNER_TEMP/scram${ext}"
 
         # Verify the download against the published checksum file. Without

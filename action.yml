@@ -183,6 +183,43 @@ runs:
         ref="${BASELINE_REF:-$BASE_SHA}"
         echo "Comparing against $ref"
 
+        # actions/checkout defaults to fetch-depth: 1, so the local clone
+        # holds exactly one commit -- the merge ref. The base branch tip is
+        # not in it, and `git worktree add` then fails with
+        #
+        #   fatal: invalid reference: <base sha>
+        #
+        # which is what the first pull_request run of this action did. The
+        # action's entire documented purpose is the PR gate, and it could
+        # not run on a PR at all.
+        #
+        # The README tells callers to use fetch-depth: 0. That is good
+        # advice and it is not a requirement the action should impose: a
+        # security gate that only works if the caller read the docs is a
+        # gate that silently does not run. Fetch the one commit that is
+        # actually needed, which costs one object rather than a full
+        # history, and fall back to deepening if the server refuses a
+        # direct SHA fetch.
+        if ! git cat-file -e "${ref}^{commit}" 2>/dev/null; then
+          echo "Base commit not in the local clone; fetching it."
+          if ! git fetch --no-tags --depth=1 origin "$ref" 2>/dev/null; then
+            echo "Direct SHA fetch refused; fetching the full base branch."
+            git fetch --no-tags --depth=50 origin \
+              "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}" || {
+                echo "::error::could not fetch the base branch ($GITHUB_BASE_REF)."
+                echo "::error::Set fetch-depth: 0 on actions/checkout, or set the"
+                echo "::error::baseline-ref input to something already fetched."
+                exit 1
+              }
+            git fetch --no-tags --depth=1 origin "$ref" 2>/dev/null || true
+          fi
+        fi
+
+        if ! git cat-file -e "${ref}^{commit}" 2>/dev/null; then
+          echo "::error::base commit $ref is still not available after fetching"
+          exit 1
+        fi
+
         # Materialize the base ref into a separate worktree so the diff is a
         # real tree-to-tree comparison, not a guess based on the PR's own
         # lockfile. FR-403: the user should not have to manage this.
@@ -197,7 +234,6 @@ runs:
           # scan as the comparison point. This is what makes the Action
           # work on day one with zero setup.
           echo "No committed baseline; scanning the base branch as the baseline"
-          mkdir -p "$RUNNER_TEMP/baseline"
           "$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}" scan "$RUNNER_TEMP/baseline" \
             --config "$RUNNER_TEMP/baseline/${{ inputs.config-path }}" \
             --format json --no-gate > "$RUNNER_TEMP/base.json"

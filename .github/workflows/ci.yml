@@ -369,10 +369,22 @@ jobs:
       # because this step runs after goreleaser has already published,
       # and a missing signature file there must not fail a release whose
       # binaries are already up.
-      - name: Upload signatures and certificates
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/**/*.pem
-            dist/**/*.sig
-          fail_on_unmatched_files: false
+      # No signature upload step. GoReleaser already publishes every
+      # .sig and .pem as a first-class release asset (they appear in
+      # dist/artifacts.json as type=Signature / type=Certificate), and
+      # the successful v0.1.0-rc1 release carries all ten of them
+      # already.
+      #
+      # The step that was here used `softprops/action-gh-release` with
+      # `dist/**/*.{pem,sig}`. It was redundant and actively harmful: the
+      # action uploads by basename, so the five per-target
+      # dist/scram_<target>/scram.pem files collided into one asset name
+      # and the run logged
+      #
+      #   error updating release asset metadata for scram.pem:
+      #   HttpError: Not Found
+      #
+      # four times. The published release ended up with four extra
+      # assets -- scram.pem, scram.sig, scram.exe.pem, scram.exe.sig --
+      # that correspond to no downloadable binary. It did not fail the
+      # job, so the release looked clean and shipped those anyway.

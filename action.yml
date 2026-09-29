@@ -40,9 +40,20 @@ inputs:
     required: false
     default: 'false'
   scram-version:
-    description: 'Version of the scram binary to use.'
+    description: >-
+      Version of the scram binary to download, without the leading "v"
+      (e.g. 0.1.0-rc2). Defaults to the version of the tag this action is
+      referenced by, so `uses: 0xsan7/SCRAM@v0.1.0-rc2` installs
+      0.1.0-rc2 and nothing else.
     required: false
-    default: 'latest'
+    default: ''
+  github-token:
+    description: >-
+      Token used for the PR comment and the SARIF upload. Defaults to the
+      workflow's own GITHUB_TOKEN. Override with a PAT only if you need
+      permissions the workflow's token does not have.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   sbom-path:
@@ -67,17 +78,90 @@ runs:
     - name: Install scram
       shell: bash
       env:
-        VERSION: ${{ inputs.scram-version }}
+        # github.action_ref is the tag the caller referenced this action
+        # by. It is only readable through `env`, never inline in `run` --
+        # GitHub's own docs call that out for composite actions. When the
+        # action is used as `0xsan7/SCRAM@v0.1.0-rc2` this is
+        # "v0.1.0-rc2", which is what makes the default version below
+        # correct without the caller having to state it twice.
+        ACTION_REF: ${{ github.action_ref }}
+        WANTED_VERSION: ${{ inputs.scram-version }}
+        RUNNER_OS: ${{ runner.os }}
+        RUNNER_ARCH: ${{ runner.arch }}
       run: |
         set -euo pipefail
-        if [ "$VERSION" = "latest" ]; then
-          url="https://github.com/0xsan7/SCRAM/releases/latest/download/scram-linux-amd64"
-        else
-          url="https://github.com/0xsan7/SCRAM/releases/download/${VERSION}/scram-linux-amd64"
-        fi
-        curl -sSfL "$url" -o "$RUNNER_TEMP/scram"
-        chmod +x "$RUNNER_TEMP/scram"
-        "$RUNNER_TEMP/scram" --version
+
+        # GoReleaser names assets {{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}
+        # (.goreleaser.yml, archives[].name_template), and .Version has no
+        # leading "v" while the tag does. The previous version of this step
+        # asked for "scram-linux-amd64", which has never existed for any
+        # release, and the first release attempt proved it: the smoke test
+        # got a 404 from both URL shapes.
+        # runner.os and runner.arch are the runner's vocabulary, not
+        # GoReleaser's, and they disagree on both axes: the runner says
+        # "Linux"/"X64", the assets are "linux"/"amd64". Substituting one
+        # for the other produces a URL that 404s, which is what happened
+        # the first time this step was written.
+        case "$RUNNER_OS" in
+          Linux)   os=linux   ;;
+          macOS)   os=darwin  ;;
+          Windows) os=windows ;;
+          *) echo "::error::unsupported runner OS: $RUNNER_OS"; exit 1 ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64|AMD64|x64)  arch=amd64 ;;
+          ARM64)          arch=arm64 ;;
+          *) echo "::error::unsupported runner arch: $RUNNER_ARCH"; exit 1 ;;
+        esac
+
+        # The action's own tag is the default version, so a caller who
+        # pins the action gets the binary that was published alongside it.
+        # An explicit scram-version input overrides that.
+        version="${WANTED_VERSION:-${ACTION_REF#v}}"
+
+        # A ref that is not a version (a branch, a SHA, or empty when the
+        # action is used by path) cannot name a release. Fail loudly rather
+        # than download something unverified.
+        case "$version" in
+          [0-9]*)
+            ;;
+          *)
+            echo "::error::cannot determine which scram version to install."
+            echo "::error::The action was referenced as '$ACTION_REF', which is not a version tag."
+            echo "::error::Pin it to a release tag (uses: 0xsan7/SCRAM@v0.1.0-rc2)"
+            echo "::error::or set the scram-version input explicitly."
+            exit 1
+            ;;
+        esac
+
+        # windows-amd64.exe is the only asset with an extension.
+        ext=""
+        [ "$os" = "windows" ] && ext=".exe"
+
+        asset="scram-${version}-${os}-${arch}${ext}"
+        base="https://github.com/0xsan7/SCRAM/releases/download/v${version}"
+        url="${base}/${asset}"
+
+        echo "Installing ${asset} (action ref: ${ACTION_REF:-<none>})"
+        curl -sSfL "$url" -o "$RUNNER_TEMP/scram${ext}"
+        chmod +x "$RUNNER_TEMP/scram${ext}"
+
+        # Verify the download against the published checksum file. Without
+        # this, a 200 from a proxy or a truncated transfer would be
+        # indistinguishable from a good install, and the scan would run on
+        # an unverified binary.
+        #
+        # The checksum file lists assets by their *published* names, but
+        # the file on disk is called "scram". Rename it to the asset name,
+        # check it there, and only then move it into place as "scram" --
+        # so the binary that gets executed is provably the one that was
+        # verified, under a name nothing rewrites afterwards.
+        curl -sSfL "${base}/scram_${version}_checksums.txt" -o "$RUNNER_TEMP/checksums.txt"
+        mv "$RUNNER_TEMP/scram${ext}" "$RUNNER_TEMP/${asset}"
+        ( cd "$RUNNER_TEMP" && grep -F " ${asset}" checksums.txt | sha256sum -c - )
+        mv "$RUNNER_TEMP/${asset}" "$RUNNER_TEMP/scram${ext}"
+
+        "$RUNNER_TEMP/scram${ext}" --version
 
     - name: Resolve baseline
       id: baseline
@@ -209,12 +293,23 @@ runs:
       with:
         sarif_file: scram-output/scan.sarif
         category: scram
+        # upload-sarif reads GITHUB_TOKEN from its environment, not from
+        # the caller's secrets context, because a composite action cannot
+        # supply one. github/codeql-action also requires
+        # `security-events: write`, which the action cannot request for
+        # itself -- the calling workflow has to grant it.
+        token: ${{ inputs.github-token }}
 
     - name: Comment on PR
       if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' }}
       shell: bash
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Composite actions cannot read the secrets context at all --
+        # referencing secrets.GITHUB_TOKEN here made the runner reject the
+        # whole manifest at load time, so the action could not run at all,
+        # for anyone, on any event. The token arrives via the
+        # github-token input instead.
+        GH_TOKEN: ${{ inputs.github-token }}
         SCAN_JSON: ${{ github.workspace }}/scram-output/scan.json
         COMMENT_MARKER: '<!-- scram-report -->'
       run: |

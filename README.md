@@ -289,9 +289,10 @@ OpenSSF Scorecard integration is not built.
 
 ## CI integration
 
-> **Pending a release tag.** `uses: 0xsan7/SCRAM@v1` does not resolve yet —
-> no v1 tag and no release exist, so both the Action ref and the binary URL
-> it downloads (404 today). Use the local build until the first tag is cut.
+> **The action ref must be a version tag.** It installs the binary published
+> under that same tag, so `uses: 0xsan7/SCRAM@v0.1.0-rc2` gets exactly
+> `0.1.0-rc2`. A branch or SHA cannot name a release, and the action fails
+> with an explicit message rather than downloading something unverified.
 
 ```yaml
 # .github/workflows/scram.yml
@@ -300,8 +301,8 @@ on: [pull_request]
 
 permissions:
   contents: read
-  security-events: write
-  pull-requests: write
+  security-events: write      # required by upload-sarif
+  pull-requests: write        # required by comment-on-pr
 
 jobs:
   scram:
@@ -311,19 +312,38 @@ jobs:
         with:
           fetch-depth: 0        # blame needs real history; see above
 
-      # PENDING: this ref does not resolve until a v1 tag is cut.
-      - uses: 0xsan7/SCRAM@v1
+      - uses: 0xsan7/SCRAM@v0.1.0-rc2
         with:
           fail-on: high
           comment-on-pr: true
           upload-sarif: true
-
-      - uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: scram-output/scan.sarif
-          category: scram
 ```
+
+That is the whole workflow. `upload-sarif: true` uploads from inside the
+action, so there is no second `codeql-action` step to add — the previous
+version of this section had one, and it was both wrong (`category` was
+misindented out of `with:`) and redundant.
+
+The minimum is `uses` and nothing else:
+
+```yaml
+      - uses: 0xsan7/SCRAM@v0.1.0-rc2
+```
+
+**No token is required.** A composite action cannot read the `secrets`
+context at all — the runner rejects the whole manifest if one tries — so
+the token arrives through a `github-token` input that defaults to
+`${{ github.token }}`, the workflow's own token. Override it only if you
+need permissions the workflow's token does not have:
+
+```yaml
+        with:
+          github-token: ${{ secrets.MY_PAT }}
+```
+
+The action verifies the downloaded binary against the release's published
+`sha256` before running it, so a truncated download or a tampered asset
+fails the step instead of being scanned.
 
 The Action resolves the baseline from the PR's base branch, so there is no
 baseline file to maintain, and it updates a single PR comment rather than
@@ -333,15 +353,17 @@ posting a new one on every push.
 correctly refuses to report an introduction date (see above), so the
 command still works but tells you less.
 
-**`upload-sarif: true`** produces `scram-output/scan.sarif` and uploads it.
-SARIF is written to stdout and redirected, because `--out` is the SBOM
-directory — the machine formats keep stdout a single valid document by
-design. The step verifies the output really is SARIF 2.1.0 before handing
-it over, because an invalid upload is dropped silently by the Security tab
-and looks identical to "no vulnerabilities found".
+**`upload-sarif: true`** produces `scram-output/scan.sarif` and uploads it
+itself, using the same `github-token` input. SARIF is written to stdout
+and redirected, because `--out` is the SBOM directory — the machine
+formats keep stdout a single valid document by design. The step verifies
+the output really is SARIF 2.1.0 before handing it over, because an
+invalid upload is dropped silently by the Security tab and looks
+identical to "no vulnerabilities found".
 
 **Outputs:** `sbom-path`, `repo-score`, `repo-bucket`, `new-critical-count`,
 `new-high-count`.
+
 
 ## Output formats
 

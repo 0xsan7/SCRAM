@@ -184,6 +184,86 @@ def main() -> int:
                 f"it will always be empty"
             )
 
+    # --- composite-action context rules --------------------------------
+    # A composite action cannot read the `secrets` context. The runner does
+    # not warn: it refuses to load the manifest at all, so the action fails
+    # for every consumer on every event, before any step runs. That is
+    # exactly how v0.1.0-rc1 shipped unusable -- the first smoke test of
+    # it died in "Set up job" with
+    #
+    #   Unrecognized named-value: 'secrets' ... secrets.GITHUB_TOKEN
+    #
+    # and no local check noticed, because every local check read the file
+    # rather than loading it.
+    for st in (doc.get("runs") or {}).get("steps") or []:
+        step_name = st.get("name") or st.get("uses") or "<unnamed>"
+        for field in ("env", "with", "if", "run"):
+            value = st.get(field)
+            if value and "secrets." in str(value):
+                problems.append(
+                    f"step {step_name!r} uses `secrets.` in {field!r}; a "
+                    f"composite action cannot read the secrets context and "
+                    f"the runner will refuse to load this manifest. Pass a "
+                    f"declared input instead."
+                )
+
+    # The download URL has to match what GoReleaser actually publishes,
+    # defined in .goreleaser.yml as
+    #   {{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}
+    # The v0.1.0-rc1 action asked for a bare "scram-linux-amd64", a name
+    # that has never existed for any release, so its install step 404'd on
+    # both URL shapes it could construct. Reading the template here means a
+    # rename on either side is caught here rather than on a user's runner.
+    goreleaser = ROOT / ".goreleaser.yml"
+    template = None
+    if goreleaser.exists():
+        gr = parse_yaml(goreleaser.read_text())
+        for arch_cfg in gr.get("archives") or []:
+            if arch_cfg.get("name_template"):
+                template = arch_cfg["name_template"]
+                break
+
+    if not template:
+        problems.append(
+            "cannot confirm the action's download URL: .goreleaser.yml has "
+            "no archives[].name_template, so there is no published asset "
+            "name to check the install step against"
+        )
+    else:
+        # The action builds its asset name in shell. Reduce both sides to
+        # the fragments that must agree, and require the action's shell to
+        # contain the version in the name, since that is the part the rc1
+        # bug got wrong.
+        versioned = "-{{ .Version }}-" in template
+        os_frag = "{{ .Os }}" in template
+        for st in (doc.get("runs") or {}).get("steps") or []:
+            body = str(st.get("run") or "")
+            if not body:
+                continue
+            if "releases/download" not in body and "releases/latest" not in body:
+                continue
+            step_name = st.get("name") or "<unnamed>"
+            # An unversioned literal asset name is the exact rc1 defect.
+            for m in re.finditer(r'releases/(?:download/[^\s"\']*|latest/download)/'
+                                 r'scram-(linux|darwin|windows)', body):
+                problems.append(
+                    f"step {step_name!r} downloads the unversioned asset "
+                    f"'scram-{m.group(1)}', but .goreleaser.yml publishes "
+                    f"{template!r}; that URL 404s for every release"
+                )
+            if versioned and "scram-${version}" not in body and "scram-$version" not in body:
+                problems.append(
+                    f"step {step_name!r} does not put the version in the "
+                    f"asset name, but .goreleaser.yml publishes "
+                    f"{template!r}"
+                )
+            if os_frag and "${os}" not in body and "${RUNNER_OS}" not in body:
+                problems.append(
+                    f"step {step_name!r} does not use the runner OS in the "
+                    f"asset name, but .goreleaser.yml publishes "
+                    f"{template!r}"
+                )
+
     if problems:
         print(f"{len(problems)} problem(s) in action.yml:", file=sys.stderr)
         for p in problems:

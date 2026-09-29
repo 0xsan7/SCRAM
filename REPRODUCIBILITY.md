@@ -30,11 +30,11 @@ passed, and either outcome would be worse than a documented comparison.
 
 ## What was compared
 
-15 real corpus repositories spanning all three ecosystems and every npm
-lockfileVersion. The exact list is in `docs/differential.json` and was taken
-from it rather than retyped:
+25 real corpus repositories spanning all six ecosystems, and every
+npm lockfileVersion. The exact list is in `docs/differential.json` and was
+taken from it rather than retyped:
 
-`None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`, `None`
+`markedjs-marked@0.6.0`, `markedjs-marked@0.8.0`, `less-less@3.13.0`, `ionic-team/ionic-framework`, `axios/axios`, `appwrite/appwrite`, `yargs/yargs`, `nestjs/nest`, `microsoft/vscode`, `bitwarden/clients`, `psf/requests`, `prefecthq/prefect`, `home-assistant/core`, `hashicorp/consul`, `kubernetes/kubernetes`, `classic/facebook/react`, `classic/webpack/webpack`, `berry/jestjs/jest`, `vercel/turbo`, `vitejs/vite-53`, `vitejs/vite-54`, `pnpmjs/pnpm`, `mozilla/sccache`, `BurntSushi/ripgrep`, `rust-lang/rust-1.34`
 
 Six are npm v1 lockfiles (the `marked` and `less` fixtures were fetched
 at pinned 2017-2020 tags).
@@ -93,6 +93,42 @@ components.
 
 The caveat runs the other way here: `go.sum` records what was downloaded,
 not what a fresh `go mod tidy` would select.
+
+### 3b. yarn, pnpm and Cargo — new at v0.2.0, and syft disagrees on pnpm 5.x
+
+The three ecosystems added after v0.1.0 had no oracle at all before this
+run. Against syft:
+
+| ecosystem | fixture | SCRAM | syft | |
+|---|---|---|---|---|
+| yarn v1 | `facebook/react` | 2,388 | 2,388 | exact |
+| yarn v1 | `webpack/webpack` | 1,381 | 1,378 | SCRAM +3 |
+| yarn Berry v10 | `jestjs/jest` | 2,237 | 2,231 | SCRAM +6 |
+| pnpm 9.0 | `vercel/turbo` | 2,217 | 2,223 | syft +6 |
+| pnpm 5.3 | `vitejs/vite` | 1,598 | 592 | **SCRAM +1,006** |
+| pnpm 5.4 | `vitejs/vite` | 1,625 | 921 | **SCRAM +704** |
+| pnpm 6.0 | `pnpmjs/pnpm` | 1,523 | 914 | **SCRAM +609** |
+| Cargo | `mozilla/sccache` | 541 | 541 | exact |
+| Cargo | `BurntSushi/ripgrep` | 63 | 63 | exact |
+| Cargo V1 | `rust-lang/rust@1.34` | 406 | 406 | exact |
+
+**Cargo agrees with syft exactly on all three fixtures**, including a V1
+lockfile with no `version =` line at all. That is the strongest external
+confirmation the Cargo resolver has.
+
+**The pnpm gap is syft undercounting, and it was checked rather than
+assumed.** The pnpm 5.3 fixture contains 1,598 package keys under
+`packages:`. Each was read back out of the file: entries like
+`/@babel/core/7.15.0:` and `/@types/babel__core/7.1.15:` are present in the
+file and absent from syft's 592. SCRAM's count is the one that matches the
+file.
+
+This is the same failure direction the project already documents for npm
+workspaces (syft emits version `UNKNOWN`, which matches nothing at OSV). It
+is recorded here rather than treated as a win, because "SCRAM finds more
+packages" is only good news if the extra packages are real -- and for pnpm
+5.x, that was established by reading the fixture, not by trusting the
+larger number.
 
 ### 4. Vulnerability IDs — SCRAM 16, grype 12 for `cryptography==3.2`
 

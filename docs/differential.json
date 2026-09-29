@@ -361,7 +361,7 @@
     "label": "go medium",
     "scram_total": 307,
     "scram_sbom": 307,
-    "syft": 0
+    "syft": 286
   },
   {
     "repo": "kubernetes/kubernetes",
@@ -370,5 +370,85 @@
     "scram_total": 204,
     "scram_sbom": 204,
     "syft": 0
+  },
+  {
+    "repo": "classic/facebook/react",
+    "eco": "yarn",
+    "label": "yarn v1 large",
+    "scram_total": 2388,
+    "scram_sbom": 2388,
+    "syft": 2388
+  },
+  {
+    "repo": "classic/webpack/webpack",
+    "eco": "yarn",
+    "label": "yarn v1 medium",
+    "scram_total": 1381,
+    "scram_sbom": 1381,
+    "syft": 1378
+  },
+  {
+    "repo": "berry/jestjs/jest",
+    "eco": "yarn",
+    "label": "yarn berry v10",
+    "scram_total": 2237,
+    "scram_sbom": 2237,
+    "syft": 2231
+  },
+  {
+    "repo": "vercel/turbo",
+    "eco": "pnpm",
+    "label": "pnpm 9 large",
+    "scram_total": 2217,
+    "scram_sbom": 2217,
+    "syft": 2223
+  },
+  {
+    "repo": "vitejs/vite-53",
+    "eco": "pnpm",
+    "label": "pnpm 5.3",
+    "scram_total": 1598,
+    "scram_sbom": 1598,
+    "syft": 592
+  },
+  {
+    "repo": "vitejs/vite-54",
+    "eco": "pnpm",
+    "label": "pnpm 5.4",
+    "scram_total": 1625,
+    "scram_sbom": 1625,
+    "syft": 921
+  },
+  {
+    "repo": "pnpmjs/pnpm",
+    "eco": "pnpm",
+    "label": "pnpm 6.0",
+    "scram_total": 1523,
+    "scram_sbom": 1523,
+    "syft": 914
+  },
+  {
+    "repo": "mozilla/sccache",
+    "eco": "cargo",
+    "label": "cargo medium",
+    "scram_total": 541,
+    "scram_sbom": 541,
+    "syft": 541
+  },
+  {
+    "repo": "BurntSushi/ripgrep",
+    "eco": "cargo",
+    "label": "cargo small",
+    "scram_total": 63,
+    "scram_sbom": 63,
+    "syft": 63
+  },
+  {
+    "repo": "rust-lang/rust-1.34",
+    "eco": "cargo",
+    "label": "cargo V1 no schema line",
+    "scram_total": 406,
+    "scram_sbom": 406,
+    "syft": 406
   }
 ]

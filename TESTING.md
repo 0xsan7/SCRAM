@@ -112,6 +112,40 @@ Recorded OSV responses live in `testdata/osv/` and are regenerated with
 `scripts/record_osv_fixtures.py`, which fails loudly if a recorded package
 has been patched — an empty recording would let a broken key pass.
 
+## A guard only catches the spelling its author imagined
+
+Three separate guards in this project shipped wrong, in the same way, and
+each was found the same way: by putting the real defect back and watching the
+guard pass.
+
+| Guard | What it was written for | What it actually caught |
+|---|---|---|
+| `TestKnownVulnerableRoundtripOffline` | the go.mod lookup key | only the *go.mod* call site. The bug lived in `goModuleName`; the test also ran a go.sum component, so reverting the shared rule still passed |
+| `internal/badge/badge_test.go` | badge renders the presented score | a hand-built `RepoScore: 95` fixture, which is impossible on a 65-point scale. It "passed" while asserting `95/65 critical` |
+| `check_action_metadata.py` | a `/100` denominator in `action.yml` | only the literal string `/100`. The output description said `0-100` and sailed through |
+
+**The standing rule.** A new guard must be proven against **every real-world
+spelling and variant of the defect it claims to catch**, not one instance of
+it. Concretely, before a guard is trusted:
+
+1. **Enumerate the variants.** If a defect can be written two ways in the
+   source, the guard must fail on both. A denominator can be `/100`, `0-100`,
+   or `0–100`; a lookup key can be built at the call site or in a helper the
+   call site shares with another path.
+2. **Put the original defect back, unchanged.** Not a paraphrase of it — the
+   exact text or the exact code that shipped. A hand-reconstructed mutation
+   tests the mutation, not the guard.
+3. **Check the guard fails for the right reason.** A build error is not a
+   pass and not a fail; it means the test never ran. `TestTheReportStatesItsOwnDenominator`
+   "caught" a removed field by failing to compile, which is worth nothing.
+4. **Do not trust a guard that has never rejected anything.** The
+   `95/65` fixture and the `0-100` miss were both green for as long as they
+   existed. A guard with no observed red is an unevaluated claim.
+
+The first row is the subtle one, and it is why the rule is written down: the
+guard was *correct about the thing it named* and still missed the bug,
+because the bug lived one level below where the test was looking.
+
 ## Mutations
 
 `scripts/mutation_audit.py` reverts one fix at a time and requires the test

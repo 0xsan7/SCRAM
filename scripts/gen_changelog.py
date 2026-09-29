@@ -145,6 +145,10 @@ def main() -> int:
     ap.add_argument("--since")
     ap.add_argument("--out")
     ap.add_argument("--check-goreleaser", action="store_true")
+    ap.add_argument("--breaking", help="path to a markdown file whose "
+                    "contents lead the changelog, before any feature group")
+    ap.add_argument("--require-breaking", help="fail unless the rendered "
+                    "changelog leads with this file's first heading")
     args = ap.parse_args()
 
     if args.check_goreleaser:
@@ -161,6 +165,37 @@ def main() -> int:
     since = args.since or last_tag()
     subjects = commit_subjects(since)
     body = render(since, subjects)
+
+    if args.breaking:
+        # Prepended, not appended. The breaking change in this release is the
+        # one thing that can silently break a downstream consumer who never
+        # reads the feature list, so it is not allowed to compete with it.
+        lead = Path(args.breaking).read_text().rstrip() + "\n\n"
+        # After the "# Changelog" heading and any version line, so the
+        # document still reads as a changelog.
+        lines = body.split("\n")
+        cut = 0
+        for i, line in enumerate(lines):
+            if line.startswith("#"):
+                cut = i + 1
+                break
+        if cut and not lines[cut].startswith("\n"):
+            cut += 1
+        body = "\n".join(lines[:cut]) + "\n" + lead + "\n".join(lines[cut:]).lstrip("\n")
+
+    if args.require_breaking:
+        # The breaking change is the one thing in a release that can break a
+        # consumer silently, so it may not be left to whoever remembers to
+        # pass --breaking. This asserts the rendered output actually leads
+        # with it.
+        want = Path(args.require_breaking).read_text().strip().split("\n")[0].strip()
+        head = body[:len(body) + 1].split("\n")
+        seen = [ln.strip() for ln in head[:12]]
+        if want not in seen:
+            print(f"the changelog does not lead with {want!r}; "
+                  f"pass --breaking so it comes first", file=sys.stderr)
+            return 1
+        print(f"changelog leads with the breaking change: {want}")
 
     if args.out:
         Path(args.out).write_text(body)

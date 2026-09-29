@@ -43,6 +43,21 @@ SLICE = [
     ("pypi", "home-assistant/core", "pypi large ranged"),
     ("gomod", "hashicorp/consul", "go medium"),
     ("gomod", "kubernetes/kubernetes", "go xlarge"),
+    # The ecosystems added after v0.1.0. The npm-family and cargo entries
+    # matter for a regression check specifically: they are the same OSV
+    # ecosystem as npm, so a divergence here is more likely to be a SCRAM
+    # resolver bug than a scope difference, and v0.1.0 had no coverage of
+    # them at all.
+    ("yarn", "classic/facebook/react", "yarn v1 large"),
+    ("yarn", "classic/webpack/webpack", "yarn v1 medium"),
+    ("yarn", "berry/jestjs/jest", "yarn berry v10"),
+    ("pnpm", "vercel/turbo", "pnpm 9 large"),
+    ("pnpm", "vitejs/vite-53", "pnpm 5.3"),
+    ("pnpm", "vitejs/vite-54", "pnpm 5.4"),
+    ("pnpm", "pnpmjs/pnpm", "pnpm 6.0"),
+    ("cargo", "mozilla/sccache", "cargo medium"),
+    ("cargo", "BurntSushi/ripgrep", "cargo small"),
+    ("cargo", "rust-lang/rust-1.34", "cargo V1 no schema line"),
 ]
 
 

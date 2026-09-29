@@ -290,3 +290,77 @@ func TestBenchmarksRunAgainstRealFiles(t *testing.T) {
 		t.Error("npmV1Warning is empty")
 	}
 }
+
+// The four resolvers added after v0.1.0, benchmarked on the real corpus for
+// the same reason as the existing ones: a regression in these would be
+// invisible to the correctness tests, which only check that components come
+// back.
+//
+// The yarn and pnpm corpora contain files an order of magnitude larger than
+// anything npm produced (react's yarn.lock is 812 KB and yields 2,388
+// components; turbo's pnpm lock is 2.2 MB), so these are the resolvers where
+// an accidental quadratic would actually show.
+func BenchmarkYarnRealCorpus(b *testing.B) {
+	files := fixtureFiles(b, "yarn", "yarn.lock")
+	if len(files) == 0 {
+		b.Fatal("no yarn fixtures found; the corpus is required for this benchmark")
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, f := range files {
+			if _, err := (yarnResolver{}).Resolve(filepath.Dir(f), "yarn.lock"); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkPnpmRealCorpus(b *testing.B) {
+	files := fixtureFiles(b, "pnpm", "pnpm-lock.yaml")
+	if len(files) == 0 {
+		b.Fatal("no pnpm fixtures found; the corpus is required for this benchmark")
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, f := range files {
+			if _, err := (pnpmResolver{}).Resolve(filepath.Dir(f), "pnpm-lock.yaml"); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkCargoRealCorpus(b *testing.B) {
+	files := fixtureFiles(b, "cargo", "Cargo.lock")
+	if len(files) == 0 {
+		b.Fatal("no cargo fixtures found; the corpus is required for this benchmark")
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, f := range files {
+			if _, err := (cargoResolver{}).Resolve(filepath.Dir(f), "Cargo.lock"); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+// BenchmarkGoModCorpus covers the go.mod fallback, which is the path the
+// OSV lookup bug lived on. It parses require directives rather than a
+// go.sum, so it is a different code path over the same ecosystem.
+func BenchmarkGoModCorpus(b *testing.B) {
+	files := fixtureFiles(b, "gomod", "go.mod")
+	if len(files) == 0 {
+		b.Fatal("no go.mod fixtures found; the corpus is required for this benchmark")
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, f := range files {
+			src, err := os.ReadFile(f)
+			if err != nil {
+				b.Fatal(err)
+			}
+			goModComponents(string(src))
+		}
+	}
+}

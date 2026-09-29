@@ -78,6 +78,22 @@ show up as a percentage.
 - Go: whole corpus, per-line module split
 - PyPI: pyproject corpus, PEP 508 parsing, name normalization
 - the D26 silent-zero guard (`DeclaredDependenciesTOML`)
+- **yarn, pnpm, Cargo, go.mod**: whole real corpus each, added with the
+  resolvers themselves. They are the resolvers where an accidental quadratic
+  would actually show, because the corpus contains files much larger than
+  npm's largest (react 812 KB, turbo 2.2 MB). Measured over the whole corpus
+  with `-benchtime 3x`:
+
+  | benchmark | ns/op | B/op | allocs/op |
+  |---|---|---|---|
+  | `BenchmarkYarnRealCorpus` | 29,321,556 | 39,570,560 | 287,949 |
+  | `BenchmarkPnpmRealCorpus` | 53,310,653 | 69,642,424 | 268,505 |
+  | `BenchmarkCargoRealCorpus` | 5,363,569 | 8,886,312 | 26,081 |
+  | `BenchmarkGoModCorpus` | 11,003,556 | 6,671,928 | 24,716 |
+
+  No thresholds are enforced, deliberately: a benchmark that fails a build
+  on a noisy machine is a benchmark people delete. These exist so a
+  regression is a visible number rather than a vague feeling.
 
 **Not covered, and deliberately named rather than left implied:**
 
@@ -98,11 +114,29 @@ v3 lockfile.
 | operation | median of 3 | note |
 |---|---|---|
 | `sbom generate --format both` | **30 ms** | resolve + serialize, no network |
-| `scan` (warm cache) | 2,256 ms | OSV matching, cache warm |
-| `scan --no-cache` (cold) | 6,022 ms | single run; every component re-queried |
+| `scan` (warm cache) | **1,300 ms** | OSV matching, cache warm; 2,256 ms at v0.1.0 |
+| `scan --no-cache` (cold) | **2,810 ms** | 6,022 ms at v0.1.0; every component re-queried |
+| `scan --scorecard <repo>` | 2,268 ms | + one OpenSSF Scorecard call, the new term |
 
-**NFR-1 (< 30 s) is met with a wide margin**, cold. The target is not
-softened or reinterpreted: 6,022 ms against 30,000 ms.
+**NFR-1 (< 30 s) is met with a wider margin than at v0.1.0.** The target is
+not softened or reinterpreted: 2,810 ms against 30,000 ms, cold.
+
+**The new work did not cost what it looked like it would.** Four resolvers
+were added after v0.1.0 (yarn, pnpm, Cargo, go.mod) and one new network call
+was added (OpenSSF Scorecard). Both were re-measured rather than assumed:
+
+- **Resolution is still negligible.** The new resolvers run over a corpus
+  that includes files an order of magnitude larger than npm's largest —
+  react's `yarn.lock` is 812 KB / 2,388 components, turbo's `pnpm-lock.yaml`
+  is 2.2 MB / 2,217 — and the whole pnpm corpus resolves in **53 ms**. A
+  single `sbom generate` over react is 70 ms.
+- **The Scorecard call is one request**, not per-component, and adds roughly
+  1 s to a cold scan. It is opt-in (`--scorecard`, auto-enabled from the git
+  origin) and `--no-scorecard` skips it entirely.
+- **Cold scans got faster**, 6,022 ms → 2,810 ms, which is network variance
+  and cache state rather than a code change. Both numbers are recorded rather
+  than only the flattering one, because the improvement is not attributable to
+  anything in this release.
 
 The dominant term is OSV, not SCRAM. `sbom generate` does the same
 resolution and serialization with no network at all in 30 ms, so ~99.5% of

@@ -37,6 +37,7 @@
 | [D42](#d42-the-same-epss-and-cvss-on-two-advisories-was-one-bug-not-two) | the same EPSS and CVSS on two advisories was one bug, not two |
 | [D43](#d43-the-windows-ci-failure-took-four-attempts-and-the-log-was-the-answer) | the Windows CI failure took four attempts, and the log was the answer |
 | [D44](#d44-the-invariant-could-not-see-a-bug-that-made-every-gomod-scan-clean) | the invariant could not see a bug that made every go.mod scan clean |
+| [D45](#d45-three-guards-passed-while-missing-the-defect-they-were-written-for) | three guards passed while missing the defect they were written for |
 
 **Numbering gap: D06, D07, D08, D09, D10, D11, D12, D13, D14, D15, D16, D17, D18, D19, D20, D21 do not exist.** D01-D05 were written during the initial build; D22 onward came from the real-world corpus work, which started where the PRD's numbering left off. The gap is recorded rather than back-filled, because inventing decisions after the fact would be writing a fiction about how the code came to be. Nothing is renumbered either: commit messages and code comments already cite the current numbers, and renumbering would break those references for no benefit.
 
@@ -1453,3 +1454,50 @@ someone else's research notes — not by the framework. A test suite that
 reports green while a scanner silently reports vulnerable projects as clean
 is worse than no suite, because it is trusted. The roundtrip requirement
 exists to close that gap; it is the minimum bar, not a sufficient one.
+
+## D45 — three guards passed while missing the defect they were written for
+
+**Context.** D44 recorded a class of bug the invariant cannot see. The natural
+response is to write guards for that class. Three of them were written, and
+all three shipped wrong — in the same way, and all three were found the same
+way: by putting the real defect back and watching the guard stay green.
+
+**`TestKnownVulnerableRoundtripOffline`.** Written to catch the go.mod OSV
+lookup key (`af8e58f`). It built its Go component through the production
+`go.mod` resolver, so it read as though it covered the whole lookup path. It
+did not: the bug was in `goModuleName`, a helper shared with the `go.sum`
+path, and the test also exercised a `go.sum` component. Reverting the shared
+rule left the test passing, because the assertion that mattered was being
+satisfied by the other caller. The fix was to unify both call sites through
+one named rule and break *the rule* rather than a call site. The lesson is
+not "write a better test" — it is that a guard placed one level above the bug
+can be correct about the thing it names and still miss it.
+
+**`internal/badge/badge_test.go`.** The badge renders a presented score, so a
+fixture was built by hand with `RepoScore: 95`. On a 65-point scale 95 is
+impossible, and the test asserted `95/65 critical` — a value the shipped
+clamp exists to prevent. It passed because nothing connected the fixture's
+plausibility to the assertion's meaning. Hand-built fixtures need a stated
+invariant, not just a literal expected string.
+
+**`scripts/check_action_metadata.py`.** Added to stop `action.yml` claiming
+`/100` after the presented scale moved to 65. It searched for the literal
+`/100` and therefore missed the `repo-score` output's description, which said
+`0-100`. That check ran green over the exact defect it was added for. It now
+matches all three spellings that have appeared in that file, each verified by
+reintroducing it.
+
+**Decision.** A new guard must be proven against **every real-world spelling
+and variant** of the defect it claims to catch, not one instance. Before a
+guard is trusted it must have been observed rejecting the actual defect, and
+that rejection must have been read to confirm it failed for the right reason
+— a compile error is not a catch. [TESTING.md](../TESTING.md) states the rule
+with the three instances tabulated.
+
+**The uncomfortable part.** All three guards were written *because* of a real
+bug, in direct response to it, and all three would have been reported as
+"the bug is now covered". A guard that has never rejected anything is an
+unevaluated claim, and the only way to tell the difference is to break the
+thing on purpose. That costs a cycle per guard, which is cheap next to
+shipping a scanner that reports vulnerable projects as clean — but it is not
+automatic, and nothing in the build enforced it.

@@ -197,7 +197,8 @@ runs:
           # scan as the comparison point. This is what makes the Action
           # work on day one with zero setup.
           echo "No committed baseline; scanning the base branch as the baseline"
-          "$RUNNER_TEMP/scram" scan "$RUNNER_TEMP/baseline" \
+          mkdir -p "$RUNNER_TEMP/baseline"
+          "$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}" scan "$RUNNER_TEMP/baseline" \
             --config "$RUNNER_TEMP/baseline/${{ inputs.config-path }}" \
             --format json --no-gate > "$RUNNER_TEMP/base.json"
         fi
@@ -223,10 +224,29 @@ runs:
         [ "${{ inputs.epss }}" = "true" ] && args+=(--epss)
         [ -n "$BASE_JSON" ] && [ -f "$BASE_JSON" ] && args+=(--baseline "$BASE_JSON")
 
+        # The output directory must exist before the shell opens the
+        # redirect target. When it is missing, the redirect fails first,
+        # scram never runs, $? is 1, and the branch below reports
+        # "SCRAM policy check failed" -- blaming the policy for a crash
+        # that happened before the scan started, with every output written
+        # as null. That is the failure the first end-to-end run produced.
+        mkdir -p "$OUT_DIR"
+
+        # Matches the name the install step produced, including the .exe
+        # on Windows. This step hardcoded the bare name, so a Windows
+        # runner would have failed here after installing successfully.
         set +e
-        "$RUNNER_TEMP/scram" "${args[@]}" > "$OUT_DIR/scan.json"
+        "$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}" "${args[@]}" > "$OUT_DIR/scan.json"
         exit_code=$?
         set -e
+
+        # An absent or empty scan.json is a crash, not a verdict. Reported
+        # as its own failure so a user is never told their policy failed
+        # when the scanner produced nothing at all.
+        if [ ! -s "$OUT_DIR/scan.json" ]; then
+          echo "::error::scram produced no output (exit $exit_code) -- scanner failure, not a policy failure"
+          exit 2
+        fi
 
         # Exit 1 is a policy failure (expected, that's the gate working).
         # Exit 2 means the scanner itself broke, which must be distinguished.
@@ -275,7 +295,14 @@ runs:
         [ "${{ inputs.epss }}" = "true" ] && args+=(--epss)
         [ -n "$BASE_JSON" ] && [ -f "$BASE_JSON" ] && args+=(--baseline "$BASE_JSON")
 
-        "$RUNNER_TEMP/scram" "${args[@]}" > "$OUT_DIR/scan.sarif"
+        # Same reason as the scan step: the redirect target's directory has
+        # to exist before the shell opens the file, not after.
+        mkdir -p "$OUT_DIR"
+
+        # The install step names the binary scram.exe on Windows. This step
+        # hardcoded the bare name, so upload-sarif would have failed on a
+        # Windows runner after the install step succeeded.
+        "$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}" "${args[@]}" > "$OUT_DIR/scan.sarif"
 
         # Fail loudly rather than hand GitHub a file that is not SARIF; an
         # invalid upload is silently dropped by the Security tab and looks

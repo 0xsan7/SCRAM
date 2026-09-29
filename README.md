@@ -1,7 +1,7 @@
 # SCRAM
 
-**Supply Chain Risk Assessment & Monitoring** — a dependency scanner that
-answers the question PR gates actually ask: *what did this change?*
+**Supply Chain Risk Assessment & Monitoring.** A dependency scanner built
+around one question: *what did this pull request actually change?*
 
 ```
  ___  ___ ___    _   __  __ 
@@ -12,9 +12,26 @@ answers the question PR gates actually ask: *what did this change?*
 
 [`v0.1.0`](https://github.com/0xsan7/SCRAM/releases/tag/v0.1.0) · released · 5 signed binaries
 
-Most scanners tell you the current state. Almost none tell you what a
-specific pull request *changed* — and that is the only question a reviewer
-can act on.
+## The three things that are hard to get at once
+
+A scanner can do any one of these. Doing all three means the score, the
+diff, and the history all come from the same resolved inventory — no second
+parse, no second database, and nowhere for them to disagree.
+
+**1. Drift, not a score.** A team with 200 pre-existing findings will switch
+off any tool that blocks every PR on day one. SCRAM scans the base branch
+and the head, and blocks only on what is *new*.
+
+**2. Blame, not a timestamp.** Knowing a package is vulnerable is half an
+answer. `scram blame` finds the commit that introduced the version you are
+actually shipping, and who wrote it.
+
+**3. Arithmetic you can check.** `scram scan --explain` prints the numbers
+that produced the score, and names the commit and date of the OpenSSF
+Scorecard behind the maintenance term — so a score nobody measured reads as
+a score nobody measured, instead of looking like a clean bill of health.
+
+## What that looks like on a real pull request
 
 ```console
 $ scram scan --epss
@@ -34,22 +51,54 @@ SCRAM supply chain scan
 CHG  LOW       pkg:npm/lodash@4.17.21
          score 37/100, 2 finding(s)
          N GHSA-r5fr-rjxr-66jc cvss 8.1  epss 21.33%  fixed in 4.18.0
-           GHSA-f23m-r3pf-42rh cvss 6.5  epss   -    fixed in 4.18.0
+           GHSA-f23m-r3pf-42rh cvss 6.5  epss  1.85%  fixed in 4.18.0
 
 FAIL  (fail-on: high, new findings only: true)
   - GHSA-r5fr-rjxr-66jc affects pkg:npm/lodash@4.17.21 (severity high, at or above fail-on high)
 ```
 
 *Real output, from `./examples/lodash-drift/run.sh`: `lodash` 4.17.11 →
-4.17.21 in a git repo with a committed baseline. The `commit` line is the
-one field that differs on every run; everything else is reproduced
-byte-for-byte, including the FAIL and the exit code. Run the script to
-confirm it against whatever OSV says today.*
+4.17.21 in a git repo with a committed baseline. The `commit` line and the
+EPSS percentages are the fields that change between runs, because EPSS is
+recomputed daily upstream; everything else is reproduced byte-for-byte,
+including the FAIL and the exit code. Run the script to confirm it against
+whatever OSV says today.*
+
+`lodash` went **up** a version, and the commit that did it is in the output.
+Four findings went away, one arrived, and the gate names only the new one.
+
+And the same repository, asked about differently. `scram blame` on a full
+clone of lodash:
+
+```console
+$ scram blame pkg:npm/ajv@6.10.2
+
+pkg:npm/ajv@6.10.2
+  current version   6.10.2
+  introduced       8.1y ago, eaa9f36, by John-David Dalton
+                     at 5.5.2
+  last changed      7.2y ago, b185fce, by John-David Dalton
+                     to 6.10.2 — Rebuild lodash and docs.
+  commits scanned   16
+```
+
+The advisory is recent; the dependency has been pinned since 2018. Those
+are different problems with different fixes, and this is what tells them
+apart. In a **shallow clone** — what CI gives you by default — blame
+refuses to guess and says so, rather than reporting the clone date as the
+date the dependency arrived:
+
+```
+WARNING           shallow clone: this is the first commit in the LOCAL history, not necessarily when the dependency arrived
+```
 
 ---
 
 ## Contents
 
+- [The three things that are hard to get at once](#the-three-things-that-are-hard-to-get-at-once)
+- [What that looks like on a real pull request](#what-that-looks-like-on-a-real-pull-request)
+- [How this compares](#how-this-compares)
 - [Why drift beats a score](#why-drift-beats-a-score)
 - [Install](#install)
 - [Quick start](#quick-start)
@@ -60,9 +109,12 @@ confirm it against whatever OSV says today.*
 - [Output formats](#output-formats)
 - [Configuration](#configuration)
 - [Ecosystems](#ecosystems)
+- [Exit codes](#exit-codes)
 - [Limitations](#limitations)
 - [Design notes](#design-notes)
 - [Development](#development)
+- [Project documents](#project-documents)
+
 
 ---
 
@@ -341,11 +393,40 @@ pkg:npm/lodash@4.17.11
       GHSA-29mw-wpgm-hmr9 CVSS 5.3     EPSS 0.0734
 
   exploitability    5 / 25   (EPSS probability x 25)
-  maintenance       0 / 20   (OpenSSF Scorecard, not yet integrated)
+  maintenance       0 / 20   (no OpenSSF Scorecard available for this project;
+                             the term contributes nothing rather than scoring zero)
   freshness         0 / 15   (version distance behind latest)
 
   = total          41 / 100   bucket: medium
 ```
+
+The maintenance term reads the project's [OpenSSF
+Scorecard](https://github.com/ossf/scorecard), so a scored project shows
+where the number came from:
+
+```console
+$ scram scan --scorecard github.com/google/oss-fuzz --explain pkg:npm/handlebars@4.0.11
+  ...
+  exploitability    0 / 25   (EPSS probability x 25)
+  maintenance      14 / 20   (OpenSSF Scorecard 7.0/10, scored 2820b2b at 2026-09-28)
+                    3 of 14 checks did not apply and were excluded from the average
+  freshness         0 / 15   (version distance behind latest)
+
+  = total          53 / 100   bucket: medium
+```
+
+Two things about that line matter more than the number:
+
+- **A check that does not apply is excluded, not counted as zero.** The
+  Scorecard returns `-1` for "packaging workflow not detected" and "no
+  releases found"; averaging those in would understate every project.
+- **Absent is not zero, and it is not an error either.** If the project has
+  no Scorecard, the term contributes nothing and says so, rather than
+  reporting the project as unmaintained. The scan is not failed, because an
+  absent scorecard is not evidence of a problem.
+
+`--scorecard` defaults to the repository's git origin, so the common case
+needs no flag. `--no-scorecard` opts out and stops the request.
 
 | Bucket | Score |
 |---|---|
@@ -365,8 +446,10 @@ Two deliberate choices, both load-bearing:
   score**, because ten high findings are a high-severity situation even
   when no single component reaches 70.
 
-`maintenance` is scored 0/20 today and says so in the output — the
-OpenSSF Scorecard integration is not built.
+The maintenance term is a property of the *repository*, not of each
+dependency, so it is the same for every component in a scan. The Scorecard
+has no per-dependency view, and inventing one would be a number with no
+source behind it.
 
 ## CI integration
 
@@ -465,14 +548,52 @@ scram scan --format json > scan.json
 scram report --from scan.json --format sarif --out results.sarif
 ```
 
-A self-score badge, for a README. It reads a scan document rather than
-taking a number, so the badge cannot claim a score nobody measured:
+### The self-score badge
 
 ```bash
 scram scan --format json > scan.json
 scram badge --in scan.json
-# {"schemaVersion":1,"label":"self score","message":"36/100 low","color":"yellowgreen"}
 ```
+
+Run against this repository:
+
+```json
+{"schemaVersion":1,"label":"self score","message":"0/100 clean","color":"brightgreen"}
+```
+
+`scram badge` reads a scan document rather than taking a number, so the
+badge cannot report a score that was never measured. A document with no
+`repo_bucket` — that is, something that is not a scan report — is
+refused outright rather than rendered as `0/100`.
+
+SCRAM's own CI runs this on every push and publishes `badge.json` as a
+build artifact. It is deliberately **not** committed to this repository:
+a badge checked into a README is a number that stops being true the
+moment someone lands a commit, which is the failure mode the rest of
+this tool is built to avoid. The artifact is regenerated from the same
+scan that produced the CI result, so the two cannot disagree.
+
+### The score trend
+
+Every scan appends to a local history and renders a sparkline once there
+is more than one sample. Captured from six consecutive scans of a
+`lodash@4.17.11` fixture:
+
+```
+SCRAM supply chain scan
+────────────────────────────────────────────────────────────────
+  repo        app
+  components  3
+  findings    21 vulnerability record(s)
+  repo score  39/100  LOW
+  breakdown   critical 0  high 0  medium 0  low 3  clean 0
+  trend       ▁▁▁▁▁▁▁  flat across 7 scans
+```
+
+A flat series sits at the bottom of the glyph range rather than being
+stretched across the full height, so a constant score does not look
+like a dramatic trend. One sample is not a trend and is not drawn.
+`--no-trend` opts out entirely, including writing the history file.
 
 ## Configuration
 

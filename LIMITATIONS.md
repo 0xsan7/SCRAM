@@ -88,6 +88,40 @@ oversight in the silent-zero guard.
 
 ---
 
+## Project-level data
+
+**The maintenance term is repository-level, not per-dependency.** The
+OpenSSF Scorecard measures the project being scanned, so all components in
+one scan get the same maintenance points. The Scorecard has no
+per-dependency view, and deriving one from a dependency's own repository
+would be a different feature with different failure modes.
+
+**A project with no Scorecard scores 0 points on maintenance — which is
+not the same as scoring badly.** Scorecard only runs on projects it has
+been asked to scan, so small and new repositories are routinely absent.
+The term contributes nothing, the scan is not failed, and `--explain`
+says "no OpenSSF Scorecard available" rather than implying a measurement.
+A missing input is not evidence of a problem.
+
+**Inapplicable Scorecard checks are excluded, which can flatter a
+project.** Roughly a fifth of checks return `-1` on any given repository
+("packaging workflow not detected", "no releases found"). Averaging those
+as zeroes would understate every project, so they are dropped — and
+`--explain` prints how many were dropped, because a score computed from
+11 of 14 checks is a weaker claim than one computed from all 14.
+
+**The Scorecard is a third-party opinion and it goes stale.** The score
+reflects when the Scorecard last ran, not when you last scanned;
+`--explain` prints that date and the commit it evaluated. The upstream
+API is also intermittently slow to answer, and a project can be absent
+from it for a long time.
+
+**`--scorecard` reads `.git/config` directly** and does not shell out to
+git, so a scan cannot hang on a credential prompt. In a linked worktree or
+a submodule, where `.git` is a file rather than a directory, it follows
+`commondir` to the shared repository. An exotic layout it does not
+recognise falls back to no maintenance score rather than a guess.
+
 ## Vulnerability data
 
 **OSV is the only source.** NVD and GHSA are not queried directly; GHSA records

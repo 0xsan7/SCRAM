@@ -149,9 +149,16 @@ jobs:
         run: ./scram scan . --sbom cyclonedx,spdx --epss
 
       - name: Save the score for the badge
-        # The README carries a live self-score badge. It is generated from
-        # THIS scan rather than a second one, so the badge and the CI result
-        # cannot disagree.
+        # The self-score badge is generated from THIS scan rather than a
+        # second one, so the badge and the CI result cannot disagree.
+        #
+        # The previous comment here said "The README carries a live
+        # self-score badge". It does not, and it should not: the badge is
+        # an artifact of this run, not a file in the repository. A
+        # committed badge is a number that stops being true the moment
+        # someone lands a commit, which is the exact failure this tool
+        # exists to prevent. The README documents the command and shows
+        # its real output.
         run: ./scram scan . --format json > scram-selfscan.json
 
       - name: Render the self-score badge

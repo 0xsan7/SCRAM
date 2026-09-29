@@ -264,7 +264,7 @@ func expandFormats(s string) []string {
 // A directory that is not a git repository yields "" and the maintenance term
 // is simply not computed.
 func gitOriginProject(path string) string {
-	raw, err := os.ReadFile(filepath.Join(path, ".git", "config"))
+	raw, err := readGitConfig(path)
 	if err != nil {
 		return ""
 	}
@@ -323,4 +323,58 @@ func originRemotes(config string) []string {
 	}
 	flush()
 	return remotes
+}
+
+// readGitConfig reads the config for a repository rooted at path.
+//
+// Three shapes exist, and only the first is obvious:
+//
+//	ordinary clone   .git/            is a directory; read .git/config
+//	linked worktree  .git             is a FILE: "gitdir: .../worktrees/<n>"
+//	submodule        .git             is a FILE: "gitdir: .../modules/<n>"
+//
+// In the last two, the named directory holds a `commondir` file whose
+// contents are the path to the shared repository -- and that shared
+// repository is where `[remote "origin"]` actually lives. Reading
+// ".git/config" there returns nothing, and the maintenance term then
+// silently drops to zero, which looks like "the tool decided this project
+// is unmaintained". That is the failure this handles.
+//
+// `commondir` is the documented mechanism for exactly this walk, so it is
+// used rather than reconstructing the `worktrees/<name>` layout by hand.
+func readGitConfig(path string) ([]byte, error) {
+	gitPath := filepath.Join(path, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return os.ReadFile(filepath.Join(gitPath, "config"))
+	}
+
+	raw, err := os.ReadFile(gitPath)
+	if err != nil {
+		return nil, err
+	}
+	line := strings.TrimSpace(string(raw))
+	gitDir, ok := strings.CutPrefix(line, "gitdir:")
+	if !ok {
+		return nil, fmt.Errorf("unrecognised .git file: %q", line)
+	}
+	gitDir = strings.TrimSpace(gitDir)
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(path, gitDir)
+	}
+
+	// The worktree's own directory has no config. Its `commondir` points at
+	// the shared repository that does.
+	commonRaw, err := os.ReadFile(filepath.Join(gitDir, "commondir"))
+	if err != nil {
+		return nil, fmt.Errorf("no commondir for %s: %w", gitDir, err)
+	}
+	common := strings.TrimSpace(string(commonRaw))
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(gitDir, common)
+	}
+	return os.ReadFile(filepath.Join(common, "config"))
 }

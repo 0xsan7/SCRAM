@@ -328,7 +328,7 @@ func TestExplainOutput(t *testing.T) {
 	c.Score = &model.Score{Total: 30, Severity: 30}
 	c.Bucket = model.BucketLow
 	var buf bytes.Buffer
-	if err := Explain(&buf, c); err != nil {
+	if err := Explain(&buf, c, score.MaintenanceProvenance{}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(buf.String(), "pkg:npm/x@1.0.0") {

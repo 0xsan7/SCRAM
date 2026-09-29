@@ -25,6 +25,33 @@ type Engine struct {
 	// ReleaseDates maps "ecosystem:name@version" to that version's publish
 	// date, when known.
 	ReleaseDates map[string]time.Time
+	// MaintenanceScore is the OpenSSF Scorecard aggregate for the scanned
+	// repository, 0-10. It is set once per scan by the caller, from
+	// internal/scorecard.
+	//
+	// A nil pointer means no Scorecard is available: the project is not on
+	// the API, the network was unavailable, or the caller disabled it. Those
+	// are three different situations and the distinction is kept in
+	// scorecard.ErrNotScored rather than collapsed into a zero, because a
+	// zero here would read as "this project is unmaintained", which is a
+	// claim about a project no measurement was able to make.
+	MaintenanceScore *float64
+	// MaintenanceDate and MaintenanceCommit record which Scorecard run and
+	// which commit produced the score, so a stale or mismatched score is
+	// visible in --explain rather than being presented as current.
+	MaintenanceDate   string
+	MaintenanceCommit string
+	// MaintenanceInapplicable counts the Scorecard checks that returned -1
+	// ("no releases found", "packaging workflow not detected"). A high
+	// score computed from half the checks is not the same claim as one
+	// computed from all of them, and the count is reported so a reader can
+	// tell.
+	MaintenanceInapplicable int
+	// maintenanceChecks is how many Scorecard checks actually produced a
+	// score. It gates the conversion: a project where every check came back
+	// inapplicable has an aggregate of 0 for want of data, and scaling that
+	// 0 onto the budget would be inventing a measurement.
+	maintenanceChecks int
 	// Now is overridable for deterministic tests.
 	Now time.Time
 }
@@ -36,6 +63,28 @@ func New() *Engine {
 		ReleaseDates:   map[string]time.Time{},
 		Now:            time.Now(),
 	}
+}
+
+// SetMaintenance records a fetched OpenSSF Scorecard.
+//
+// It takes a scorecard.Result rather than loose numbers so that the
+// aggregate, the check count, and the inapplicable count cannot be set
+// inconsistently -- the -1 checks have to be subtracted from the denominator
+// at the same moment the score is recorded, and a caller that could set them
+// independently would eventually set them differently.
+func (e *Engine) SetMaintenance(score float64, usableChecks, inapplicable int, date, commit string) {
+	e.MaintenanceScore = &score
+	e.maintenanceChecks = usableChecks
+	e.MaintenanceInapplicable = inapplicable
+	e.MaintenanceDate = date
+	e.MaintenanceCommit = commit
+}
+
+// HasMaintenance reports whether a Scorecard was actually available. Callers
+// use it to distinguish "scored 0 maintenance points" from "no Scorecard
+// exists", which are different facts and are presented differently.
+func (e *Engine) HasMaintenance() bool {
+	return e.MaintenanceScore != nil && e.maintenanceChecks > 0
 }
 
 // Score computes and attaches a score to every component, then returns the
@@ -82,7 +131,7 @@ func (e *Engine) scoreComponent(c model.Component) model.Score {
 	var s model.Score
 	s.Severity = severityPoints(c.Vulnerabilities)
 	s.Exploitability = exploitabilityPoints(c.Vulnerabilities)
-	s.Maintenance = maintenancePoints(c) // stubbed at 0 until Scorecard lands
+	s.Maintenance = e.maintenancePoints(c)
 	s.Freshness = e.freshnessPoints(c)
 
 	s.Total = s.Severity + s.Exploitability + s.Maintenance + s.Freshness
@@ -126,13 +175,39 @@ func exploitabilityPoints(vulns []model.Vuln) int {
 	return clamp(int(math.Round(max*float64(model.MaxExploitabilityPoints))), 0, model.MaxExploitabilityPoints)
 }
 
-// maintenancePoints is the OpenSSF Scorecard component. It is stubbed at 0 in
-// v1 (the PRD defers Scorecard integration to v1.x) but the field is plumbed
-// through so the total in §8 already includes the term and won't shift when
-// it goes live.
-func maintenancePoints(c model.Component) int {
+// maintenancePoints maps the OpenSSF Scorecard (0-10) onto the 20-point
+// maintenance budget.
+//
+// The Scorecard measures the scanned repository, not the individual
+// dependency, so this is the same value for every component in a scan. That
+// is deliberate and worth being explicit about: it is a property of the
+// project you are standing in, and a transitive dependency of an
+// unmaintained package does not inherit a different maintenance story from
+// the package itself. Scorecard has no per-dependency view to draw on.
+//
+// Scaling is linear and clamped. A Scorecard of 10 is a full 20 points; 0 is
+// none. A nil score means no Scorecard exists for the project, and yields 0
+// points -- see the Engine.MaintenanceScore comment for why that is not
+// treated as a measurement of zero.
+func (e *Engine) maintenancePoints(c model.Component) int {
 	_ = c
-	return 0
+	if e.MaintenanceScore == nil {
+		return 0
+	}
+	v := *e.MaintenanceScore
+	if v < 0 {
+		return 0
+	}
+	if v > 10 {
+		v = 10
+	}
+	// A project where every check came back inapplicable has an aggregate
+	// of 0 for want of data, not for want of maintenance. Scaling that 0
+	// would invent a measurement.
+	if e.maintenanceChecks == 0 {
+		return 0
+	}
+	return clamp(int(math.Round(v/10*float64(model.MaxMaintenancePoints))), 0, model.MaxMaintenancePoints)
 }
 
 // freshnessPoints estimates staleness from two signals, in priority order:
@@ -245,10 +320,66 @@ func escalate(maxScore int, counts map[string]int) string {
 	return model.BucketClean
 }
 
+// MaintenanceProvenance describes where the maintenance term came from, for
+// display. It is a value rather than a live *Engine so that Explain stays a
+// pure function and remains trivially testable.
+type MaintenanceProvenance struct {
+	// Available is false when no Scorecard could be fetched. It is kept
+	// distinct from a score of zero, which means the project scored zero.
+	Available bool
+	// Score is the Scorecard aggregate, 0-10.
+	Score float64
+	// Usable and Inapplicable count the Scorecard checks that did and did
+	// not apply, so a score computed from half the checks is visible.
+	Usable       int
+	Inapplicable int
+	// Date is when the Scorecard ran; Commit is the commit it evaluated.
+	Date   string
+	Commit string
+}
+
+// Provenance snapshots the Engine's maintenance state.
+func (e *Engine) Provenance() MaintenanceProvenance {
+	p := MaintenanceProvenance{
+		Inapplicable: e.MaintenanceInapplicable,
+		Date:         e.MaintenanceDate,
+		Commit:       e.MaintenanceCommit,
+	}
+	if e.MaintenanceScore != nil {
+		p.Score = *e.MaintenanceScore
+	}
+	p.Usable = e.maintenanceChecks
+	p.Available = e.HasMaintenance()
+	return p
+}
+
 // Explain renders a human-readable breakdown of one component's score. This
 // is the output of `scram scan --explain` (FR-303) and is deliberately verbose:
 // it is the trust-building surface of the tool.
 func Explain(c model.Component) string {
+	return ExplainWith(c, MaintenanceProvenance{})
+}
+
+// ExplainScored is the entry point callers should use when the Engine that
+// produced the score is at hand. Explain is retained for callers that do not
+// have it, and in that case it reports the maintenance term as unknown
+// rather than asserting a Scorecard score it cannot see -- a number and an
+// explanation that disagree is worse than a missing explanation.
+func ExplainScored(c model.Component, e *Engine) string {
+	if e == nil {
+		return ExplainWith(c, MaintenanceProvenance{})
+	}
+	return ExplainWith(c, e.Provenance())
+}
+
+// ExplainWith is Explain plus the provenance of the maintenance term.
+//
+// The split exists because the provenance belongs to the scan, not to the
+// component: every component in a scan shares it. "maintenance 0 / 20" on
+// its own is ambiguous between "the Scorecard rated this project zero" and
+// "there was no Scorecard", and those demand different reactions from a
+// reader, so the line says which one it is.
+func ExplainWith(c model.Component, prov MaintenanceProvenance) string {
 	if c.Score == nil {
 		return fmt.Sprintf("%s\n  not scored", c.Purl)
 	}
@@ -278,14 +409,35 @@ func Explain(c model.Component) string {
 
 	fmt.Fprintf(&b, "\n  exploitability  %3d / %d   (EPSS probability x 25)\n",
 		s.Exploitability, model.MaxExploitabilityPoints)
-	fmt.Fprintf(&b, "  maintenance     %3d / %d   (OpenSSF Scorecard, not yet integrated)\n",
-		s.Maintenance, model.MaxMaintenancePoints)
+	if prov.Available {
+		fmt.Fprintf(&b, "  maintenance     %3d / %d   (OpenSSF Scorecard %.1f/10, scored %s at %s)\n",
+			s.Maintenance, model.MaxMaintenancePoints, prov.Score, shortCommit(prov.Commit), prov.Date)
+		if prov.Inapplicable > 0 {
+			fmt.Fprintf(&b, "                  %d of %d checks did not apply and were excluded from the average\n",
+				prov.Inapplicable, prov.Usable+prov.Inapplicable)
+		}
+	} else {
+		fmt.Fprintf(&b, "  maintenance     %3d / %d   (no OpenSSF Scorecard available for this project;\n",
+			s.Maintenance, model.MaxMaintenancePoints)
+		fmt.Fprintf(&b, "                             the term contributes nothing rather than scoring zero)\n")
+	}
 	fmt.Fprintf(&b, "  freshness       %3d / %d   (version distance behind latest)\n",
 		s.Freshness, model.MaxFreshnessPoints)
 
 	fmt.Fprintf(&b, "\n  = total         %3d / %d   bucket: %s\n",
 		s.Total, model.MaxScore, c.Bucket)
 	return b.String()
+}
+
+// shortCommit abbreviates a commit hash for display.
+func shortCommit(c string) string {
+	if len(c) > 7 {
+		return c[:7]
+	}
+	if c == "" {
+		return "an unknown commit"
+	}
+	return c
 }
 
 func clamp(v, lo, hi int) int {

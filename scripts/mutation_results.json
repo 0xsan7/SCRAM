@@ -1,5 +1,30 @@
 [
   {
+    "id": "A2-all-inapplicable-scales",
+    "status": "killed",
+    "why": "caught by internal/score"
+  },
+  {
+    "id": "A2-empty-checks-accepted",
+    "status": "killed",
+    "why": "caught by internal/scorecard"
+  },
+  {
+    "id": "A2-inapplicable-averaged",
+    "status": "killed",
+    "why": "caught by internal/scorecard"
+  },
+  {
+    "id": "A2-maint-stubbed",
+    "status": "killed",
+    "why": "caught by internal/score"
+  },
+  {
+    "id": "A2-unscored-is-zero",
+    "status": "killed",
+    "why": "caught by internal/scorecard"
+  },
+  {
     "id": "CVSS-scope",
     "status": "killed",
     "why": "caught by internal/vuln"

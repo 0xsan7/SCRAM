@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,6 +27,10 @@ type scanFlags struct {
 	explain     string
 	epss        bool
 	skipVuln    bool
+	// scorecardRepo names the project whose OpenSSF Scorecard feeds the
+	// maintenance term. Empty means the term is not computed.
+	scorecardRepo string
+	noScorecard   bool
 	// noGate skips the pass/fail decision, for exploring a repo.
 	noGate bool
 	// trendPath is the local score history file. Empty disables the sparkline
@@ -62,6 +67,8 @@ what changed. Exits non-zero when policy fails.`,
 	f.BoolVar(&sf.epss, "epss", false, "enable EPSS exploitability scoring (more upstream requests)")
 	f.BoolVar(&sf.skipVuln, "sbom-only", false, "generate SBOMs and skip vulnerability scanning (fast path)")
 	f.BoolVar(&sf.noGate, "no-gate", false, "always exit 0; report findings without gating")
+	f.StringVar(&sf.scorecardRepo, "scorecard", "", "repo whose OpenSSF Scorecard feeds the maintenance term (host/owner/name or owner/name)")
+	f.BoolVar(&sf.noScorecard, "no-scorecard", false, "do not fetch an OpenSSF Scorecard even if --scorecard is given")
 
 	return cmd
 }
@@ -88,6 +95,15 @@ func runScan(cmd *cobra.Command, args []string) error {
 		Offline:      g.offline,
 		SkipVuln:     sf.skipVuln,
 		EPSS:         sf.epss,
+		// The Scorecard defaults to the git origin when there is one, so
+		// the common case needs no flag at all. A repository with no
+		// origin simply gets no maintenance term, which is correct:
+		// there is no project to look up.
+		ScorecardRepo: sf.scorecardRepo,
+		NoScorecard:   sf.noScorecard,
+	}
+	if opts.ScorecardRepo == "" && !sf.noScorecard {
+		opts.ScorecardRepo = gitOriginProject(path)
 	}
 
 	// Only diff against a baseline if one actually exists. A missing baseline
@@ -125,7 +141,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		case 0:
 			return fmt.Errorf("no component matching %q; run `scram scan --format json` to list components", sf.explain)
 		case 1:
-			return report.Explain(os.Stdout, matches[0])
+			return report.Explain(os.Stdout, matches[0], result.Maintenance)
 		default:
 			names := make([]string, 0, len(matches))
 			for _, m := range matches {
@@ -234,4 +250,77 @@ func expandFormats(s string) []string {
 		out = append(out, f)
 	}
 	return out
+}
+
+// gitOriginProject reads the repository's origin remote and returns it in a
+// form the Scorecard API accepts, or "" if there isn't one.
+//
+// This reads a file; it never runs `git` and never touches the network. A
+// subprocess here would let an ordinary scan hang on a credential prompt,
+// and a scan is not the place to introduce that risk. The blame package does
+// shell out to git, but it does so as an explicit user-requested feature
+// with a context and a timeout; this runs on every scan.
+//
+// A directory that is not a git repository yields "" and the maintenance term
+// is simply not computed.
+func gitOriginProject(path string) string {
+	raw, err := os.ReadFile(filepath.Join(path, ".git", "config"))
+	if err != nil {
+		return ""
+	}
+	for _, url := range originRemotes(string(raw)) {
+		return url
+	}
+	return ""
+}
+
+// originRemotes extracts remote URLs from a git config file.
+//
+// It is a deliberately small reader for the one shape SCRAM needs --
+// [remote "name"] sections with a url key -- rather than a general INI
+// parser. A comment (# or ;) ends a line, keys and values are trimmed, and a
+// line that is not a section header or a key is ignored. Anything more
+// elaborate would be a git-config implementation with none of git's edge
+// cases, which is worse than a small correct one.
+func originRemotes(config string) []string {
+	var (
+		remotes   []string
+		inRemote  bool
+		remoteURL []string
+	)
+	flush := func() {
+		if inRemote && len(remoteURL) > 0 {
+			remotes = append(remotes, remoteURL[0])
+		}
+		remoteURL = nil
+	}
+	for _, line := range strings.Split(config, "\n") {
+		if i := strings.IndexAny(line, "#;"); i >= 0 {
+			line = line[:i]
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			flush()
+			// [remote "origin"] -- a bare [remote] is not a named remote.
+			inRemote = strings.HasPrefix(line, `[remote "`) && strings.HasSuffix(line, `"]`)
+			continue
+		}
+		if !inRemote {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(key) == "url" {
+			if v := strings.TrimSpace(value); v != "" {
+				remoteURL = append(remoteURL, v)
+			}
+		}
+	}
+	flush()
+	return remotes
 }

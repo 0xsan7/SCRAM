@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"score\":0,\"checks\":[{\"name\":\"\",\"0000\xd9\xcf0\":0},{\"name\":\"0\",\"score\":0}]}")

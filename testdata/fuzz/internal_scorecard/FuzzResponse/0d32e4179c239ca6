@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"date\":\"2c26-09-28\",\"repo\":{\"name\":\"github.com/o/r\",\"0ommit\":\"abc\"},\"score\":7.5,\"checks\":[{\"name\":\"Maintained\",\"score\":10,\"reason\":\"ok\"}]}")

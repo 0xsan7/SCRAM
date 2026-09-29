@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"score\":-1,\"checks\":[{\"name=:\"A\",\"score\":-1}]}")

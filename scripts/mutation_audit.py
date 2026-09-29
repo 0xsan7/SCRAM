@@ -124,6 +124,44 @@ MUTANTS = [
      "scopeWeight = 0.914",
      "scopeWeight = 1.0",
      ["internal/vuln"]),
+
+    # --- A2: OpenSSF Scorecard maintenance term ---------------------------
+    # Reverting the integration must be caught, not merely noticed.
+    #
+    # M-SCORE-MAINT-STUB restores the original hardcoded 0, which is the
+    # exact state the term was in before this work.
+    ("A2-maint-stubbed", "internal/score/score.go",
+     "\treturn clamp(int(math.Round(v/10*float64(model.MaxMaintenancePoints))), 0, model.MaxMaintenancePoints)",
+     "\t_ = v\n\treturn 0",
+     ["internal/score"]),
+
+    # Counting an inapplicable (-1) check as a zero would drag the average
+    # down. NewResult drops them; this mutant puts them back.
+    ("A2-inapplicable-averaged", "internal/scorecard/scorecard.go",
+     "\t\tif c.Score < 0 {\n\t\t\tout.Inapplicable++\n\t\t\tcontinue\n\t\t}",
+     "\t\tif c.Score < 0 {\n\t\t\tout.Inapplicable++\n\t\t}",
+     ["internal/scorecard"]),
+
+    # A project with no usable checks must contribute nothing rather than
+    # being scaled from a meaningless aggregate of 0.
+    ("A2-all-inapplicable-scales", "internal/score/score.go",
+     "\tif e.maintenanceChecks == 0 {\n\t\treturn 0\n\t}",
+     "\tif false {\n\t\treturn 0\n\t}",
+     ["internal/score"]),
+
+    # A 404 from the API must be a distinct "not scored" state, not a
+    # silently swallowed error and not a zero score.
+    ("A2-unscored-is-zero", "internal/scorecard/scorecard.go",
+     "\tif resp.StatusCode == http.StatusNotFound {\n\t\treturn nil, &ErrNotScored{Repo: name}\n\t}",
+     "\tif resp.StatusCode == http.StatusNotFound {\n\t\treturn &Result{}, nil\n\t}",
+     ["internal/scorecard"]),
+
+    # A 200 carrying no checks is a broken response; accepting it is the
+    # silent-zero failure mode this project already has three instances of.
+    ("A2-empty-checks-accepted", "internal/scorecard/scorecard.go",
+     "\tif len(payload.Checks) == 0 {\n\t\treturn nil, fmt.Errorf(\"scorecard: %s: response contained no checks\", name)\n\t}",
+     "\tif false {\n\t\treturn nil, nil\n\t}",
+     ["internal/scorecard"]),
 ]
 
 

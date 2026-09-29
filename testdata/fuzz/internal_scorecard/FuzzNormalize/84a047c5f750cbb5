@@ -1,0 +1,2 @@
+go test fuzz v1
+string("aaaaaaaaa^0000/000")

@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"repo\":{},\"\":{},\"CheCks\":[{\"\":{}},{\"\":{}},{\"\":{}},{\"\":{}},{\"0000aaaa\":{}},{\"aaaaaaaaaaaaa\":{}},{\"aaaaaaaaaaaaa\":{}},{\"aaaaaaaaaaaaa\":{}},{\"aaaaaaaaaaaaa\":{}},{\"\x80aaa\":\"\",\"aaaaaaaaaaaaa\":{}},{\"aaaaaaaaaaaaa\":{}},{\"aaaaaaaaaaaaa\":{}},{\"aaaaaaaaaaaaa\":{}},{\"aaaaaaaaaaaaa\":{}}]}")

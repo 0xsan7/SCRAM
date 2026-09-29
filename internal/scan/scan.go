@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/0xsan7/scram/internal/resolve"
 	"github.com/0xsan7/scram/internal/sbom"
 	"github.com/0xsan7/scram/internal/score"
+	"github.com/0xsan7/scram/internal/scorecard"
 	"github.com/0xsan7/scram/internal/vuln"
 	"strings"
 )
@@ -47,6 +49,17 @@ type Options struct {
 	CacheDir string
 	// CacheTTL overrides the default 6h.
 	CacheTTL time.Duration
+	// ScorecardRepo is the project whose OpenSSF Scorecard feeds the
+	// maintenance term, in host/owner/name or owner/name form. Empty
+	// disables the term, which is the correct behaviour for a directory
+	// that is not a repository.
+	ScorecardRepo string
+	// NoScorecard skips the fetch even when ScorecardRepo is set.
+	NoScorecard bool
+	// ScorecardClient is injectable for tests. Nil means the real API.
+	ScorecardClient *scorecard.Client
+	// ScorecardHTTP is injectable for tests. Nil means a default client.
+	ScorecardHTTP *http.Client
 }
 
 // Result bundles everything a scan produced.
@@ -65,6 +78,11 @@ type Result struct {
 	// from the same component list as Scan, so it can never disagree with what
 	// the SBOM says. May be nil for ecosystems that record no parentage.
 	Graph *graph.Graph
+	// Maintenance records where the maintenance term came from, so that
+	// --explain can attribute the number it prints. It is carried on the
+	// Result rather than recomputed because the explanation and the score
+	// must be describing the same fetch.
+	Maintenance score.MaintenanceProvenance
 }
 
 // DefaultCacheDir is where vulnerability results are cached between runs.
@@ -205,6 +223,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 
 	// 4. Score.
 	engine := score.New()
+	attachMaintenance(ctx, opts, engine, &scan)
 	scan.Summary = engine.Score(scan.Components)
 	// 5. SBOM files (after scoring, so the SBOM can carry vuln data).
 	paths, err := writeSBOMs(opts, scan)
@@ -212,7 +231,10 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		scan.Warnings = append(scan.Warnings, fmt.Sprintf("writing SBOM: %v", err))
 	}
 
-	result := &Result{Scan: scan, SBOMPaths: paths, Degraded: resultDegraded}
+	result := &Result{
+		Scan: scan, SBOMPaths: paths, Degraded: resultDegraded,
+		Maintenance: engine.Provenance(),
+	}
 	// Built from the same de-duplicated component list, so the graph can never
 	// name a component the SBOM omitted.
 	result.Graph = graph.Build(scan.Components, rawEdges)
@@ -400,4 +422,53 @@ func indexOf(s, sub string) int {
 		}
 	}
 	return -1
+}
+
+// attachMaintenance fetches the OpenSSF Scorecard and records it on the
+// engine.
+//
+// Three failure modes, three different treatments, and the distinctions
+// matter because the alternative is a maintenance score that no measurement
+// produced:
+//
+//   - The project has no Scorecard (scorecard.ErrNotScored). Normal. Small
+//     projects are routinely absent from the API. The term contributes
+//     nothing and a warning is recorded, so the absence is visible in the
+//     scan output rather than being indistinguishable from a zero.
+//   - The API is unreachable or returned garbage. Also a warning, and also
+//     not a zero, for the same reason.
+//   - Offline. Skipped without an attempt, because a scan asked not to use
+//     the network should not quietly use it.
+//
+// In none of these cases does the scan FAIL. The maintenance term is one
+// input among several and an absent one is not evidence of a problem; the
+// vulnerability path is where failing closed belongs, and it does that
+// separately. What must not happen is a scan reporting a maintenance score
+// it did not measure.
+func attachMaintenance(ctx context.Context, opts Options, engine *score.Engine, scan *model.Scan) {
+	if opts.ScorecardRepo == "" || opts.NoScorecard || opts.Offline {
+		return
+	}
+	client := opts.ScorecardClient
+	if client == nil {
+		client = scorecard.New()
+	}
+	if opts.ScorecardHTTP != nil {
+		client.HTTP = opts.ScorecardHTTP
+	}
+	res, err := client.Fetch(ctx, opts.ScorecardRepo)
+	if err != nil {
+		var unscored *scorecard.ErrNotScored
+		if errors.As(err, &unscored) {
+			scan.Warnings = append(scan.Warnings, fmt.Sprintf(
+				"no OpenSSF Scorecard for %s; the maintenance term contributes nothing "+
+					"(this is not a score of zero)", unscored.Repo))
+			return
+		}
+		scan.Warnings = append(scan.Warnings, fmt.Sprintf(
+			"OpenSSF Scorecard unavailable for %s: %v; the maintenance term contributes nothing",
+			opts.ScorecardRepo, err))
+		return
+	}
+	engine.SetMaintenance(res.Score, len(res.Checks), res.Inapplicable, res.Date, res.Commit)
 }

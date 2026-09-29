@@ -314,7 +314,11 @@ func findDrift(d *model.DiffResult, purl string) *model.Drift {
 }
 
 // Explain renders a single component's score breakdown for `--explain`.
-func Explain(w io.Writer, c model.Component) error {
-	_, err := io.WriteString(w, score.Explain(c))
+//
+// The provenance is passed rather than looked up so the explanation cannot
+// disagree with the score it is explaining: printing "14 / 20" next to "no
+// Scorecard available" is the contradiction this argument exists to prevent.
+func Explain(w io.Writer, c model.Component, prov score.MaintenanceProvenance) error {
+	_, err := io.WriteString(w, score.ExplainWith(c, prov))
 	return err
 }

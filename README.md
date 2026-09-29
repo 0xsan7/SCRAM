@@ -164,6 +164,19 @@ Conceding these is the point of the table.
   PR gate for public repositories**, with a dependency diff rendered
   natively on the PR's Files Changed tab. You need no tool from this
   page to get that.
+- **GitHub's dependency graph REST API also diffs any two commits**,
+  not just a pull request, so a base-vs-head comparison is available
+  without a PR. What it diffs is still the dependency inventory, and it
+  still reads from the dependency-submission API — which is why
+  GitHub ships a `retry-on-snapshot-warnings` input: their own diff
+  primitive can silently miss changes when those snapshots are racy.
+  Silent under-reporting is a failure mode, and it is not one this tool
+  has.
+- **Grype keeps its vulnerability database in a downloaded cache**,
+  which is a different model from SCRAM's: SCRAM asks OSV and FIRST per
+  scan and caches the answers, so there is no index to age out of date.
+  A locally-cached database is faster and air-gappable, and it is also a
+  thing that can go stale without anyone noticing.
 
 ### The two claims worth making anyway
 

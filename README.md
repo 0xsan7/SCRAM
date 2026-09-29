@@ -66,6 +66,87 @@ confirm it against whatever OSV says today.*
 
 ---
 
+## How this compares
+
+Most of this table is not in SCRAM's favour. It is here because a
+comparison that only lists your own column is marketing, and because you
+should be able to check it.
+
+Two of the claims a smaller tool would make are false, and they are
+corrected in the notes below rather than quietly omitted.
+
+| | [Trivy](https://github.com/aquasecurity/trivy) | [Grype](https://github.com/anchore/grype) | [OSV-Scanner](https://github.com/google/osv-scanner) | [Snyk](https://snyk.io) | [dependency-review-action](https://github.com/actions/dependency-review-action) | **SCRAM** |
+|---|---|---|---|---|---|---|
+| **License** | Apache-2.0 | Apache-2.0 | Apache-2.0 | Proprietary | MIT (service is paid for private repos) | Apache-2.0 |
+| **Ecosystems** | 13 langs + 20+ OS distros | 11 langs + OS | **13 langs, ~29 lockfile formats** | broad, per-language | **19** | 3 (npm, PyPI, Go) |
+| **Fails a PR on new findings** | no | no | no | PR checks, not a finding diff | **yes, natively** | **yes, finding-level** |
+| **Attributes a vulnerable version to the commit that introduced it** | no | no | no | no | no | **yes** |
+| **EPSS in default output** | **no** | **yes** | no | yes (prioritization) | no | yes |
+| **Scoring you can inspect** | documented vendor/CVSS policy | **`grype explain` + match types + RISK** | open DB provenance | **no** | no | printed arithmetic per component |
+| **Runs without network** | yes | yes, but hard-fails on a DB over 5 days old | `--offline` | no (hosted) | no (hosted API) | yes, fails closed |
+| **Scans more than dependencies** | **containers, VMs, k8s, IaC, secrets** | SBOM in/out | **C/C++ vendored, Maven transitive resolution** | **SAST, DAST, containers, IaC, secrets** | no | no |
+
+### What the other tools do better
+
+Conceding these is the point of the table.
+
+- **Ecosystem breadth is not close.** OSV-Scanner reads ~29 lockfile
+  formats across 13 languages; GitHub's dependency graph covers 19.
+  SCRAM reads three. If your project is a Kotlin service or a Rust
+  binary, use one of them instead of SCRAM — this is a scope decision,
+  not a technical one, and it is the single largest gap here.
+- **Trivy scans things that are not lockfiles at all**: container
+  images, VM images, Kubernetes clusters, IaC misconfigurations, and
+  secrets. SCRAM reads dependency manifests. If you need a container
+  posture, Trivy is a different and much larger tool.
+- **Grype already ships EPSS, CISA KEV, and a combined RISK score in
+  its default table**, and has a `grype explain` subcommand and
+  per-match provenance (`exact-direct-match`, `cpe-match`) that is at
+  least a peer to "the arithmetic is printed." Do not read this table
+  as claiming SCRAM owns inspectability or EPSS.
+- **Snyk is a commercial product with a web UI**, organisation-wide
+  dashboards, SLA reporting, and automated Fix PRs that open the pull
+  request for you. That is real product surface and none of it is in
+  scope here.
+- **GitHub's dependency-review-action is a working, free, org-enforceable
+  PR gate for public repositories**, with a dependency diff rendered
+  natively on the PR's Files Changed tab. You need no tool from this
+  page to get that.
+
+### The two claims worth making anyway
+
+- **Finding-level drift.** GitHub's action diffs the *dependency
+  inventory* — which packages were added. SCRAM diffs the *findings*: it
+  scans the base branch and the head, and blocks only on vulnerabilities
+  that are new. If a package you already ship is newly disclosed as
+  critical, GitHub's gate does not go red; SCRAM's does. GitHub's
+  dependency-submission snapshots can also be missing or stale, in which
+  case it sees fewer changes than exist.
+- **Per-commit blame of a vulnerable dependency.** None of the five
+  attributes a vulnerable *version* to the commit that introduced it. Snyk
+  is the interesting case: its entire 608KB documentation corpus
+  contains zero hits for `git history`, `blame`, or `introducing
+  commit`. (GitHub's *code scanning* product does track introducing
+  commits — for source-code findings, on a different data model. That is
+  not dependency blame.)
+
+### What is not a differentiator
+
+- **EPSS.** Grype and Snyk have it. SCRAM having it is table stakes.
+- **Explainable scoring.** Competitive, not unique. Grype's `explain`,
+  RISK, and match-type provenance are a fair peer. The claim that is
+  true is narrower: SCRAM prints the arithmetic *per component*, and
+  `--explain` names the commit and date of the OpenSSF Scorecard the
+  maintenance term came from.
+- **Being a PR gate.** GitHub gives you one free on public repos.
+
+**Sources.** Every claim above was read from each project's own
+documentation or repository, not from comparison blog posts. Where a
+claim could not be verified it was left out rather than guessed: Trivy's
+database size and speed are not documented in prose, and OSV-Scanner's
+dependency-confusion detection could not be found in its docs, so
+neither is asserted above.
+
 ## Why drift beats a score
 
 A team with 200 pre-existing medium findings will switch off any tool that

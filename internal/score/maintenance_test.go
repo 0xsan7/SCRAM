@@ -8,8 +8,6 @@ import (
 	"github.com/0xsan7/scram/internal/model"
 )
 
-func f(v float64) *float64 { return &v }
-
 // TestMaintenanceScalesOntoBudget is the property that makes this a
 // Scorecard integration rather than a decorative field: a project with a
 // known Scorecard must actually move the number.

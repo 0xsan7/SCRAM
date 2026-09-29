@@ -349,8 +349,43 @@ func purlAgreesWithFields(c model.Component) bool {
 	if c.Purl == "" || c.Name == "" || c.Version == "" {
 		return false
 	}
-	return strings.Contains(c.Purl, purlEscape(c.Name)) &&
-		strings.Contains(c.Purl, purlEscape(c.Version))
+	// The name must be reconstructed from the PURL, in order, with the
+	// separators the spec uses.
+	//
+	// A plain substring test over the whole name is wrong for every
+	// ecosystem whose PURL splits the name across a namespace separator:
+	// the Go ecosystem renders "github.com/gin-gonic/gin" as namespace
+	// "github.com/gin-gonic" plus name "gin", so the full name is not a
+	// contiguous substring of the PURL. That is the spec's encoding, not
+	// a defect.
+	//
+	// But splitting the check into independent per-segment "contains"
+	// tests is worse, because it is order-blind: a PURL reading
+	// ".../github.com/errors" would satisfy a name of
+	// "github.com/pkg/errors" on the two segments it happens to share.
+	// So the segments have to appear in ORDER and ADJACENT, which is
+	// what rebuilding the suffix and looking for one contiguous run
+	// actually tests.
+	// A PURL is built from a name in one of two shapes, and the spec
+	// percent-encodes them differently:
+	//
+	//	npm:    the leading "@" of a scope is encoded, the "/" is not:
+	//	        "@babel/core" -> "%40babel/core"
+	//	others: slashes separate namespace from name and stay literal:
+	//	        "github.com/pkg/errors" -> "github.com/pkg/errors"
+	//
+	// So the check has to try both encodings rather than assume one. The
+	// full percent-encoded form is also tried, because a name that itself
+	// contains no separators (npm, cargo, pypi) reduces to it.
+	for _, enc := range purlNameEncodings(c.Name) {
+		if strings.Contains(c.Purl, enc) {
+			goto versionOK
+		}
+	}
+	return false
+
+versionOK:
+	return strings.Contains(c.Purl, purlEscape(c.Version))
 }
 
 // purlEscape applies the percent-encoding a PURL uses for each character
@@ -483,4 +518,36 @@ func FuzzGoMod(f *testing.F) {
 		}
 		checkPurlConsistency(t, comps)
 	})
+}
+
+// purlNameEncodings returns the forms a PURL may use to render a package
+// name, most specific first.
+//
+// The PURL spec leaves a namespace separator ("/") literal but percent-
+// encodes an "@" that is part of the name rather than a version separator.
+// npm composes the two, so "@babel/core" appears as "%40babel/core" while
+// a Go module path appears with its slashes intact. Rather than hardcoding
+// which ecosystem does which, the invariant accepts any of the encodings
+// the spec permits and rejects a name that matches none of them.
+func purlNameEncodings(name string) []string {
+	all := purlEscape(name)
+	forms := []string{all}
+
+	// Literal slashes, everything else percent-encoded.
+	var b strings.Builder
+	for i := 0; i < len(name); i++ {
+		if name[i] == '/' {
+			b.WriteByte('/')
+			continue
+		}
+		b.WriteString(purlEscape(string(name[i])))
+	}
+	forms = append(forms, b.String())
+
+	// Only a leading "@" encoded, which is the npm scope form.
+	if strings.HasPrefix(name, "@") {
+		forms = append(forms, "@"+strings.ReplaceAll(purlEscape(name[1:]), "/", "/"))
+		forms = append(forms, "%40"+strings.ReplaceAll(purlEscape(name[1:]), "/", "/"))
+	}
+	return forms
 }

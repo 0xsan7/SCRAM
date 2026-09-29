@@ -400,3 +400,80 @@ func cargoHasSchemaLine(src string) bool {
 	head := src[:firstPkg]
 	return strings.Contains(head, "version = ")
 }
+
+// TestGoModNameIsTheFullModulePath is the regression test for a bug that
+// made every go.mod-only project report zero vulnerabilities.
+//
+// The OSV client queries by Component.Name, and OSV's Go ecosystem is keyed
+// on the module PATH. The go.mod fallback was setting Name to the bare final
+// path segment, so
+//
+//	github.com/gin-gonic/gin   was queried as   gin
+//
+// which matches no advisory in any registry. The PURL was correct, so the
+// inventory looked right, the badge looked right, the score looked right,
+// and the only thing that was wrong was the part the tool exists to do.
+//
+// The tell was that a project WITH a go.sum found the advisories and the
+// same project WITHOUT one found none. This test pins the invariant that
+// makes those two paths agree.
+func TestGoModNameIsTheFullModulePath(t *testing.T) {
+	cases := []struct{ module, wantName string }{
+		{"github.com/gin-gonic/gin", "github.com/gin-gonic/gin"},
+		{"golang.org/x/text", "golang.org/x/text"},
+		// A nested path: the last segment alone is wildly ambiguous.
+		{"github.com/aws/aws-sdk-go-v2/service/s3", "github.com/aws/aws-sdk-go-v2/service/s3"},
+		// Names that collide once the path is stripped. If Name were the
+		// last segment these two would be indistinguishable to OSV.
+		{"github.com/gin-gonic/gin", "github.com/gin-gonic/gin"},
+		{"gopkg.in/yaml.v3", "gopkg.in/yaml.v3"},
+		{"go.uber.org/zap", "go.uber.org/zap"},
+	}
+	for _, c := range cases {
+		if got := goModuleName(c.module); got != c.wantName {
+			t.Errorf("goModuleName(%q) = %q, want %q", c.module, got, c.wantName)
+		}
+	}
+}
+
+// TestGoSumAndGoModAgreeOnIdentity is the property that would have caught it
+// without needing to know any specific advisory: the two Go paths must
+// produce the SAME Name for the same module, because only one of them was
+// correct and the difference is invisible in the output.
+func TestGoSumAndGoModAgreeOnIdentity(t *testing.T) {
+	dir := t.TempDir()
+
+	mod := "module example.com/demo\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.6.0\n"
+	if err := os.WriteFile(dir+"/go.mod", []byte(mod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fromMod, err := goResolver{}.Resolve(dir, "go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sumDir := t.TempDir()
+	sum := "github.com/gin-gonic/gin v1.6.0 h1:5cCxZcfmzQiNGRn5Wd4Z5SqUD1Fz7b3+8ghx5RX8Vk=\n"
+	if err := os.WriteFile(sumDir+"/go.sum", []byte(sum), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fromSum, err := goResolver{}.Resolve(sumDir, "go.sum")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(fromMod) != 1 || len(fromSum) != 1 {
+		t.Fatalf("expected one component from each path, got go.mod=%d go.sum=%d",
+			len(fromMod), len(fromSum))
+	}
+	if fromMod[0].Name != fromSum[0].Name {
+		t.Errorf("the two Go paths disagree on Name for the same module:\n"+
+			"  go.mod -> %q\n  go.sum -> %q\n"+
+			"OSV is queried by Name, so only one of these can find advisories",
+			fromMod[0].Name, fromSum[0].Name)
+	}
+	if fromMod[0].Purl != fromSum[0].Purl {
+		t.Errorf("the two Go paths disagree on Purl:\n  go.mod -> %q\n  go.sum -> %q",
+			fromMod[0].Purl, fromSum[0].Purl)
+	}
+}

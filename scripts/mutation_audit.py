@@ -265,6 +265,15 @@ MUTANTS = [
      "\t\tbase = strings.TrimPrefix(base, \"/\")",
      "\t\tbase = base",
      ["internal/resolve"]),
+    # --- the identity OSV is queried by ---------------------------
+    # internal/vuln/osv.go queries OSV by Component.Name, and OSV's
+    # Go ecosystem is keyed on the module PATH. The go.mod fallback
+    # was setting Name to the bare last segment, so every go.mod-only
+    # project reported zero vulnerabilities.
+    ("B2-gomod-name-is-full-module-path", "internal/resolve/golang.go",
+     "\t\t\tName:      goModuleName(module),",
+     "\t\t\tName:      func() string { _, n := splitGoModule(module); return n }(),",
+     ["internal/resolve"]),
 ]
 
 

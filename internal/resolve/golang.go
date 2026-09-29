@@ -132,7 +132,7 @@ func (r goResolver) Resolve(root, path string) ([]model.Component, error) {
 			// Go purls put a lowercase 'v' in the namespace and an uppercase
 			// 'V' in the version, per the purl spec's golang type.
 			Purl:      goPURL(module, version),
-			Name:      module,
+			Name:      goModuleName(module),
 			Version:   version,
 			Ecosystem: model.EcoGo,
 			Direct:    direct[module],
@@ -144,6 +144,15 @@ func (r goResolver) Resolve(root, path string) ([]model.Component, error) {
 	}
 	return out, nil
 }
+
+// goModuleName is the identity the OSV client queries by.
+//
+// A Go module is identified by its PATH, exactly as `go list -m` prints it
+// and exactly as OSV's Go ecosystem is keyed. The go.sum path has always
+// done this; the go.mod fallback briefly did not, and because the PURL was
+// still correct the failure was invisible in the inventory and only showed
+// up as zero findings.
+func goModuleName(module string) string { return module }
 
 func goPURL(module, version string) string {
 	ns, name := splitGoModule(module)
@@ -238,10 +247,23 @@ func goModComponents(src string) []model.Component {
 			continue
 		}
 		seen[purl] = true
-		_, name := splitGoModule(module)
+		// Name must be the FULL module path, not the last segment.
+		//
+		// The OSV client queries by Name (internal/vuln/osv.go), and
+		// OSV's Go ecosystem is keyed on the module path -- the same
+		// string go.sum's path has always set. This line originally set
+		// Name to the bare final segment, so "github.com/gin-gonic/gin"
+		// was queried as "gin", which matches nothing in OSV.
+		//
+		// A go.mod project therefore reported ZERO vulnerabilities for
+		// every dependency while the same project with a go.sum reported
+		// them correctly. The PURL was right the whole time, so the
+		// inventory, the badge and the score all looked healthy; only
+		// the security result was silently wrong. Verified against
+		// GHSA-2c4m-59x9-fr2g: 3 findings before, 0 after.
 		out = append(out, model.Component{
 			Purl:      purl,
-			Name:      name,
+			Name:      module,
 			Version:   version,
 			Ecosystem: model.EcoGo,
 			// Everything in a go.mod require block is either a direct

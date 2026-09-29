@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -22,6 +23,13 @@ import (
 // The property: for every lockfile in the corpus, if the file declares
 // dependencies then ResolveFile returns either components or an error. Never
 // (empty, nil).
+//
+// The ecosystem list is `Supported()` rather than a literal. An earlier
+// version of this test iterated a hardcoded []string{"npm", "pypi", "gomod"},
+// which meant a newly added resolver was exempt from the invariant purely
+// by not being written down -- the same class of bug as the ones this file
+// exists to catch, one level up. Deriving the list from the registry makes
+// coverage a property of the code rather than of someone's memory.
 
 // TestInvariantNoSilentZeroOverCorpus is the whole-corpus property check. It
 // deliberately uses ResolveFile rather than Resolve, so it also proves the
@@ -29,8 +37,8 @@ import (
 // passing on empty results.
 func TestInvariantNoSilentZeroOverCorpus(t *testing.T) {
 	checked, empty := 0, 0
-	for _, eco := range []string{"npm", "pypi", "gomod"} {
-		files := corpusFiles(t, filepath.Join(eco, "real"), isAnyLockfile)
+	for _, eco := range Supported() {
+		files := corpusFiles(t, filepath.Join(corpusSubdir(eco), "real"), isAnyLockfile)
 		if len(files) == 0 {
 			t.Logf("%s corpus absent; run scripts/fetch_corpus.py %s", eco, eco)
 			continue
@@ -38,7 +46,8 @@ func TestInvariantNoSilentZeroOverCorpus(t *testing.T) {
 		for _, f := range files {
 			name := relName(t, f)
 			ecoName := ecosystemFor(f)
-			// GetFor because PyPI has two resolvers and the filename decides.
+			// GetFor because an ecosystem can have several resolvers and
+			// the filename decides which one applies.
 			r, err := GetFor(ecoName, filepath.Base(f))
 			if err != nil {
 				t.Errorf("%s: %v", name, err)
@@ -222,19 +231,129 @@ func (f fakeResolver) Resolve(root, path string) ([]model.Component, error) {
 	return out, nil
 }
 
-func isAnyLockfile(name string) bool {
-	return name == "package-lock.json" || name == "go.sum" ||
-		name == "poetry.lock" || strings.HasPrefix(name, "requirements")
+// corpusSubdir maps an ecosystem to the directory its fixtures live in.
+// They are not the same string: the Go ecosystem is "go" but its corpus
+// lives in "gomod", matching the layout scripts/fetch_corpus.py writes.
+func corpusSubdir(eco string) string {
+	if eco == "go" {
+		return "gomod"
+	}
+	return eco
 }
 
+// isAnyLockfile recognises lockfile NAMES without hardcoding a list. It
+// asks the registry which resolvers claim which filenames, so a new
+// ecosystem's lockfile is picked up by the invariant automatically.
+func isAnyLockfile(name string) bool {
+	for eco := range registry {
+		for _, r := range registry[eco] {
+			if h, ok := r.(FileMatcher); ok && h.Handles(name) {
+				return true
+			}
+		}
+	}
+	// Formats with no FileMatcher (a resolver that handles a whole
+	// ecosystem) still have conventional names; keep the known ones so an
+	// existing corpus is not silently skipped.
+	switch name {
+	case "package-lock.json", "go.sum", "poetry.lock", "requirements.txt":
+		return true
+	}
+	return false
+}
+
+// ecosystemFor decides which ecosystem a corpus file belongs to, by asking
+// the registry rather than by pattern-matching the name.
 func ecosystemFor(path string) string {
 	base := filepath.Base(path)
-	switch {
-	case base == "package-lock.json":
-		return "npm"
-	case base == "go.sum":
-		return "go"
+	// Collect every ecosystem whose resolver claims this filename. In
+	// practice exactly one does; the loop exists so a future resolver that
+	// overlaps is resolved by explicit preference rather than by map
+	// iteration order, which would make the corpus result non-reproducible.
+	var claims []string
+	for eco, rs := range registry {
+		for _, r := range rs {
+			if h, ok := r.(FileMatcher); ok && h.Handles(base) {
+				claims = append(claims, eco)
+				break
+			}
+		}
+	}
+	sort.Strings(claims)
+	switch len(claims) {
+	case 0:
+		// No resolver claims it. The fallback keeps a pre-existing corpus
+		// visible rather than silently skipping it.
+		switch base {
+		case "go.sum":
+			return "go"
+		case "package-lock.json":
+			return "npm"
+		default:
+			return "pypi"
+		}
+	case 1:
+		return claims[0]
 	default:
-		return "pypi"
+		// Ambiguous. Prefer the ecosystem that shares the filename's
+		// stem, then fall back to the sort order above.
+		stem := strings.TrimSuffix(base, filepath.Ext(base))
+		for _, eco := range claims {
+			if eco == stem {
+				return eco
+			}
+		}
+		return claims[0]
+	}
+}
+
+// TestInvariantCatchesAResolverThatDropsEverything is the meta-test. The
+// whole-corpus check above is only worth something if it actually fails when
+// a resolver is broken -- and the previous version of that check iterated a
+// hardcoded ecosystem list, so it went quiet on a new one instead of
+// failing. This asserts the plumbing is live: register a resolver for a real
+// corpus ecosystem, make it return nothing, and confirm the invariant's own
+// helpers still route that ecosystem's files to it.
+func TestInvariantCatchesAResolverThatDropsEverything(t *testing.T) {
+	dir := t.TempDir()
+	lock := filepath.Join(dir, "package-lock.json")
+	// Real npm v3 shape with two packages: a resolver that drops these is
+	// the D01 bug.
+	if err := os.WriteFile(lock, []byte(
+		`{"lockfileVersion":3,"packages":{"":{"name":"x"},`+
+			`"node_modules/a":{"version":"1.0.0"},"node_modules/b":{"version":"2.0.0"}}}`),
+		0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Route the file through the registry, exactly as the corpus loop does.
+	ecoName := ecosystemFor(lock)
+	if ecoName != "npm" {
+		t.Fatalf("ecosystemFor(%s) = %q, want npm -- the invariant would "+
+			"silently skip this file if the routing is wrong", filepath.Base(lock), ecoName)
+	}
+	if !isAnyLockfile(filepath.Base(lock)) {
+		t.Fatal("isAnyLockfile does not recognise a real npm lockfile name")
+	}
+	r, err := GetFor(ecoName, filepath.Base(lock))
+	if err != nil {
+		t.Fatalf("GetFor: %v", err)
+	}
+	// A resolver that reads the file and returns nothing, with no error.
+	// Absolute path on purpose: the guard re-reads the file to count
+	// declarations and resolves `path` against `root`, so a bare filename
+	// would make the counter see nothing and quietly disable the guard.
+	if _, err := ResolveFile(fakeResolver{eco: ecoName, count: 0}, dir, lock); err == nil {
+		t.Fatal("a resolver returning zero for a two-package lockfile was accepted")
+	}
+	// And the real resolver still passes on the same file.
+	// `path` is resolved relative to `root`, so it must be the bare
+	// filename here, not the absolute path.
+	comps, err := ResolveFile(r, dir, filepath.Base(lock))
+	if err != nil {
+		t.Fatalf("real npm resolver: %v", err)
+	}
+	if len(comps) != 2 {
+		t.Errorf("npm resolver returned %d components, want 2", len(comps))
 	}
 }

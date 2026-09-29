@@ -245,17 +245,47 @@ runs:
         rm -rf "$RUNNER_TEMP/baseline"
         git worktree add --detach "$RUNNER_TEMP/baseline" "$ref"
 
+        bin="$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}"
+
         if [ -f "$RUNNER_TEMP/baseline/.scram/baseline.json" ]; then
           echo "Using the committed baseline from the base branch"
           cp "$RUNNER_TEMP/baseline/.scram/baseline.json" "$RUNNER_TEMP/base.json"
         else
-          # No committed baseline: scan the base tree itself and use that
-          # scan as the comparison point. This is what makes the Action
-          # work on day one with zero setup.
+          # No committed baseline: scan the base tree and store it as the
+          # comparison point. This is what makes the Action work on day one
+          # with zero setup.
+          #
+          # `scram baseline update` and not `scram scan --format json`.
+          # They are different file formats. A baseline is
+          # model.Baseline -- {schema_version, generated_at, repo,
+          # components, summary} -- and drift.ReadBaseline reads
+          # top-level "components". A scan report nests them under
+          # "scan". Feeding one to the other parses cleanly, yields an
+          # EMPTY component list, and therefore reports every
+          # pre-existing vulnerability as new.
+          #
+          # The effect was the exact opposite of the Action's promise: on
+          # a repository with unchanged dependencies, the gate failed on
+          # every finding the repository already had. The README says
+          # "Blocks the PR only on findings that are new relative to the
+          # baseline, so pre-existing issues don't make every pull
+          # request red" -- and the baseline could never suppress
+          # anything.
           echo "No committed baseline; scanning the base branch as the baseline"
-          "$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}" scan "$RUNNER_TEMP/baseline" \
-            --config "$RUNNER_TEMP/baseline/${{ inputs.config-path }}" \
-            --format json --no-gate > "$RUNNER_TEMP/base.json"
+          (
+            cd "$RUNNER_TEMP/baseline"
+            "$bin" baseline update --out "$RUNNER_TEMP/base.json" \
+              --config "$RUNNER_TEMP/baseline/${{ inputs.config-path }}"
+          )
+        fi
+
+        # A baseline that parsed but holds no components suppresses
+        # nothing, and the resulting gate looks like a policy failure
+        # rather than the broken comparison it is. Refuse to continue.
+        if ! jq -e '(.components // []) | length > 0' "$RUNNER_TEMP/base.json" > /dev/null; then
+          echo "::error::baseline resolved 0 components; every finding would be reported as new."
+          echo "::error::This is a baseline-format problem, not a policy failure."
+          exit 1
         fi
         echo "ref=$RUNNER_TEMP/base.json" >> "$GITHUB_OUTPUT"
 

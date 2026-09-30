@@ -242,10 +242,14 @@ jobs:
 
   corpus:
     name: Corpus invariant
-    # The real-world lockfile corpus: 86 files, every one of which must
-    # resolve non-empty. This is the job that would have caught D22, D23,
-    # D25, D28, and D37, and it is separate from `go test` because the
-    # property it enforces is about the fixture set as a whole.
+    # The real-world lockfile corpus. This is the job that would have caught
+    # D22, D23, D25, D28, D37, and the pnpm 6.0 partial-loss bug, and it is
+    # separate from `go test` because the property it enforces is about the
+    # fixture set as a whole.
+    #
+    # The count here is deliberately not repeated: it went stale at 86 once
+    # and the test below reports the real number every run. A comment
+    # asserting a count is a claim nothing checks.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

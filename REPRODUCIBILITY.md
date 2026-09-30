@@ -130,6 +130,60 @@ packages" is only good news if the extra packages are real -- and for pnpm
 5.x, that was established by reading the fixture, not by trusting the
 larger number.
 
+### 3c. lodash 4.17.11: SCRAM 5, grype 7 — an alias artefact, not a missing finding
+
+The ID-level comparison on `lodash@4.17.11` reports SCRAM 5, grype 7. Read
+literally that is a matcher gap, so it was checked against OSV directly rather
+than argued about.
+
+OSV returns **7 records for 5 advisories**. Two of them are reciprocally
+aliased to two of the others:
+
+| OSV record | aliases |
+|---|---|
+| `GHSA-35jh-r3h4-6jhm` | CVE-2021-23337, CVE-2026-4800, **`GHSA-r5fr-rjxr-66jc`** |
+| `GHSA-r5fr-rjxr-66jc` | CVE-2021-23337, CVE-2026-4800, `GHSA-35jh-r3h4-6jhm` |
+| `GHSA-f23m-r3pf-42rh` | CVE-2025-13465, CVE-2026-2950, **`GHSA-xxjr-mmjv-4gpg`** |
+| `GHSA-xxjr-mmjv-4gpg` | CVE-2025-13465, CVE-2026-2950, `GHSA-f23m-r3pf-42rh` |
+
+grype's two extras are the alias-side records for advisories SCRAM already
+reported under their other ids. Union-find over the alias graph gives 5
+classes from OSV's 7 records and 5 from SCRAM's 5 — **identical sets**. Now
+confirmed as an exact match on npm, yarn, pnpm 5.4, pnpm 9.0 and cargo alike.
+
+**The harness had not been comparing aliases at all.** `canonical()` was
+supposed to collapse them and silently did nothing: `aliases_for()` swallowed
+the SSL failure its `urlopen` hit and returned `{vid}` for every id, so
+canonicalization was the identity function. Three further bugs were hidden
+behind it — a transitive closure that unioned nothing, a class representative
+chosen from input ids only, and an attribution check that indexed a raw-id map
+with a canonical key and raised `KeyError`. All are described in D46, with the
+tests that now pin them.
+
+### 3d. Where the two tools genuinely disagree: grype's database, not SCRAM
+
+Once canonicalization worked, every remaining difference runs one way —
+SCRAM reports advisories grype does not carry. Each id below was confirmed by
+querying OSV directly for that exact package and version, not taken on the
+differential's word.
+
+| fixture | SCRAM | grype | SCRAM-only (all OSV-confirmed) |
+|---|---|---|---|
+| cryptography 3.2 | 16 | 12 | CVE-2020-25659, CVE-2024-26130, CVE-2026-69248, CVE-2026-69249 |
+| flask 1.0 + werkzeug 0.15 | 13 | 11 | CVE-2022-29361, CVE-2023-46136 |
+| django 2.0.2 | 22 | 21 | CVE-2026-15830 |
+| Pillow 5.0.0 | 54 | 49 | CVE-2021-23437, CVE-2021-25292, CVE-2021-28678, CVE-2022-45199, PYSEC-2023-175 |
+| idna 2.7 + certifi 2018.11.29 | 5 | 4 | CVE-2024-39689 (on certifi, as PYSEC-2024-230) |
+
+Isolated on werkzeug 0.15 alone: OSV returns 20, SCRAM 11, grype 9 — grype
+missing 11 that both OSV and SCRAM find.
+
+`diff_vulns.py` therefore exits non-zero on these fixtures. That is correct
+behaviour: it is reporting a real disagreement between the two tools, and
+hiding it would be the failure mode this file exists to prevent. Re-run with
+`--allow-offline` to compare raw ids when OSV is unreachable; the output says
+which mode it used.
+
 ### 4. Vulnerability IDs — SCRAM 16, grype 12 for `cryptography==3.2`
 
 Compared by **identity, not by ID string**, because OSV and grype report

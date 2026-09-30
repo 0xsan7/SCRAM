@@ -8,7 +8,12 @@ back up.
 
 | | |
 |---|---|
-| **HEAD** | `a0e6cc27b742776ca00f04cbcc0786015792a90a` (`a0e6cc2`) |
+| **HEAD** | the tip of `main` — run `git rev-parse HEAD` |
+
+> Written across two commits, so the file could not name its own final hash:
+> every commit that corrected the number moved the number again. The tip at
+> the time of writing was `a0e6cc2`. Trust `git rev-parse HEAD`, not this
+> line, and verify `origin/main` and the remote agree with it.
 | **Pushed** | yes — `HEAD` == `origin/main` == remote `refs/heads/main` |
 | **Unpushed commits** | 0 |
 | **Working tree** | clean |
@@ -132,7 +137,7 @@ Standing constraints for that cut, unchanged:
 
 Paste this:
 
-> Resume SCRAM at a0e6cc2. Cut v0.2.0-rc1 — and only rc1. Verify binaries,
+> Resume SCRAM at the tip of main. Cut v0.2.0-rc1 — and only rc1. Verify binaries,
 > signatures and provenance, exercise the Action end to end on push and both PR
 > cases (pass on unchanged tree, fail on a genuine new finding) with attention
 > to the PR comment rendering the new /65 score on a real runner, then report

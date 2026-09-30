@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -38,7 +39,7 @@ func runCanonicalizer(t *testing.T, ids []string, aliasJSON string) int {
 		"m.aliases_for = lambda v: set(payload['aliases'].get(v, [v]))" + "\n" +
 		"print(json.dumps(sorted(m.canonical(payload['ids']))))" + "\n"
 
-	cmd := exec.Command("python3", "-c", prog)
+	cmd := exec.Command(pythonCmd(t), "-c", prog)
 	cmd.Dir = repoRoot(t)
 	cmd.Stdin = strings.NewReader(mustJSON(t, map[string]any{
 		"aliases": json.RawMessage(aliasJSON),
@@ -70,7 +71,7 @@ func runCanonicalNames(t *testing.T, ids []string, aliasJSON string) []string {
 		"m.aliases_for = lambda v: set(payload['aliases'].get(v, [v]))" + "\n" +
 		"print(json.dumps(sorted(m.canonical(payload['ids']))))" + "\n"
 
-	cmd := exec.Command("python3", "-c", prog)
+	cmd := exec.Command(pythonCmd(t), "-c", prog)
 	cmd.Dir = repoRoot(t)
 	cmd.Stdin = strings.NewReader(mustJSON(t, map[string]any{
 		"aliases": json.RawMessage(aliasJSON),
@@ -85,6 +86,28 @@ func runCanonicalNames(t *testing.T, ids []string, aliasJSON string) []string {
 		t.Fatalf("canonicalizer output is not JSON: %v\n%s", err, out)
 	}
 	return names
+}
+
+// pythonCmd returns the interpreter to use, or skips the test.
+//
+// These tests drive scripts/diff_vulns.py because re-implementing its logic
+// in Go would test a copy, not the thing that runs. The interpreter is
+// resolved per platform: windows-latest provides `python`, and `python3` is
+// not reliably on PATH there under that exact name -- which is why the first
+// version of this file failed on both Windows Go versions.
+func pythonCmd(t *testing.T) string {
+	t.Helper()
+	candidates := []string{"python3", "python"}
+	if runtime.GOOS == "windows" {
+		candidates = []string{"python", "python3"}
+	}
+	for _, c := range candidates {
+		if p, err := exec.LookPath(c); err == nil {
+			return p
+		}
+	}
+	t.Skip("no python interpreter on PATH; skipping diff_vulns.py behaviour tests")
+	return ""
 }
 
 func mustJSON(t *testing.T, v any) string {
@@ -275,7 +298,7 @@ func TestAliasLookupFailureIsNotSilent(t *testing.T) {
 				"except Exception as e:" + "\n" +
 				"    print('RAISED ' + type(e).__name__)" + "\n"
 
-			cmd := exec.Command("python3", "-c", prog, tc.exc)
+			cmd := exec.Command(pythonCmd(t), "-c", prog, tc.exc)
 			cmd.Dir = repoRoot(t)
 			cmd.Env = append(os.Environ(),
 				"TMPDIR="+t.TempDir()) // don't touch the real cache

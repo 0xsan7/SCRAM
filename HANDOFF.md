@@ -8,13 +8,16 @@ back up.
 
 | | |
 |---|---|
-| **HEAD** | `479dbfa8335da653c528ea6095f8b2c878465b6e` (`479dbfa`) |
+| **HEAD** | `a0e6cc27b742776ca00f04cbcc0786015792a90a` (`a0e6cc2`) |
 | **Pushed** | yes — `HEAD` == `origin/main` == remote `refs/heads/main` |
 | **Unpushed commits** | 0 |
 | **Working tree** | clean |
-| **CI on `479dbfa`** | **14 green, 2 skipped, 0 failed** |
+| **CI on `a0e6cc2`** | **14 green, 2 skipped, 0 failed** |
 
-CI detail: all six `Build, test, vet` matrix jobs pass (macOS/Linux/Windows ×
+> CI on `479dbfa` (the commit before this one) was 14 green / 2 skipped / 0
+failed. Re-read the conclusion for `a0e6cc2` — do not assume it carried over.
+
+CI detail, as observed on `479dbfa`: all six `Build, test, vet` matrix jobs pass (macOS/Linux/Windows ×
 Go 1.23/1.24), plus Race detector, Coverage, Corpus invariant, SCRAM scans
 itself, SBOM schema validation, gitleaks (full history), golangci-lint, and
 trufflehog cross-check. `Release` is skipped because it waits on a tag, and
@@ -129,7 +132,7 @@ Standing constraints for that cut, unchanged:
 
 Paste this:
 
-> Resume SCRAM at 479dbfa. Cut v0.2.0-rc1 — and only rc1. Verify binaries,
+> Resume SCRAM at a0e6cc2. Cut v0.2.0-rc1 — and only rc1. Verify binaries,
 > signatures and provenance, exercise the Action end to end on push and both PR
 > cases (pass on unchanged tree, fail on a genuine new finding) with attention
 > to the PR comment rendering the new /65 score on a real runner, then report

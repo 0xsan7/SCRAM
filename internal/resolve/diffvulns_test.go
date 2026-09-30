@@ -8,7 +8,6 @@ package resolve
 
 import (
 	"encoding/json"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -16,73 +15,82 @@ import (
 	"testing"
 )
 
-const diffVulnsScript = "../../scripts/diff_vulns.py"
-
-// runCanonicalizer executes diff_vulns.canonical with a stubbed alias table
-// and returns the alias classes it produced.
+// pythonPreamble loads diff_vulns.py as module `m`.
 //
-// The alias table travels on stdin rather than inline: it is multi-line JSON,
-// and embedding a multi-line literal in a `python3 -c` program is a quoting
-// trap that fails in a way that looks like the code under test being broken.
-func runCanonicalizer(t *testing.T, ids []string, aliasJSON string) int {
+// The script path arrives on STDIN as JSON and never appears in the program
+// text. That is deliberate, and it is a regression fix.
+//
+// The first version interpolated the absolute path straight into the
+// `python -c` program. On Windows CI both jobs died with:
+//
+//	OSError: [Errno 22] Invalid argument:
+//	'D:\\a\\SCRAM\\SCRAM\\\x07\\SCRAM\\SCRAM\\scripts\\diff_vulns.py'
+//
+// -- a mangled path reaching the interpreter, with the repo segment repeated
+// and a stray control byte in it. macOS and Linux were clean, so this passed
+// every local run and only appeared on the runner. (An earlier commit blamed
+// `python3` not being on PATH on Windows; that guess was wrong, and the jobs
+// failed identically after it was fixed.)
+//
+// Handing the path over as data instead of source text removes the whole
+// class: whatever the working directory resolves to, the interpreter receives
+// exactly the bytes Go resolved, and nothing has to survive being embedded in
+// a program.
+const pythonPreamble = `import importlib.util, json, sys
+payload = json.load(sys.stdin)
+spec = importlib.util.spec_from_file_location("dv", payload["script"])
+m = importlib.util.module_from_spec(spec)
+try:
+    spec.loader.exec_module(m)
+except SystemExit:
+    pass
+`
+
+// runPython runs diff_vulns.py with `snippet` appended to the preamble and
+// `payload` handed to the child on stdin.
+func runPython(t *testing.T, snippet string, payload map[string]any, env ...string) string {
 	t.Helper()
-	full, err := filepath.Abs(diffVulnsScript)
+	program := pythonPreamble + snippet
+
+	// Guard the fix itself: a path in the program text IS the bug that broke
+	// Windows CI, so its reintroduction must fail here rather than on a
+	// runner six minutes later.
+	if strings.Contains(program, "diff_vulns.py") || strings.Contains(program, `\`) {
+		t.Errorf("program text embeds a path; pass it on stdin instead:\n%s", program)
+	}
+
+	payload["script"] = filepath.Join(repoRoot(t), "scripts", "diff_vulns.py")
+	body, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog := "import importlib.util, json, sys" + "\n" +
-		"spec = importlib.util.spec_from_file_location('dv', " + shellQuote(full) + ")" + "\n" +
-		"m = importlib.util.module_from_spec(spec)" + "\n" +
-		"try:" + "\n    spec.loader.exec_module(m)" + "\n" +
-		"except SystemExit:" + "\n    pass" + "\n" +
-		"payload = json.load(sys.stdin)" + "\n" +
-		"m.aliases_for = lambda v: set(payload['aliases'].get(v, [v]))" + "\n" +
-		"print(json.dumps(sorted(m.canonical(payload['ids']))))" + "\n"
 
-	cmd := exec.Command(pythonCmd(t), "-c", prog)
+	cmd := exec.Command(pythonCmd(t), "-c", program)
 	cmd.Dir = repoRoot(t)
-	cmd.Stdin = strings.NewReader(mustJSON(t, map[string]any{
-		"aliases": json.RawMessage(aliasJSON),
-		"ids":     ids,
-	}))
+	cmd.Stdin = strings.NewReader(string(body))
+	if len(env) > 0 {
+		cmd.Env = append(cmd.Environ(), env...)
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("canonicalizer failed: %v\n%s", err, out)
+		t.Fatalf("python failed: %v\n%s", err, out)
 	}
-	var classes []string
-	if err := json.Unmarshal([]byte(strings.TrimSpace(string(out))), &classes); err != nil {
-		t.Fatalf("canonicalizer output is not JSON: %v\n%s", err, out)
-	}
-	return len(classes)
+	return strings.TrimSpace(string(out))
 }
 
-func runCanonicalNames(t *testing.T, ids []string, aliasJSON string) []string {
+// canonicalClasses returns the alias-class names canonical() produced.
+func canonicalClasses(t *testing.T, ids []string, aliasJSON string) []string {
 	t.Helper()
-	full, err := filepath.Abs(diffVulnsScript)
-	if err != nil {
-		t.Fatal(err)
-	}
-	prog := "import importlib.util, json, sys" + "\n" +
-		"spec = importlib.util.spec_from_file_location('dv', " + shellQuote(full) + ")" + "\n" +
-		"m = importlib.util.module_from_spec(spec)" + "\n" +
-		"try:" + "\n    spec.loader.exec_module(m)" + "\n" +
-		"except SystemExit:" + "\n    pass" + "\n" +
-		"payload = json.load(sys.stdin)" + "\n" +
-		"m.aliases_for = lambda v: set(payload['aliases'].get(v, [v]))" + "\n" +
-		"print(json.dumps(sorted(m.canonical(payload['ids']))))" + "\n"
-
-	cmd := exec.Command(pythonCmd(t), "-c", prog)
-	cmd.Dir = repoRoot(t)
-	cmd.Stdin = strings.NewReader(mustJSON(t, map[string]any{
-		"aliases": json.RawMessage(aliasJSON),
-		"ids":     ids,
-	}))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("canonicalizer failed: %v\n%s", err, out)
-	}
+	out := runPython(t,
+		`m.aliases_for = lambda v: set(payload["aliases"].get(v, [v]))
+print(json.dumps(sorted(m.canonical(payload["ids"]))))
+`,
+		map[string]any{
+			"aliases": json.RawMessage(aliasJSON),
+			"ids":     ids,
+		})
 	var names []string
-	if err := json.Unmarshal([]byte(strings.TrimSpace(string(out))), &names); err != nil {
+	if err := json.Unmarshal([]byte(out), &names); err != nil {
 		t.Fatalf("canonicalizer output is not JSON: %v\n%s", err, out)
 	}
 	return names
@@ -109,17 +117,6 @@ func pythonCmd(t *testing.T) string {
 	t.Skip("no python interpreter on PATH; skipping diff_vulns.py behaviour tests")
 	return ""
 }
-
-func mustJSON(t *testing.T, v any) string {
-	t.Helper()
-	b, err := json.Marshal(v)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
-}
-
-func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
@@ -156,18 +153,18 @@ func TestAliasClassesMergeTransitively(t *testing.T) {
 
 	// A and C are the same advisory, reached through B, which neither tool
 	// reported. They must collapse to ONE class.
-	if got := runCanonicalizer(t, []string{"A", "C"}, aliases); got != 1 {
-		t.Errorf("A and C alias each other through B; expected 1 class, got %d", got)
+	if got := canonicalClasses(t, []string{"A", "C"}, aliases); len(got) != 1 {
+		t.Errorf("A and C alias each other through B; expected 1 class, got %v", got)
 	}
 
 	// A, B and C together: still one class.
-	if got := runCanonicalizer(t, []string{"A", "B", "C"}, aliases); got != 1 {
-		t.Errorf("expected A, B, C to form 1 class, got %d", got)
+	if got := canonicalClasses(t, []string{"A", "B", "C"}, aliases); len(got) != 1 {
+		t.Errorf("expected A, B, C to form 1 class, got %v", got)
 	}
 
 	// An unrelated advisory must not be dragged in.
-	if got := runCanonicalizer(t, []string{"A", "C", "LONELY"}, aliases); got != 2 {
-		t.Errorf("expected 2 classes (A/C and LONELY), got %d", got)
+	if got := canonicalClasses(t, []string{"A", "C", "LONELY"}, aliases); len(got) != 2 {
+		t.Errorf("expected 2 classes (A/C and LONELY), got %v", got)
 	}
 }
 
@@ -196,11 +193,11 @@ func TestAliasClassesCollapseTheRealLodashPair(t *testing.T) {
 		"GHSA-29mw-wpgm-hmr9", "GHSA-35jh-r3h4-6jhm", "GHSA-f23m-r3pf-42rh",
 		"GHSA-jf85-cpcp-j695", "GHSA-p6mc-m468-83gw",
 	}
-	if got := runCanonicalizer(t, seven, aliases); got != 5 {
-		t.Errorf("OSV's 7 records should be 5 advisories, got %d classes", got)
+	if got := canonicalClasses(t, seven, aliases); len(got) != 5 {
+		t.Errorf("OSV's 7 records should be 5 advisories, got %v", got)
 	}
-	if got := runCanonicalizer(t, five, aliases); got != 5 {
-		t.Errorf("SCRAM's 5 records should be 5 advisories, got %d classes", got)
+	if got := canonicalClasses(t, five, aliases); len(got) != 5 {
+		t.Errorf("SCRAM's 5 records should be 5 advisories, got %v", got)
 	}
 }
 
@@ -225,12 +222,9 @@ func TestAliasClassRepresentativeIgnoresWhichToolReportedIt(t *testing.T) {
 		"GHSA-missing-only": ["CVE-2099-0001", "PYSEC-ID"]
 	}`
 
-	scramSide := []string{"PYSEC-ID"}
-	grypeSide := []string{"GHSA-missing-only"}
-
 	// Each tool, canonicalized alone, must land on the same name.
-	cs := runCanonicalNames(t, scramSide, aliases)
-	cg := runCanonicalNames(t, grypeSide, aliases)
+	cs := canonicalClasses(t, []string{"PYSEC-ID"}, aliases)
+	cg := canonicalClasses(t, []string{"GHSA-missing-only"}, aliases)
 	if len(cs) != 1 || len(cg) != 1 {
 		t.Fatalf("expected 1 class each, got scram=%v grype=%v", cs, cg)
 	}
@@ -258,62 +252,56 @@ func TestAliasClassRepresentativeIgnoresWhichToolReportedIt(t *testing.T) {
 // exercises the spelling of the defect it claims to catch -- found in the
 // guard written to prevent D45's exact pattern.
 func TestAliasLookupFailureIsNotSilent(t *testing.T) {
-	full, err := filepath.Abs(diffVulnsScript)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	for _, tc := range []struct {
 		name    string
-		exc     string
+		mode    string
 		wantErr bool
 	}{
 		// The original bug: any exception becomes {vid}, silently.
 		{"SSL failure", "URLError", true},
 		{"connection reset", "ConnectionResetError", true},
-		// 404 is a DEFINITIVE answer -- no record under that id -- and must
-		// not be treated as a failure.
+		// 404 is a DEFINITIVE answer -- no record published under that id --
+		// and must not be treated as a failure to try.
 		{"404 no record", "HTTPError404", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			prog := "import importlib.util, sys, urllib.error, socket" + "\n" +
-				"spec = importlib.util.spec_from_file_location('dv', " + shellQuote(full) + ")" + "\n" +
-				"m = importlib.util.module_from_spec(spec)" + "\n" +
-				"try:" + "\n    spec.loader.exec_module(m)" + "\n" +
-				"except SystemExit:" + "\n    pass" + "\n" +
-				"def boom(*a, **k):" + "\n" +
-				"    mode = sys.argv[1]" + "\n" +
-				"    if mode == 'URLError':" + "\n" +
-				"        raise urllib.error.URLError('ssl')" + "\n" +
-				"    if mode == 'ConnectionResetError':" + "\n" +
-				"        raise ConnectionResetError('reset')" + "\n" +
-				"    raise urllib.error.HTTPError('u', 404, 'Not Found', {}, None)" + "\n" +
-				"m._ssl_context = lambda: None" + "\n" +
-				"import urllib.request" + "\n" +
-				"urllib.request.urlopen = boom" + "\n" +
-				"m.aliases_for.__globals__['_ALIAS_CACHE'].clear()" + "\n" +
-				"try:" + "\n" +
-				"    g = m.aliases_for('GHSA-test')" + "\n" +
-				"    print('NO_RAISE ' + ','.join(sorted(g)))" + "\n" +
-				"except Exception as e:" + "\n" +
-				"    print('RAISED ' + type(e).__name__)" + "\n"
+			// Scratch cache dir, set under all three names: TMPDIR is the
+			// macOS/Linux spelling and is ignored on Windows, where the
+			// variables are TMP and TEMP. Setting only TMPDIR meant the test
+			// read and wrote the real cache path there. t.TempDir() is
+			// portable and cleaned up with the test.
+			scratch := t.TempDir()
 
-			cmd := exec.Command(pythonCmd(t), "-c", prog, tc.exc)
-			cmd.Dir = repoRoot(t)
-			cmd.Env = append(os.Environ(),
-				"TMPDIR="+t.TempDir()) // don't touch the real cache
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("harness failed: %v\n%s", err, out)
-			}
-			got := strings.TrimSpace(string(out))
-			if tc.wantErr && !strings.Contains(got, "RAISED") {
+			out := runPython(t, `
+import urllib.error
+def boom(*a, **k):
+    mode = payload["mode"]
+    if mode == "URLError":
+        raise urllib.error.URLError("ssl")
+    if mode == "ConnectionResetError":
+        raise ConnectionResetError("reset")
+    raise urllib.error.HTTPError("u", 404, "Not Found", {}, None)
+m._ssl_context = lambda: None
+import urllib.request
+urllib.request.urlopen = boom
+m._ALIAS_CACHE.clear()
+try:
+    g = m.aliases_for("GHSA-test")
+    print("NO_RAISE " + ",".join(sorted(g)))
+except Exception as e:
+    print("RAISED " + type(e).__name__)
+`,
+				map[string]any{"mode": tc.mode},
+				"TMPDIR="+scratch, "TMP="+scratch, "TEMP="+scratch,
+			)
+
+			if tc.wantErr && !strings.Contains(out, "RAISED") {
 				t.Errorf("%s: aliases_for swallowed the failure and returned %q; "+
 					"a canonicalizer that cannot fetch must not degrade silently",
-					tc.name, got)
+					tc.name, out)
 			}
-			if !tc.wantErr && !strings.Contains(got, "NO_RAISE") {
-				t.Errorf("%s: expected a terminal 404 answer, got %q", tc.name, got)
+			if !tc.wantErr && !strings.Contains(out, "NO_RAISE") {
+				t.Errorf("%s: expected a terminal 404 answer, got %q", tc.name, out)
 			}
 		})
 	}

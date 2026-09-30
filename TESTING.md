@@ -180,3 +180,65 @@ than deleted, so it stays discoverable:
 evidence about the things the suite checks, and — per the section above — not
 about the things it does not. When a check cannot cover a claim, say so
 rather than implying the suite did.
+
+## A guard's first version only catches the phrasing its author imagined
+
+Four times now, in this repository, a check was written, went green locally,
+and was still wrong:
+
+| the guard | what it was written to catch | what it actually caught |
+|---|---|---|
+| `TestKnownVulnerableRoundtripOffline` | the `go.mod` OSV lookup key | only the *call site*; the bug lived in a helper `go.sum` shared |
+| `badge_test.go` | badge renders the presented score | a hand-built `95/100` value, impossible on a 65-point scale |
+| `check_action_metadata.py` | a `/100` in `action.yml` | only the literal `/100`; the description said `0-100` |
+| `TestAliasLookupFailureIsNotSilent` | a swallowed alias-lookup failure | a stub of `aliases_for`, which sits *above* the swallow it needed to see |
+
+**The rule.** A new guard must be proven against every real-world spelling or
+shape of the defect it claims to catch, not just the one that was imagined. For
+each guard, before it counts:
+
+1. **Enumerate the spellings.** What are all the ways this defect appears in
+   the wild? `/100`, `0-100`, `0–100`. The exact call site, and every helper
+   below it. The function you are testing, and every layer above it.
+2. **Prove the guard bites each one**, by reintroducing each spelling
+   separately and reading the failure. A single red proves one shape.
+3. **Read the failure message.** If it is a compile error, a nil pointer, or a
+   panic in the harness, the guard did not catch the defect — it tripped over
+   something else. That is a pass in name only.
+4. **If deleting a line changes no result, that line is untested.** Insurance
+   nobody has exercised is indistinguishable from a no-op. The transitive
+   alias closure sat in `canonical()` doing nothing for its stated purpose,
+   and only a synthetic two-hop chain revealed it.
+
+The last row is the sharp one. That guard was written *specifically* to
+prevent this pattern, and it reproduced the pattern, because it stubbed the
+function above the defect instead of driving the function containing it.
+
+## A green local run is not evidence about another platform
+
+`python3` is on PATH here. It is not reliably on PATH on `windows-latest`, so
+the first version of these tests hardcoded it — and the first fix for the
+Windows failure was that guess, which was **wrong**: both jobs failed
+identically afterwards.
+
+The actual cause was in the job log and nowhere else:
+
+```
+OSError: [Errno 22] Invalid argument:
+'D:\a\SCRAM\SCRAM\\SCRAM\SCRAM\scripts\diff_vulns.py'
+```
+
+The absolute path was interpolated into a `python -c` program and arrived
+mangled. macOS and Linux were clean, so no local run — and no amount of
+re-running `go vet`, `GOOS=windows go vet`, or the mutation audit — could ever
+have shown it. `GOOS=windows go vet` passed while the tests were guaranteed to
+fail on the runner, because it compiles but never executes.
+
+**The rule.** When a check fails only on a platform you are not running, get
+the actual output from that platform before changing anything. Guessing a fix
+costs a full push-and-wait cycle and produces a commit message that states
+something false. Cross-compiling verifies compilation, never behaviour.
+
+The path now travels on stdin as data rather than being embedded in program
+text, and `runPython` asserts the program contains no path, so that specific
+regression fails locally next time.

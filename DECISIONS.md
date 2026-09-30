@@ -39,6 +39,7 @@
 | [D44](#d44-the-invariant-could-not-see-a-bug-that-made-every-gomod-scan-clean) | the invariant could not see a bug that made every go.mod scan clean |
 | [D45](#d45-three-guards-passed-while-missing-the-defect-they-were-written-for) | three guards passed while missing the defect they were written for |
 | [D46](#d46-the-differential-harness-was-silently-comparing-id-strings) | the differential harness was silently comparing id strings |
+| [D47](#d47-a-green-local-run-says-nothing-about-another-platform) | a green local run says nothing about another platform |
 
 **Numbering gap: D06, D07, D08, D09, D10, D11, D12, D13, D14, D15, D16, D17, D18, D19, D20, D21 do not exist.** D01-D05 were written during the initial build; D22 onward came from the real-world corpus work, which started where the PRD's numbering left off. The gap is recorded rather than back-filled, because inventing decisions after the fact would be writing a fiction about how the code came to be. Nothing is renumbered either: commit messages and code comments already cite the current numbers, and renumbering would break those references for no benefit.
 
@@ -1624,3 +1625,46 @@ disagree, they should be told, not made to agree.
 **The rule, one layer up.** A comparison step that fails open reports
 agreement it never established, and disagreement it invented. Both happened
 here, from one `except Exception: return {vid}`.
+
+## D47 — a green local run says nothing about another platform
+
+**Context.** The four tests added in D46 drive `scripts/diff_vulns.py` through
+a Python subprocess. They passed on macOS. Both Windows CI jobs failed, twice,
+on the `Test` step.
+
+**First fix: wrong.** The change before last concluded that `python3` was not
+on PATH on `windows-latest` and resolved the interpreter per platform. Both
+jobs then failed **identically**, which proved the theory wrong. That commit's
+message asserted a cause it had not checked — the same failure this project
+has been logging all session, committed in a hurry because the fix felt
+obviously right.
+
+**The actual cause, from the runner log:**
+
+```
+OSError: [Errno 22] Invalid argument:
+'D:\a\SCRAM\SCRAM\\SCRAM\SCRAM\scripts\diff_vulns.py'
+```
+
+The absolute path was interpolated into the `python -c` program text and
+arrived mangled — repo segment repeated, stray control byte. `GOOS=windows go
+vet` was clean throughout, and would have stayed clean: it compiles, it does
+not execute. No local signal could ever have shown this.
+
+**Decision.**
+
+1. **The script path goes on stdin as JSON**, never in program text. The
+   interpreter receives exactly the bytes Go resolved, and nothing has to
+   survive being embedded in a program.
+2. **`runPython` asserts the program text contains no path.** The specific
+   reintroduction now fails in a local test rather than on a runner six
+   minutes later.
+3. **Three near-duplicate inline-Python harnesses collapse into one**
+   `runPython` plus `canonicalClasses`.
+
+**The rule, which is not really about Windows.** When a check fails only on a
+platform you are not running, read that platform's actual output before
+changing anything. A confident wrong fix costs a full push-and-wait cycle and
+produces documentation that lies. The same commit is in TESTING.md alongside
+the guard-phrasing rule, because both are the same shape: a check that
+appeared to cover something and covered only the case in front of me.

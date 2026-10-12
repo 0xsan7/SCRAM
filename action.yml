@@ -413,7 +413,7 @@ runs:
         token: ${{ inputs.github-token }}
 
     - name: Comment on PR
-      if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' }}
+      if: ${{ always() && inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' && steps.scram.outputs.repo-score != '' }}
       shell: bash
       env:
         # Composite actions cannot read the secrets context at all --

@@ -41,6 +41,7 @@
 | [D46](#d46-the-differential-harness-was-silently-comparing-id-strings) | the differential harness was silently comparing id strings |
 | [D47](#d47-a-green-local-run-says-nothing-about-another-platform) | a green local run says nothing about another platform |
 | [D48](#d48-nightly-fuzzing-accepted-malformed-go-module-paths) | nightly fuzzing accepted malformed Go module paths |
+| [D49](#d49-policy-failure-skipped-the-pr-findings-comment) | policy failure skipped the PR findings comment |
 
 **Numbering gap: D06, D07, D08, D09, D10, D11, D12, D13, D14, D15, D16, D17, D18, D19, D20, D21 do not exist.** D01-D05 were written during the initial build; D22 onward came from the real-world corpus work, which started where the PRD's numbering left off. The gap is recorded rather than back-filled, because inventing decisions after the fact would be writing a fiction about how the code came to be. Nothing is renumbered either: commit messages and code comments already cite the current numbers, and renumbering would break those references for no benefit.
 
@@ -1702,3 +1703,24 @@ that warning.
 `go test ./...` and `go vet ./...` passed. A 45-second `FuzzGoMod` run
 completed 1,127,031 executions without failure. The D48 mutation was killed
 by the resolver tests.
+
+
+## D49 — policy failure skipped the PR findings comment
+
+**Context.** The real v0.2.0-rc1 PR check introduced `minimist@0.0.8`.
+SCRAM correctly returned policy exit 1 for critical advisory
+`GHSA-xvch-5gv4-984h` and wrote valid schema 2.0.0 JSON. GitHub then skipped
+the composite Action's comment step because its condition implicitly
+required all previous steps to succeed. The unchanged PR did post its
+`21/65` score, so that positive case could not expose the missing failure
+report.
+
+**Decision.** The comment step runs with `always()` when the scan has
+produced a score. It still requires the PR event and `comment-on-pr` input.
+The score-output guard prevents a download, baseline, or scanner crash
+from being mistaken for a valid policy result. The scan step continues to
+fail the job; posting its report must not turn a rejected PR green.
+
+**Verification plan.** Re-run the unchanged and new-finding PRs against
+the corrected Action with the already verified rc1 binary, then repeat
+against the stable tag. Check both job conclusions and both comment bodies.

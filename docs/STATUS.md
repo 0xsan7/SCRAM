@@ -1,5 +1,9 @@
 # SCRAM — status
 
+**Current release (2026-10-12): v0.2.0 is published and validated.** See
+[the release evidence](releases/v0.2.0.md) and [HANDOFF.md](../HANDOFF.md)
+for current state. The dated sections below preserve historical observations.
+
 Written 2026-09-28. Every row cites a commit hash, a test name, or a
 measured number. Rows marked **PARTIAL** or **NOT STARTED** say what is
 missing rather than implying otherwise.

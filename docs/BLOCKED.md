@@ -1,5 +1,9 @@
 # BLOCKED
 
+**Current release (2026-10-12): v0.2.0 is published and validated.** See
+[the release evidence](releases/v0.2.0.md) and [HANDOFF.md](../HANDOFF.md)
+for current state. The dated sections below preserve historical observations.
+
 Items that could not be completed in this session, with what was tried.
 Each one is a real blocker, not a deferred preference.
 

@@ -1,8 +1,8 @@
 # GoReleaser configuration.
 #
-# Prepared but never executed: cutting a tag is a human decision, so this
-# file exists to make that decision cheap and reproducible rather than to
-# automate it away. See docs/STATUS.md and docs/BLOCKED.md.
+# Executed by CI on authorized version tags. Five signed binaries and two
+# self-generated SBOMs were verified through v0.2.0. Cutting a
+# tag remains a human decision. See docs/releases/v0.2.0.md for validation.
 #
 # The release it produces is the project's own supply-chain claim, so the
 # parts that matter are the ones a security tool cannot skip:

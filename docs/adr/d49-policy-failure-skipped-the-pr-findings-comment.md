@@ -26,9 +26,13 @@ The score-output guard prevents a download, baseline, or scanner crash
 from being mistaken for a valid policy result. The scan step continues to
 fail the job; posting its report must not turn a rejected PR green.
 
-**Verification plan.** Re-run the unchanged and new-finding PRs against
-the corrected Action with the already verified rc1 binary, then repeat
-against the stable tag. Check both job conclusions and both comment bodies.
+**Verification.** The corrected Action was checked using its exact SHA
+and the verified rc1 binary, then repeated against stable v0.2.0. Both
+five-platform push matrices passed. Unchanged PRs passed and rendered
+`21/65`; new-finding PRs remained red and rendered `25/65`, two new
+advisories, one new high and one new critical finding. Comment IDs were
+retained across reruns. Immutable run links are in
+[the release validation record](docs/releases/v0.2.0.md).
 
 ---
 

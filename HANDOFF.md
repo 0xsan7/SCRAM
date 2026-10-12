@@ -1,28 +1,30 @@
-# HANDOFF — SCRAM release resumed 2026-10-12
+# HANDOFF — SCRAM v0.2.0 released 2026-10-12
 
-The user authorized fully releasing the project on 2026-10-12, including
-rc1 validation and stable v0.2.0 publication. The former pause and rc1-only
-restriction are superseded by that authorization.
+The authorized release is complete.
 
-Release validation is in progress. On resuming, remote main was `078a48f`.
-Its original push CI was green, but scheduled fuzzing had since exposed the
-malformed Go module path issue recorded in D48. That issue is fixed with a
-regression seed and mutation check. No v0.2 tag existed when work resumed.
+- Stable release: [v0.2.0](https://github.com/0xsan7/SCRAM/releases/tag/v0.2.0), source `7a76788583ec43091e0397a39a5fbf4d1b017e25`. GitHub marks it non-prerelease and latest.
+- Candidate retained: [v0.2.0-rc1](https://github.com/0xsan7/SCRAM/releases/tag/v0.2.0-rc1), source `aeefc1d28bb27352e190103c16744f93e8b58a24`.
+- Five binaries verified by checksum, exact keyless workflow/tag identity, certificate source SHA, and Go build metadata; both SBOMs verified. All five platforms exercised on real runners.
+- Action checked on push and both PR cases against the stable tag: unchanged dependencies pass; genuinely new minimist advisories fail. Both PR comments render /65 and update existing comments. Fixture PRs closed without merging.
+- Source CI, coverage, race detection, full-history secret scans, 22 fuzz targets, and 40/40 mutation cases passed.
 
-Next: confirm CI on the release preparation commit, cut v0.2.0-rc1, verify
-all five binaries and keyless signing identities, test the Action on push
-and unchanged/new-finding PRs with the /65 comment, then publish and verify
-stable v0.2.0. Update this handoff with the final evidence and status.
+Evidence, immutable run links, and stable checksums: [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md).
 
-Keep all existing releases and branches. Never force-push or rewrite
-history. Run gitleaks v8.30.1 with
-`detect --source=. --log-opts=--all --redact` before each push; the planted
-positive control was confirmed to fail on resuming.
+Two issues found while resuming were fixed before stable publication: malformed
+Go module paths accepted by the fallback resolver (D48), and PR comments
+skipped after policy failure (D49). The published notes lead with the JSON
+schema 2.0.0 / 65-point score migration warning.
 
-SLSA build attestations and the other ROADMAP.md items remain future work.
-The current signature verification proves the workflow/tag identity and
-Rekor inclusion; it must not be described as a SLSA build attestation.
+Main includes the release source plus follow-up validation documentation.
+Use `git rev-parse HEAD origin/main` and the current remote checks to inspect
+its current state rather than relying on a self-referential hash here.
 
-The grype alias question is closed in D46; remaining differences are
-OSV-confirmed advisories absent from grype's database. See TESTING.md for
-the standing test requirements and known limits.
+No further release tag is authorized by this completed v0.2.0 release task.
+All previous releases, tags, and branches remain intact. Continue to avoid
+force-pushing, rewriting history, or deleting branches/releases.
+
+Longer-term work remains in ROADMAP.md: SLSA build attestations, reachability,
+data for a truthful 100-point score, more ecosystems, npm v1 dependency-type
+fidelity, and wider CLI/mutation coverage. Abandonment prediction remains
+unimplemented. A documentation site remains declined. These are roadmap
+items, not unfinished v0.2.0 release steps.

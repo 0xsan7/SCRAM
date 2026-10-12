@@ -133,12 +133,12 @@ corrected in the notes below rather than quietly omitted.
 | | [Trivy](https://github.com/aquasecurity/trivy) | [Grype](https://github.com/anchore/grype) | [OSV-Scanner](https://github.com/google/osv-scanner) | [Snyk](https://snyk.io) | [dependency-review-action](https://github.com/actions/dependency-review-action) | **SCRAM** |
 |---|---|---|---|---|---|---|
 | **License** | Apache-2.0 | Apache-2.0 | Apache-2.0 | Proprietary | MIT (service is paid for private repos) | Apache-2.0 |
-| **Ecosystems** | 13 langs + 20+ OS distros | 11 langs + OS | **13 langs, ~29 lockfile formats** | broad, per-language | **19** | 3 (npm, PyPI, Go) |
+| **Ecosystems** | 13 langs + 20+ OS distros | 11 langs + OS | **13 langs, ~29 lockfile formats** | broad, per-language | **19** | 4 (npm, PyPI, Go, Cargo) |
 | **Fails a PR on new findings** | no | no | no | PR checks, not a finding diff | **yes, natively** | **yes, finding-level** |
 | **Attributes a vulnerable version to the commit that introduced it** | no | no | no | no | no | **yes** |
 | **EPSS in default output** | **no** | **yes** | no | yes (prioritization) | no | yes |
 | **Scoring you can inspect** | documented vendor/CVSS policy | **`grype explain` + match types + RISK** | open DB provenance | **no** | no | printed arithmetic per component |
-| **Runs without network** | yes | yes, but hard-fails on a DB over 5 days old | `--offline` | no (hosted) | no (hosted API) | yes, fails closed |
+| **Runs without network** | yes | yes, but hard-fails on a DB over 5 days old | `--offline` | no (hosted) | no (hosted API) | inventory only; vulnerability scans fail explicitly |
 | **Scans more than dependencies** | **containers, VMs, k8s, IaC, secrets** | SBOM in/out | **C/C++ vendored, Maven transitive resolution** | **SAST, DAST, containers, IaC, secrets** | no | no |
 
 ### What the other tools do better
@@ -147,8 +147,7 @@ Conceding these is the point of the table.
 
 - **Ecosystem breadth is not close.** OSV-Scanner reads ~29 lockfile
   formats across 13 languages; GitHub's dependency graph covers 19.
-  SCRAM reads three. If your project is a Kotlin service or a Rust
-  binary, use one of them instead of SCRAM — this is a scope decision,
+  SCRAM supports four ecosystems. If your project is a Kotlin service, use one of them instead of SCRAM — this is a scope decision,
   not a technical one, and it is the single largest gap here.
 - **Trivy scans things that are not lockfiles at all**: container
   images, VM images, Kubernetes clusters, IaC misconfigurations, and
@@ -424,11 +423,11 @@ where the number came from:
 $ scram scan --scorecard github.com/google/oss-fuzz --explain pkg:npm/handlebars@4.0.11
   ...
   exploitability    0 / 25   (EPSS probability x 25)
-  maintenance      14 / 20   (OpenSSF Scorecard 7.0/10, scored 2820b2b at 2026-09-28)
+  maintenance       6 / 20   (OpenSSF Scorecard 7.0/10, scored 2820b2b at 2026-09-28)
                     3 of 14 checks did not apply and were excluded from the average
   freshness         0 / 15   (version distance behind latest)
 
-  = total          53 / 100   bucket: medium
+  = total          45 / 100   bucket: medium
 ```
 
 Two things about that line matter more than the number:
@@ -440,6 +439,11 @@ Two things about that line matter more than the number:
   no Scorecard, the term contributes nothing and says so, rather than
   reporting the project as unmaintained. The scan is not failed, because an
   absent scorecard is not evidence of a problem.
+
+Maintenance risk is `round((10 - Scorecard) / 10 * 20)`: stronger practices
+reduce this contribution. This corrects the direction used in v0.2.0, so
+maintenance-enabled scores across that fix are not directly comparable.
+See [the post-release audit](docs/audits/2026-10-12.md).
 
 `--scorecard` defaults to the repository's git origin, so the common case
 needs no flag. `--no-scorecard` opts out and stops the request.
@@ -453,17 +457,16 @@ needs no flag. `--no-scorecard` opts out and stops the request.
 | Clean | 0 | 0 |
 
 **The denominator is 65, not 100, and the reason is measured rather than
-asserted.** `scripts/measure_score_terms.sh` runs all six ecosystems and
-prints which terms carry data. The result: severity is the only term that
-scores without an opt-in flag, and exploitability is the only other one
-that can. Freshness is structurally 0 everywhere — it needs latest-version
+asserted.** `scripts/measure_score_terms.sh` samples the supported package-manager inputs and
+prints which terms carry data. Severity is derived from advisory data; maintenance can contribute when
+a repository Scorecard is available, and exploitability needs EPSS. Freshness is structurally 0 everywhere — it needs latest-version
 data this project does not collect — and exploitability needs EPSS, which
 is a per-CVE fetch that returns nothing when FIRST is unreachable.
 Dividing by 100 therefore advertised 35 points the tool usually cannot
 earn, and a clean-ish repository read as "39/100" when 39 was all the
 evidence there was.
 
-The formula is untouched. Severity, exploitability, maintenance and
+The v0.2.0 presentation change left formula budgets intact. Severity, exploitability, maintenance and
 freshness are still computed in their own units with the same weights, and
 `--explain` prints all four plus the 0–100 subtotal they sum to, so the
 arithmetic stays checkable. Only the total the score is *reported* against
@@ -472,7 +475,7 @@ changed. Bucket boundaries moved proportionally, rounded down.
 That is a monotonic rescale, not a bucket-preserving one, and the
 difference is exact rather than approximate: checked over all 101 inputs,
 **two scores change bucket, both upward** — 69 (medium → high) and 89
-(high → critical) — and **none are demoted**. Dividing by 0.65 pushes a
+(high → critical) — and **none are demoted**. Multiplying by 0.65 and rounding pushes a
 value just under an old threshold just over the new one, and 69 and 89 are
 the two that land there. A 40/100 medium is 26/65, still medium;
 `TestRescalePromotesOnlyTheTwoBoundaryScores` pins the list so a future
@@ -480,7 +483,7 @@ threshold change cannot quietly widen it.
 
 **Scores before and after this change are not comparable.** A project that
 scored 39/100 now reads 25/65. The ranking among projects is unchanged —
-it is the same number divided by 0.65 — but the absolute figure is not.
+it is the same number multiplied by 0.65, with integer rounding — but the absolute figure is not.
 
 Two deliberate choices, both load-bearing:
 
@@ -656,7 +659,7 @@ sbom:
 
 sources:
   osv: true
-  nvd: false                   # requires NVD_API_KEY
+  nvd: false                   # independent NVD ingestion is not implemented
   ghsa: false
 
 waivers:
@@ -671,7 +674,7 @@ ignore_paths: [vendor, third_party]
 
 epss: false                    # exploitability scoring; ~2x requests
 allow_degraded_scan: false     # fail closed when a source is unreachable
-offline: false                 # cache-only operation
+offline: false                 # vulnerability scans fail explicitly when offline
 cache_ttl_hours: 6
 ```
 

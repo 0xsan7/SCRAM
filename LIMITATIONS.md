@@ -132,8 +132,8 @@ enrichment" is not implemented.
 It rate-limits, and a failure is recorded as a warning with the scan marked
 degraded, rather than silently scoring a component as if it had no EPSS.
 
-**CVSS vectors are parsed, not scored by SCRAM.** The severity comes from the
-vector in the OSV record. Where a record carries no CVSS at all, severity is
+**CVSS v3 base scores are reconstructed from OSV vectors.** Numeric v3
+scores are also accepted. CVSS v4 is not implemented. Where a record carries no CVSS at all, severity is
 `unknown` and the component is not counted in any severity bucket — it is
 neither reported clean nor counted against the score.
 
@@ -178,9 +178,11 @@ independently. Genuinely empty lockfiles (e.g. Ceph's committed
 `"packages": {}`) remain valid and are distinguished by counting declarations
 independently of the resolver.
 
-**Cache TTL is 6 hours** for OSV records and EPSS. There is no cache
-invalidation on a CVE update; a record corrected upstream is picked up at the
-next expiry.
+**Advisory-detail cache TTL defaults to 6 hours** and honors the configured
+override. Package matching still queries OSV on warm scans. EPSS is not
+persistently cached. Offline vulnerability scanning remains unavailable: the
+CLI fails explicitly rather than claiming a cached all-clear. Advisory
+corrections are picked up when cached detail records expire.
 
 **Monorepo detection is directory-scanning, not workspace-aware.** Each
 lockfile is resolved independently. npm/yarn/pnpm workspace members that share

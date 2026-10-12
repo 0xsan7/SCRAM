@@ -56,11 +56,11 @@ func TestBuildResolvesNestedEdges(t *testing.T) {
 
 func TestDependents(t *testing.T) {
 	g := Build(testComponents(), []Edge{{Parent: "npm:express@4.18.2", Child: "npm:qs@6.5.2"}})
-	if got := g.Dependents("pkg:npm/qs@6.5.2"); len(got) != 0 {
-		t.Errorf("dependents of a leaf = %v, want none", got)
+	if got := g.Dependents("pkg:npm/express@4.18.2"); len(got) != 0 {
+		t.Errorf("dependents of a root = %v, want none", got)
 	}
-	deps := g.Dependents("pkg:npm/express@4.18.2")
-	if len(deps) != 1 || deps[0] != "pkg:npm/qs@6.5.2" {
+	deps := g.Dependents("pkg:npm/qs@6.5.2")
+	if len(deps) != 1 || deps[0] != "pkg:npm/express@4.18.2" {
 		t.Errorf("dependents of express = %v", deps)
 	}
 }

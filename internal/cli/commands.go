@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/0xsan7/scram/internal/drift"
 	"github.com/0xsan7/scram/internal/model"
@@ -48,7 +49,7 @@ second on a mid-size repo.`,
 			if len(list) == 0 {
 				list = []string{"cyclonedx"}
 			}
-			result, err := scan.Run(cmd.Context(), scan.Options{
+			result, err := runConfiguredScan(cmd.Context(), scan.Options{
 				Path:         path,
 				Ecosystems:   ecosys,
 				SBOMFormats:  list,
@@ -59,6 +60,7 @@ second on a mid-size repo.`,
 			if err != nil {
 				return err
 			}
+
 			// A lockfile that was detected but could not be parsed produced an
 			// empty SBOM that looks like a valid artifact, and the warning
 			// explaining that was hidden unless --verbose. An empty SBOM from a
@@ -67,6 +69,9 @@ second on a mid-size repo.`,
 			// rather than becoming a successful exit 0.
 			if err := warnIfNothingResolved(result.Scan, path); err != nil {
 				return err
+			}
+			if result.Degraded {
+				return fmt.Errorf("dependency inventory is incomplete: %s", strings.Join(result.Scan.Warnings, "; "))
 			}
 			fmt.Printf("Generated %d SBOM(s) from %d components:\n",
 				len(result.SBOMPaths), result.Scan.Summary.TotalComponents)
@@ -118,7 +123,7 @@ but "what did this change introduce".`,
 			if sbom {
 				opts.SBOMFormats = []string{"cyclonedx"}
 			}
-			result, err := scan.Run(cmd.Context(), opts)
+			result, err := runConfiguredScan(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
@@ -127,7 +132,7 @@ but "what did this change introduce".`,
 			}
 			report.NoColor = !isTTY(os.Stdout) || format == "json"
 			if err := report.Write(os.Stdout, result.Scan, result.Diff,
-				report.Format(format)); err != nil {
+				report.Format(format), result.Decision); err != nil {
 				return err
 			}
 			if !result.Decision.Pass {
@@ -178,14 +183,17 @@ diffs cleanly in review.`,
 				BaselinePath: "", // a baseline update must not diff itself
 				OutDir:       "scram-output",
 			}
-			if format == "sbom" || format == "cyclonedx" || format == "spdx" {
+			if format != "" {
 				opts.SBOMFormats = expandFormats(format)
 			} else {
 				opts.SkipVuln = false
 			}
-			result, err := scan.Run(cmd.Context(), opts)
+			result, err := runConfiguredScan(cmd.Context(), opts)
 			if err != nil {
 				return err
+			}
+			if result.Degraded {
+				return fmt.Errorf("refusing to write baseline from incomplete scan: %s", strings.Join(result.Scan.Warnings, "; "))
 			}
 			if err := drift.WriteBaseline(outPath, result.Scan); err != nil {
 				return fmt.Errorf("writing baseline: %w", err)
@@ -279,7 +287,7 @@ re-querying any vulnerability database.`,
 				w = f
 			}
 			report.NoColor = out != ""
-			if err := report.Write(w, doc.Scan, doc.Drift, report.Format(format)); err != nil {
+			if err := report.Write(w, doc.Scan, doc.Drift, report.Format(format), policy.Decision{Pass: doc.Passed, Reasons: doc.FailReasons}); err != nil {
 				return err
 			}
 			if out != "" {

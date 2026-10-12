@@ -25,6 +25,151 @@
     "why": "caught by internal/scorecard"
   },
   {
+    "id": "AUDIT-advisory-identity",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "AUDIT-baseline-degraded",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-baseline-root",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-batch-alignment",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "AUDIT-batch-pagination",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "AUDIT-cache-ownership",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "AUDIT-cache-ttl",
+    "status": "killed",
+    "why": "caught by internal/scan"
+  },
+  {
+    "id": "AUDIT-config-path",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-config-strict",
+    "status": "killed",
+    "why": "caught by internal/policy"
+  },
+  {
+    "id": "AUDIT-drift-disclosure-count",
+    "status": "killed",
+    "why": "caught by internal/drift"
+  },
+  {
+    "id": "AUDIT-epss-partial",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "AUDIT-fail-on",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-git-head-validation",
+    "status": "killed",
+    "why": "caught by internal/scan"
+  },
+  {
+    "id": "AUDIT-graph-direction",
+    "status": "killed",
+    "why": "caught by internal/graph"
+  },
+  {
+    "id": "AUDIT-json-decision",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-json-reasons",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-maintenance-direction",
+    "status": "killed",
+    "why": "caught by internal/score"
+  },
+  {
+    "id": "AUDIT-new-finding-scope",
+    "status": "killed",
+    "why": "caught by internal/policy"
+  },
+  {
+    "id": "AUDIT-offline-scorecard",
+    "status": "killed",
+    "why": "caught by internal/scan"
+  },
+  {
+    "id": "AUDIT-partial-inventory",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-sbom-affects",
+    "status": "killed",
+    "why": "caught by internal/sbom"
+  },
+  {
+    "id": "AUDIT-sbom-fake-hash",
+    "status": "killed",
+    "why": "caught by internal/sbom"
+  },
+  {
+    "id": "AUDIT-sbom-version",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "AUDIT-spdx-real-digest",
+    "status": "killed",
+    "why": "caught by internal/sbom"
+  },
+  {
+    "id": "AUDIT2-ignore-paths",
+    "status": "killed",
+    "why": "caught by internal/scan"
+  },
+  {
+    "id": "AUDIT2-nested-path",
+    "status": "killed",
+    "why": "caught by internal/detect"
+  },
+  {
+    "id": "AUDIT2-source-validation",
+    "status": "killed",
+    "why": "caught by internal/policy"
+  },
+  {
+    "id": "AUDIT3-hydration-score-pair",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
+    "id": "AUDIT3-package-fix-scope",
+    "status": "killed",
+    "why": "caught by internal/vuln"
+  },
+  {
     "id": "B1-pnpm-6.0-leading-slash-kept",
     "status": "killed",
     "why": "caught by internal/resolve"

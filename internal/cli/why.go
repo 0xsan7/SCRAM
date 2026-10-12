@@ -43,7 +43,7 @@ record it (PyPI requirements.txt is a flat list, go.sum records checksums)
 are reported as having no known path rather than being given an invented one.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			result, err := scan.Run(cmd.Context(), scan.Options{
+			result, err := runConfiguredScan(cmd.Context(), scan.Options{
 				Path:     ".",
 				SkipVuln: false,
 			})

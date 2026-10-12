@@ -1,7 +1,10 @@
 package sbom
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"sort"
+	"strings"
 
 	"github.com/0xsan7/scram/internal/model"
 )
@@ -111,7 +114,7 @@ type cdxAdvisory struct {
 	URL   string `json:"url,omitempty"`
 }
 
-func marshalCycloneDX(repoName string, comps []model.Component) ([]byte, error) {
+func marshalCycloneDX(repoName string, comps []model.Component, version ...string) ([]byte, error) {
 	ts := Timestamp().Format("2006-01-02T15:04:05Z")
 
 	doc := cdxDoc{
@@ -121,7 +124,7 @@ func marshalCycloneDX(repoName string, comps []model.Component) ([]byte, error) 
 		Version:      1,
 		Metadata: cdxMetadata{
 			Timestamp: ts,
-			Tools:     []cdxTool{{Vendor: ToolVendor, Name: ToolName, Version: ToolVersion}},
+			Tools:     []cdxTool{{Vendor: ToolVendor, Name: ToolName, Version: toolVersion(version)}},
 			Component: cdxRootComponent{
 				Type:   "application",
 				Name:   repoName,
@@ -132,6 +135,7 @@ func marshalCycloneDX(repoName string, comps []model.Component) ([]byte, error) 
 	}
 
 	vulnIndex := map[string]model.Vuln{}
+	affected := map[string]map[string]bool{}
 
 	for _, c := range comps {
 		cc := cdxComponent{
@@ -149,24 +153,45 @@ func marshalCycloneDX(repoName string, comps []model.Component) ([]byte, error) 
 		if c.License != "" {
 			cc.Licenses = []cdxLicense{{License: cdxLicenseID{Name: c.License}}}
 		}
-		for algo, h := range c.Hashes {
-			cc.Hashes = append(cc.Hashes, cdxHash{Alg: hashAlg(algo), Content: normalizeHash(h)})
+		for _, algo := range sortedHashKeys(c.Hashes) {
+			h := c.Hashes[algo]
+			if alg, digest, ok := packageDigest(algo, h); ok {
+				cc.Hashes = append(cc.Hashes, cdxHash{Alg: alg, Content: digest})
+			} else {
+				cc.Properties = append(cc.Properties, cdxProp{Name: "scram:recorded-hash:" + algo, Value: h})
+			}
 		}
-		// Always emit the identity hash so every component has at least one
-		// hash entry; several SBOM consumers require it.
-		cc.Hashes = append(cc.Hashes, cdxHash{Alg: "SHA-256", Content: contentHash(c)})
+		cc.Properties = append(cc.Properties, cdxProp{Name: "scram:component-identity-sha256", Value: contentHash(c)})
 		doc.Components = append(doc.Components, cc)
 
 		for _, v := range c.Vulnerabilities {
 			vulnIndex[v.ID] = v
+			if affected[v.ID] == nil {
+				affected[v.ID] = map[string]bool{}
+			}
+			affected[v.ID][c.Purl] = true
 		}
 	}
 
-	for id, v := range vulnIndex {
+	ids := make([]string, 0, len(vulnIndex))
+	for id := range vulnIndex {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		v := vulnIndex[id]
 		vv := cdxVuln{
 			ID:          id,
 			Source:      cdxSource{Name: v.Source},
 			Description: v.Summary,
+		}
+		refs := make([]string, 0, len(affected[id]))
+		for ref := range affected[id] {
+			refs = append(refs, ref)
+		}
+		sort.Strings(refs)
+		for _, ref := range refs {
+			vv.Affects = append(vv.Affects, cdxAffect{Ref: ref})
 		}
 		if v.URL != "" {
 			vv.Source.URL = v.URL
@@ -190,31 +215,45 @@ func marshalCycloneDX(repoName string, comps []model.Component) ([]byte, error) 
 // hashAlg maps our internal algorithm names to CycloneDX's enum, which uses
 // hyphenated forms like "SHA-512".
 func hashAlg(a string) string {
-	switch a {
-	case "SHA-256", "SHA-512", "SHA-384", "SHA-1", "SHA3-256", "SHA3-512", "MD5":
-		return a
+	switch strings.ToUpper(a) {
+	case "SHA256", "SHA-256":
+		return "SHA-256"
+	case "SHA512", "SHA-512":
+		return "SHA-512"
+	case "SHA384", "SHA-384":
+		return "SHA-384"
+	case "SHA1", "SHA-1":
+		return "SHA-1"
+	case "SHA3-256", "SHA3-512", "MD5":
+		return strings.ToUpper(a)
 	}
-	return "SHA-256"
+	return ""
 }
 
-// normalizeHash strips Go's "h1:" base64 prefix, which is not valid hex and
-// would fail schema validation. Go module hashes go in as-is under a
-// different property elsewhere; here we only emit valid hex.
+// Invalid encodings stay out of content checksum fields. In particular,
+// hashing a Go h1 checksum string does not create a package content digest.
 func normalizeHash(h string) string {
-	if len(h) == 0 {
-		return h
+	if _, err := hex.DecodeString(h); err != nil {
+		return ""
 	}
-	isHex := true
-	for _, r := range h {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
-			isHex = false
-			break
-		}
+	return strings.ToLower(h)
+}
+
+func packageDigest(algo, h string) (string, string, bool) {
+	alg := hashAlg(algo)
+	digest := normalizeHash(h)
+	sizes := map[string]int{"SHA-256": 64, "SHA-512": 128, "SHA-384": 96, "SHA-1": 40, "SHA3-256": 64, "SHA3-512": 128, "MD5": 32}
+	size, ok := sizes[alg]
+	return alg, digest, ok && len(digest) == size
+}
+
+func sortedHashKeys(hashes map[string]string) []string {
+	keys := make([]string, 0, len(hashes))
+	for key := range hashes {
+		keys = append(keys, key)
 	}
-	if isHex {
-		return h
-	}
-	return contentHash(model.Component{Purl: h})
+	sort.Strings(keys)
+	return keys
 }
 
 func boolStr(b bool) string {

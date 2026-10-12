@@ -5,6 +5,7 @@ package scan
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -30,12 +31,18 @@ import (
 type Options struct {
 	// Path is the repo root to scan.
 	Path string
+	// ConfigPath selects an explicit policy file; empty uses the repo default.
+	ConfigPath string
+	// FailOn overrides the policy severity threshold.
+	FailOn string
 	// Ecosystems restricts the scan; empty means auto-detect.
 	Ecosystems []string
 	// SBOMFormats are written alongside the scan (cyclonedx, spdx).
 	SBOMFormats []string
 	// OutDir is where SBOMs are written.
 	OutDir string
+	// ToolVersion identifies the binary producing SBOM metadata.
+	ToolVersion string
 	// BaselinePath, when set and present, is diffed against.
 	BaselinePath string
 	// DisableCache / Offline control vuln data fetching.
@@ -64,6 +71,7 @@ type Options struct {
 
 // Result bundles everything a scan produced.
 type Result struct {
+	Policy    *policy.Config
 	Scan      model.Scan
 	Diff      *model.DiffResult
 	Decision  policy.Decision
@@ -107,11 +115,24 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := policy.Load(root)
+	var cfg *policy.Config
+	if opts.ConfigPath != "" {
+		cfg, err = policy.LoadFile(opts.ConfigPath)
+	} else {
+		cfg, err = policy.Load(root)
+	}
 	if err != nil {
 		return nil, err
 	}
 	// CLI/config overrides on top of the loaded policy.
+	if opts.FailOn != "" {
+		cfg.FailOn = strings.ToLower(strings.TrimSpace(opts.FailOn))
+		if _, ok := model.SeverityRank[cfg.FailOn]; !ok {
+			return nil, fmt.Errorf("invalid fail-on severity %q", opts.FailOn)
+		}
+	}
+	// All downstream stages must honor policy offline mode, including Scorecard.
+	opts.Offline = opts.Offline || cfg.Offline
 	if len(opts.Ecosystems) > 0 {
 		cfg.Ecosystems = opts.Ecosystems
 	}
@@ -133,7 +154,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// 1. Detect.
-	projects, err := detect.Detect(root)
+	projects, err := detect.DetectFiltered(root, cfg.Ignored)
 	if err != nil {
 		return nil, fmt.Errorf("detecting ecosystems: %w", err)
 	}
@@ -154,9 +175,13 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	for _, e := range cfg.Ecosystems {
 		allowed[e] = true
 	}
+	inventoryIncomplete := false
 	var all []model.Component
 	var rawEdges []graph.Edge
 	for _, p := range projects {
+		if cfg.Ignored(p.File) {
+			continue
+		}
 		if len(allowed) > 0 && !allowed[p.Ecosystem] {
 			continue
 		}
@@ -169,12 +194,14 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		// continue, not a failure of the whole scan.
 		r, getErr := resolve.GetFor(p.Ecosystem, p.File)
 		if getErr != nil {
+			inventoryIncomplete = true
 			scan.Warnings = append(scan.Warnings,
 				fmt.Sprintf("no resolver for %s (%s)", p.Ecosystem, p.File))
 			continue
 		}
 		comps, resolveErr := resolve.ResolveFile(r, root, p.File)
 		if resolveErr != nil {
+			inventoryIncomplete = true
 			// A silent zero (manifest declares dependencies, resolver found
 			// none) is NOT a warning. D01/D22/D23 all died here: a partial
 			// parse produced an empty list, the scan treated it as "no
@@ -208,7 +235,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	scan.Components = resolve.Dedupe(all)
 
 	// 3. Vulnerability matching (skipped by the SBOM fast path).
-	var resultDegraded bool
+	resultDegraded := inventoryIncomplete
 	if !opts.SkipVuln {
 		// attachVulns reports whether vulnerability data was incomplete, so
 		// the caller can fail closed rather than reporting a clean result it
@@ -218,7 +245,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		if attachErr != nil {
 			return nil, attachErr
 		}
-		resultDegraded = degraded
+		resultDegraded = resultDegraded || degraded
 	}
 
 	// 4. Score.
@@ -228,11 +255,11 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	// 5. SBOM files (after scoring, so the SBOM can carry vuln data).
 	paths, err := writeSBOMs(opts, scan)
 	if err != nil {
-		scan.Warnings = append(scan.Warnings, fmt.Sprintf("writing SBOM: %v", err))
+		return nil, fmt.Errorf("writing SBOM: %w", err)
 	}
 
 	result := &Result{
-		Scan: scan, SBOMPaths: paths, Degraded: resultDegraded,
+		Policy: cfg, Scan: scan, SBOMPaths: paths, Degraded: resultDegraded,
 		Maintenance: engine.Provenance(),
 	}
 	// Built from the same de-duplicated component list, so the graph can never
@@ -275,12 +302,15 @@ func attachVulns(ctx context.Context, cfg *policy.Config, opts Options, scan *mo
 	if cacheDir == "" {
 		cacheDir = DefaultCacheDir()
 	}
+	ttl := opts.CacheTTL
+	if ttl == 0 {
+		ttl = cfg.CacheTTL()
+	}
+	if ttl <= 0 {
+		ttl = vuln.DefaultCacheTTL
+	}
 	var cache vuln.Cache = vuln.NewMemoryCache()
 	if !opts.DisableCache && !cfg.Offline {
-		ttl := opts.CacheTTL
-		if ttl == 0 {
-			ttl = cfg.CacheTTL()
-		}
 		fc, err := vuln.NewFileCache(cacheDir, ttl)
 		if err == nil {
 			cache = fc
@@ -294,6 +324,7 @@ func attachVulns(ctx context.Context, cfg *policy.Config, opts Options, scan *mo
 	// rate-limited; that is by definition an incomplete picture.
 	degraded := false
 	client := vuln.NewClient(cache)
+	client.CacheTTL = ttl
 	client.Offline = cfg.Offline
 	client.UseEPSS = cfg.EPSS
 	client.Warn = func(msg string) {
@@ -325,9 +356,9 @@ func writeSBOMs(opts Options, scan model.Scan) ([]string, error) {
 		case "spdx":
 			format = sbom.FormatSPDX
 		default:
-			continue
+			return paths, fmt.Errorf("unknown SBOM format %q (want cyclonedx or spdx)", f)
 		}
-		p, err := sbom.Write(outDir, scan.Repo, format, scan.Components)
+		p, err := sbom.Write(outDir, scan.Repo, format, scan.Components, opts.ToolVersion)
 		if err != nil {
 			return paths, err
 		}
@@ -339,28 +370,51 @@ func writeSBOMs(opts Options, scan model.Scan) ([]string, error) {
 // headCommit returns the current git commit SHA, or "" if not a git repo.
 // Used only to stamp the baseline; never fails the scan.
 func headCommit(root string) string {
-	data, err := os.ReadFile(filepath.Join(root, ".git", "HEAD"))
+	gitDir := filepath.Join(root, ".git")
+	if b, err := os.ReadFile(gitDir); err == nil {
+		line := strings.TrimSpace(string(b))
+		if !strings.HasPrefix(line, "gitdir: ") {
+			return ""
+		}
+		gitDir = strings.TrimSpace(strings.TrimPrefix(line, "gitdir: "))
+		if !filepath.IsAbs(gitDir) {
+			gitDir = filepath.Join(root, gitDir)
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(gitDir, "HEAD"))
 	if err != nil {
 		return ""
 	}
 	head := trimSpace(string(data))
 	if !hasPrefix(head, "ref: ") {
-		return head
+		return commitSHA(head)
+	}
+	// Ref paths from malformed metadata must not read arbitrary files.
+	ref := head[5:]
+	if !strings.HasPrefix(ref, "refs/") || filepath.ToSlash(filepath.Clean(ref)) != ref || strings.Contains(ref, "..") || strings.ContainsAny(ref, "\\\x00\r\n") {
+		return ""
 	}
 	// Resolve the ref to a SHA.
-	refPath := filepath.Join(root, ".git", head[5:])
+	refDir := gitDir
+	if b, err := os.ReadFile(filepath.Join(gitDir, "commondir")); err == nil {
+		refDir = strings.TrimSpace(string(b))
+		if !filepath.IsAbs(refDir) {
+			refDir = filepath.Join(gitDir, refDir)
+		}
+	}
+	refPath := filepath.Join(refDir, head[5:])
 	if b, err := os.ReadFile(refPath); err == nil {
-		return trimSpace(string(b))
+		return commitSHA(trimSpace(string(b)))
 	}
 	// Packed refs.
-	if b, err := os.ReadFile(filepath.Join(root, ".git", "packed-refs")); err == nil {
+	if b, err := os.ReadFile(filepath.Join(refDir, "packed-refs")); err == nil {
 		for _, line := range splitLines(string(b)) {
 			if hasPrefix(line, "#") || line == "" {
 				continue
 			}
 			parts := splitN(line, " ", 2)
 			if len(parts) == 2 && parts[1] == head[5:] {
-				return parts[0]
+				return commitSHA(parts[0])
 			}
 		}
 	}
@@ -471,4 +525,14 @@ func attachMaintenance(ctx context.Context, opts Options, engine *score.Engine, 
 		return
 	}
 	engine.SetMaintenance(res.Score, len(res.Checks), res.Inapplicable, res.Date, res.Commit)
+}
+
+func commitSHA(s string) string {
+	if len(s) != 40 && len(s) != 64 {
+		return ""
+	}
+	if _, err := hex.DecodeString(s); err != nil {
+		return ""
+	}
+	return s
 }

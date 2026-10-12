@@ -1,0 +1,167 @@
+[
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzNpmLockfile",
+    "exit_code": 0,
+    "elapsed_seconds": 21.9,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/60 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 60/60 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 9965 (3321/sec), new interesting: 9 (total: 69)\nfuzz: elapsed: 6s, execs: 9965 (0/sec), new interesting: 9 (total: 69)\nfuzz: elapsed: 9s, execs: 9965 (0/sec), new interesting: 9 (total: 69)\nfuzz: elapsed: 11s, execs: 9965 (0/sec), new interesting: 9 (total: 69)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.715s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzPyprojectToml",
+    "exit_code": 0,
+    "elapsed_seconds": 13.35,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/87 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 87/87 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 12701 (4232/sec), new interesting: 9 (total: 96)\nfuzz: elapsed: 6s, execs: 25012 (4105/sec), new interesting: 10 (total: 97)\nfuzz: elapsed: 9s, execs: 25012 (0/sec), new interesting: 10 (total: 97)\nfuzz: elapsed: 11s, execs: 25012 (0/sec), new interesting: 10 (total: 97)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t12.586s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzPoetryLock",
+    "exit_code": 0,
+    "elapsed_seconds": 11.93,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/45 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 45/45 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 4554 (1518/sec), new interesting: 9 (total: 54)\nfuzz: elapsed: 6s, execs: 4554 (0/sec), new interesting: 9 (total: 54)\nfuzz: elapsed: 9s, execs: 4554 (0/sec), new interesting: 9 (total: 54)\nfuzz: elapsed: 11s, execs: 4554 (0/sec), new interesting: 9 (total: 54)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.325s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzRequirementsTxt",
+    "exit_code": 0,
+    "elapsed_seconds": 11.73,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/48 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 48/48 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 21296 (7096/sec), new interesting: 53 (total: 101)\nfuzz: elapsed: 6s, execs: 24330 (1012/sec), new interesting: 54 (total: 102)\nfuzz: elapsed: 9s, execs: 24330 (0/sec), new interesting: 54 (total: 102)\nfuzz: elapsed: 11s, execs: 24330 (0/sec), new interesting: 54 (total: 102)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.323s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzGoSum",
+    "exit_code": 0,
+    "elapsed_seconds": 12.15,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/43 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 43/43 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 21205 (7066/sec), new interesting: 46 (total: 89)\nfuzz: elapsed: 6s, execs: 40168 (6321/sec), new interesting: 72 (total: 115)\nfuzz: elapsed: 9s, execs: 55608 (5148/sec), new interesting: 77 (total: 120)\nfuzz: elapsed: 11s, execs: 57101 (744/sec), new interesting: 79 (total: 122)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.328s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzNpmV1Warning",
+    "exit_code": 0,
+    "elapsed_seconds": 14.87,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/4 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 4/4 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 1338 (446/sec), new interesting: 9 (total: 13)\nfuzz: elapsed: 6s, execs: 2416 (359/sec), new interesting: 14 (total: 18)\nfuzz: elapsed: 9s, execs: 2416 (0/sec), new interesting: 14 (total: 18)\nfuzz: elapsed: 11s, execs: 2416 (0/sec), new interesting: 14 (total: 18)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t14.164s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzParseIntegrity",
+    "exit_code": 0,
+    "elapsed_seconds": 12.04,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/5 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 5/5 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 46057 (15347/sec), new interesting: 22 (total: 27)\nfuzz: elapsed: 6s, execs: 133094 (29022/sec), new interesting: 29 (total: 34)\nfuzz: elapsed: 9s, execs: 134623 (509/sec), new interesting: 29 (total: 34)\nfuzz: elapsed: 11s, execs: 134623 (0/sec), new interesting: 29 (total: 34)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.317s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzNameFromKey",
+    "exit_code": 0,
+    "elapsed_seconds": 11.0,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/6 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 6/6 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 76912 (25631/sec), new interesting: 7 (total: 13)\nfuzz: elapsed: 6s, execs: 146877 (23327/sec), new interesting: 7 (total: 13)\nfuzz: elapsed: 9s, execs: 213767 (22289/sec), new interesting: 7 (total: 13)\nfuzz: elapsed: 10s, execs: 233140 (17663/sec), new interesting: 7 (total: 13)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t10.407s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzPEP508",
+    "exit_code": 0,
+    "elapsed_seconds": 12.62,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/5 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 5/5 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 37714 (12568/sec), new interesting: 98 (total: 103)\nfuzz: elapsed: 6s, execs: 65005 (9097/sec), new interesting: 107 (total: 112)\nfuzz: elapsed: 9s, execs: 65005 (0/sec), new interesting: 107 (total: 112)\nfuzz: elapsed: 11s, execs: 65005 (0/sec), new interesting: 107 (total: 112)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t12.021s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzSplitGoModule",
+    "exit_code": 0,
+    "elapsed_seconds": 11.99,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/5 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 5/5 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 34467 (11485/sec), new interesting: 25 (total: 30)\nfuzz: elapsed: 6s, execs: 34467 (0/sec), new interesting: 25 (total: 30)\nfuzz: elapsed: 9s, execs: 34467 (0/sec), new interesting: 25 (total: 30)\nfuzz: elapsed: 11s, execs: 34467 (0/sec), new interesting: 25 (total: 30)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.536s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzIsPythonConstraintKey",
+    "exit_code": 0,
+    "elapsed_seconds": 10.94,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/4 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 4/4 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 54572 (18191/sec), new interesting: 39 (total: 43)\nfuzz: elapsed: 6s, execs: 119322 (21578/sec), new interesting: 50 (total: 54)\nfuzz: elapsed: 9s, execs: 187021 (22564/sec), new interesting: 54 (total: 58)\nfuzz: elapsed: 10s, execs: 205969 (15709/sec), new interesting: 56 (total: 60)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t10.519s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzYarnLock",
+    "exit_code": 0,
+    "elapsed_seconds": 11.16,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/17 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 17/17 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 14931 (4975/sec), new interesting: 0 (total: 17)\nfuzz: elapsed: 6s, execs: 37811 (7629/sec), new interesting: 0 (total: 17)\nfuzz: elapsed: 9s, execs: 63397 (8526/sec), new interesting: 0 (total: 17)\nfuzz: elapsed: 10s, execs: 72103 (8254/sec), new interesting: 0 (total: 17)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t10.523s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzPnpmLock",
+    "exit_code": 0,
+    "elapsed_seconds": 11.03,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/16 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 16/16 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 15398 (5131/sec), new interesting: 0 (total: 16)\nfuzz: elapsed: 6s, execs: 30218 (4941/sec), new interesting: 0 (total: 16)\nfuzz: elapsed: 9s, execs: 45542 (5107/sec), new interesting: 0 (total: 16)\nfuzz: elapsed: 10s, execs: 50156 (4275/sec), new interesting: 0 (total: 16)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t10.574s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzCargoLock",
+    "exit_code": 0,
+    "elapsed_seconds": 13.29,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/21 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 21/21 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 18921 (6305/sec), new interesting: 0 (total: 21)\nfuzz: elapsed: 6s, execs: 37385 (6155/sec), new interesting: 0 (total: 21)\nfuzz: elapsed: 9s, execs: 60566 (7729/sec), new interesting: 0 (total: 21)\nfuzz: elapsed: 10s, execs: 66845 (5767/sec), new interesting: 0 (total: 21)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.168s\n"
+  },
+  {
+    "package": "./internal/resolve",
+    "target": "FuzzGoMod",
+    "exit_code": 0,
+    "elapsed_seconds": 12.0,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/10 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 10/10 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 23081 (7691/sec), new interesting: 37 (total: 47)\nfuzz: elapsed: 6s, execs: 41459 (6127/sec), new interesting: 57 (total: 67)\nfuzz: elapsed: 9s, execs: 43203 (581/sec), new interesting: 59 (total: 69)\nfuzz: elapsed: 11s, execs: 43203 (0/sec), new interesting: 59 (total: 69)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/resolve\t11.299s\n"
+  },
+  {
+    "package": "./internal/sbom",
+    "target": "FuzzMarshalCycloneDX",
+    "exit_code": 0,
+    "elapsed_seconds": 11.81,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/48 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 48/48 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 14262 (4752/sec), new interesting: 24 (total: 72)\nfuzz: elapsed: 6s, execs: 14262 (0/sec), new interesting: 24 (total: 72)\nfuzz: elapsed: 9s, execs: 14262 (0/sec), new interesting: 24 (total: 72)\nfuzz: elapsed: 11s, execs: 14262 (0/sec), new interesting: 24 (total: 72)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/sbom\t11.396s\n",
+    "stage": "final serializer pass"
+  },
+  {
+    "package": "./internal/sbom",
+    "target": "FuzzMarshalSPDX",
+    "exit_code": 0,
+    "elapsed_seconds": 11.86,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/83 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 83/83 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 29419 (9803/sec), new interesting: 16 (total: 99)\nfuzz: elapsed: 6s, execs: 64984 (11858/sec), new interesting: 27 (total: 110)\nfuzz: elapsed: 9s, execs: 66340 (452/sec), new interesting: 28 (total: 111)\nfuzz: elapsed: 11s, execs: 66340 (0/sec), new interesting: 28 (total: 111)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/sbom\t11.255s\n",
+    "stage": "final serializer pass"
+  },
+  {
+    "package": "./internal/sbom",
+    "target": "FuzzSpdxID",
+    "exit_code": 0,
+    "elapsed_seconds": 11.65,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/4 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 4/4 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 21892 (7295/sec), new interesting: 16 (total: 20)\nfuzz: elapsed: 6s, execs: 21892 (0/sec), new interesting: 16 (total: 20)\nfuzz: elapsed: 9s, execs: 21892 (0/sec), new interesting: 16 (total: 20)\nfuzz: elapsed: 11s, execs: 21892 (0/sec), new interesting: 16 (total: 20)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/sbom\t11.240s\n"
+  },
+  {
+    "package": "./internal/sbom",
+    "target": "FuzzNormalizeHash",
+    "exit_code": 0,
+    "elapsed_seconds": 10.7,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/70 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 70/70 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 77532 (25836/sec), new interesting: 21 (total: 91)\nfuzz: elapsed: 6s, execs: 291530 (71353/sec), new interesting: 42 (total: 112)\nfuzz: elapsed: 9s, execs: 401902 (36791/sec), new interesting: 55 (total: 125)\nfuzz: elapsed: 10s, execs: 460896 (55404/sec), new interesting: 59 (total: 129)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/sbom\t10.382s\n",
+    "stage": "final serializer pass"
+  },
+  {
+    "package": "./internal/sbom",
+    "target": "FuzzEmptyComponentList",
+    "exit_code": 0,
+    "elapsed_seconds": 15.14,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/51 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 51/51 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 8088 (2695/sec), new interesting: 6 (total: 57)\nfuzz: elapsed: 6s, execs: 96782 (29565/sec), new interesting: 15 (total: 66)\nfuzz: elapsed: 9s, execs: 117743 (6987/sec), new interesting: 18 (total: 69)\nfuzz: elapsed: 11s, execs: 117743 (0/sec), new interesting: 18 (total: 69)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/sbom\t14.808s\n",
+    "stage": "final serializer pass"
+  },
+  {
+    "package": "./internal/scorecard",
+    "target": "FuzzResponse",
+    "exit_code": 0,
+    "elapsed_seconds": 12.4,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/11 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 11/11 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 7823 (2607/sec), new interesting: 12 (total: 23)\nfuzz: elapsed: 6s, execs: 7823 (0/sec), new interesting: 12 (total: 23)\nfuzz: elapsed: 9s, execs: 126933 (39703/sec), new interesting: 28 (total: 39)\nfuzz: elapsed: 11s, execs: 126933 (0/sec), new interesting: 28 (total: 39)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/scorecard\t11.429s\n"
+  },
+  {
+    "package": "./internal/scorecard",
+    "target": "FuzzNormalize",
+    "exit_code": 0,
+    "elapsed_seconds": 11.72,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/13 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 13/13 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 20703 (6899/sec), new interesting: 60 (total: 73)\nfuzz: elapsed: 6s, execs: 81060 (20119/sec), new interesting: 69 (total: 82)\nfuzz: elapsed: 9s, execs: 81060 (0/sec), new interesting: 69 (total: 82)\nfuzz: elapsed: 11s, execs: 163284 (41028/sec), new interesting: 75 (total: 88)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/scorecard\t11.295s\n"
+  },
+  {
+    "package": "./internal/vuln",
+    "target": "FuzzAuditCVSS",
+    "exit_code": 0,
+    "elapsed_seconds": 12.09,
+    "output": "fuzz: elapsed: 0s, gathering baseline coverage: 0/5 completed\nfuzz: elapsed: 0s, gathering baseline coverage: 5/5 completed, now fuzzing with 2 workers\nfuzz: elapsed: 3s, execs: 70168 (23381/sec), new interesting: 70 (total: 75)\nfuzz: elapsed: 6s, execs: 146113 (25319/sec), new interesting: 104 (total: 109)\nfuzz: elapsed: 9s, execs: 181960 (11947/sec), new interesting: 135 (total: 140)\nfuzz: elapsed: 11s, execs: 181960 (0/sec), new interesting: 135 (total: 140)\nPASS\nok  \tgithub.com/0xsan7/scram/internal/vuln\t11.429s\n"
+  }
+]

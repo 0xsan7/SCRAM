@@ -106,17 +106,26 @@ func runScan(cmd *cobra.Command, args []string) error {
 		opts.ScorecardRepo = gitOriginProject(path)
 	}
 
+	// Defaults belong to the scanned repository, not the caller working directory.
+	if !cmd.Flags().Changed("baseline") {
+		sf.baseline = filepath.Join(path, drift.DefaultBaselinePath)
+	}
+	if !cmd.Flags().Changed("trend-file") {
+		sf.trendPath = filepath.Join(path, trend.DefaultPath)
+	}
 	// Only diff against a baseline if one actually exists. A missing baseline
 	// is the normal first-run state, not an error.
 	if sf.baseline != "" {
 		if _, err := os.Stat(sf.baseline); err == nil {
 			opts.BaselinePath = sf.baseline
+		} else if cmd.Flags().Changed("baseline") {
+			return fmt.Errorf("reading explicitly requested baseline %s: %w", sf.baseline, err)
 		} else if g.verbose {
 			fmt.Fprintf(os.Stderr, "no baseline at %s, reporting current state only\n", sf.baseline)
 		}
 	}
 
-	result, err := scan.Run(cmd.Context(), opts)
+	result, err := runConfiguredScan(cmd.Context(), opts)
 	if err != nil {
 		return err
 	}
@@ -174,19 +183,19 @@ func runScan(cmd *cobra.Command, args []string) error {
 	case report.FormatSARIF:
 		// SARIF is a machine format for the GitHub Security tab; the policy
 		// text goes to stderr so stdout stays a valid, uploadable document.
-		if err := report.Write(os.Stdout, result.Scan, result.Diff, format); err != nil {
+		if err := report.Write(os.Stdout, result.Scan, result.Diff, format, result.Decision); err != nil {
 			return err
 		}
 		printPolicySummary(os.Stderr, path, result)
 	case report.FormatJSON:
 		// Same rule for JSON: stdout must parse. Any human-facing summary
 		// goes to stderr, so `scram scan --format json | jq` always works.
-		if err := report.Write(os.Stdout, result.Scan, result.Diff, format); err != nil {
+		if err := report.Write(os.Stdout, result.Scan, result.Diff, format, result.Decision); err != nil {
 			return err
 		}
 		printPolicySummary(os.Stderr, path, result)
 	default:
-		if err := report.WriteWithTrend(os.Stdout, result.Scan, result.Diff, format, tr); err != nil {
+		if err := report.WriteWithTrend(os.Stdout, result.Scan, result.Diff, format, tr, result.Decision); err != nil {
 			return err
 		}
 		fmt.Println()
@@ -207,8 +216,8 @@ func runScan(cmd *cobra.Command, args []string) error {
 // caller chooses the stream: stdout for the human table, stderr for the
 // machine formats, whose stdout must stay parseable.
 func printPolicySummary(w io.Writer, path string, result *scan.Result) {
-	cfg, err := loadConfig(path)
-	if err != nil {
+	cfg := result.Policy
+	if cfg == nil {
 		cfg = policy.Default()
 	}
 	fmt.Fprintln(w)

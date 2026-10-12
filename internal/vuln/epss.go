@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -36,10 +37,6 @@ func (c *Client) enrichEPSS(ctx context.Context, comps []model.Component) error 
 	}
 
 	scores, err := c.fetchEPSS(ctx, keysOf(needed))
-	if err != nil {
-		return err
-	}
-
 	for i := range comps {
 		for j := range comps[i].Vulnerabilities {
 			if cve, ok := asCVE(comps[i].Vulnerabilities[j]); ok {
@@ -47,7 +44,7 @@ func (c *Client) enrichEPSS(ctx context.Context, comps []model.Component) error 
 			}
 		}
 	}
-	return nil
+	return err
 }
 
 // asCVE returns the CVE id for a vulnerability record, checking both the
@@ -110,6 +107,9 @@ func (f *flexFloat64) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return fmt.Errorf("parsing EPSS value %q: %w", s, err)
 	}
+	if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1 {
+		return fmt.Errorf("EPSS probability out of range: %q", s)
+	}
 	*f = flexFloat64(v)
 	return nil
 }
@@ -156,12 +156,12 @@ func (c *Client) fetchEPSS(ctx context.Context, cves []string) (map[string]float
 	}
 	wg.Wait()
 
-	if len(errs) > 0 && len(out) == 0 {
+	if len(errs) > 0 {
 		// Every chunk failed — report it so the caller can warn.
 		// %w, not %v: the caller decides whether a total EPSS outage degrades the
 		// scan or aborts it, and that decision can only inspect the error chain
 		// if the first error is still wrapped here.
-		return out, fmt.Errorf("all %d EPSS request(s) failed: %w", len(errs), errs[0])
+		return out, fmt.Errorf("%d EPSS request(s) failed: %w", len(errs), errs[0])
 	}
 	return out, nil
 }

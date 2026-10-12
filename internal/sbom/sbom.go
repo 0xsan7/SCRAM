@@ -23,7 +23,7 @@ var Timestamp = func() time.Time { return time.Now().UTC() }
 const (
 	ToolName      = "scram"
 	ToolVendor    = "0xsan7"
-	ToolVersion   = "0.1.0"
+	ToolVersion   = "development"
 	CycloneDXSpec = "1.5"
 	SPDXVersion   = "SPDX-2.3"
 )
@@ -39,7 +39,7 @@ const (
 // Write serializes components in the requested format to dir. The filename is
 // derived from repoName so multiple repos in a monorepo don't overwrite each
 // other. Returns the path written.
-func Write(dir string, repoName string, format Format, components []model.Component) (string, error) {
+func Write(dir string, repoName string, format Format, components []model.Component, version ...string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
@@ -50,10 +50,10 @@ func Write(dir string, repoName string, format Format, components []model.Compon
 	)
 	switch format {
 	case FormatCycloneDX:
-		data, err = marshalCycloneDX(repoName, components)
+		data, err = marshalCycloneDX(repoName, components, version...)
 		base = "sbom.cdx.json"
 	case FormatSPDX:
-		data, err = marshalSPDX(repoName, components)
+		data, err = marshalSPDX(repoName, components, version...)
 		base = "sbom.spdx.json"
 	default:
 		return "", fmt.Errorf("unknown SBOM format %q (want cyclonedx or spdx)", format)
@@ -92,4 +92,11 @@ func serialNumber(repoName string) string {
 func spdxNamespace(repoName string) string {
 	sum := sha256.Sum256([]byte("scram-spdx:" + repoName))
 	return "https://spdx.org/spdxdocs/scram-" + hex.EncodeToString(sum[:16])
+}
+
+func toolVersion(version []string) string {
+	if len(version) > 0 && version[0] != "" {
+		return version[0]
+	}
+	return ToolVersion
 }

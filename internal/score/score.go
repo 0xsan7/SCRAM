@@ -191,7 +191,7 @@ func exploitabilityPoints(vulns []model.Vuln) int {
 // unmaintained package does not inherit a different maintenance story from
 // the package itself. Scorecard has no per-dependency view to draw on.
 //
-// Scaling is linear and clamped. A Scorecard of 10 is a full 20 points; 0 is
+// Scaling is linear and clamped. A Scorecard of 0 is a full 20 risk points; 10 is
 // none. A nil score means no Scorecard exists for the project, and yields 0
 // points -- see the Engine.MaintenanceScore comment for why that is not
 // treated as a measurement of zero.
@@ -213,7 +213,7 @@ func (e *Engine) maintenancePoints(c model.Component) int {
 	if e.maintenanceChecks == 0 {
 		return 0
 	}
-	return clamp(int(math.Round(v/10*float64(model.MaxMaintenancePoints))), 0, model.MaxMaintenancePoints)
+	return clamp(int(math.Round((10-v)/10*float64(model.MaxMaintenancePoints))), 0, model.MaxMaintenancePoints)
 }
 
 // freshnessPoints estimates staleness from two signals, in priority order:

@@ -1,5 +1,9 @@
 # SCRAM: architecture and interview guide
 
+**Historical snapshot:** This guide describes v0.2.0 and source commit
+`1b557a8`, before the subsequent bug fixes. See the
+[post-release audit](audits/2026-10-12.md) for corrected behavior.
+
 Prepared 2026-10-12 from the implementation on `main` after the v0.2.0 release. This is a source-based explanation, including implementation gaps; historical design documents sometimes describe intentions that the runtime does not yet fulfill. No runtime code was changed to prepare this guide.
 
 ## Contents

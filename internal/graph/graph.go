@@ -136,7 +136,7 @@ func (g *Graph) Dependents(target string) []string {
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
-		for _, child := range g.Children[cur] {
+		for _, child := range g.Parents[cur] {
 			if seen[child] {
 				continue
 			}

@@ -34,6 +34,26 @@ type vulnDetail struct {
 	Published string `json:"published,omitempty"`
 }
 
+// advisoryDetail retains package-specific ranges in the cache. A normalized
+// advisory alone cannot represent fixes for several affected packages.
+type advisoryDetail struct {
+	Vuln     model.Vuln    `json:"vuln"`
+	Affected []osvAffected `json:"affected,omitempty"`
+}
+
+func (d advisoryDetail) forComponent(comp model.Component) model.Vuln {
+	v := d.Vuln
+	eco, _ := OSVEcosystem(comp.Ecosystem)
+	var affected []osvAffected
+	for _, a := range d.Affected {
+		if a.Package.Name == comp.Name && a.Package.Ecosystem == eco {
+			affected = append(affected, a)
+		}
+	}
+	v.FixedVersion, v.Introduced, v.LastAffected = rangeSummary(affected)
+	return v
+}
+
 // Hydrate fetches full records for every vulnerability id in comps that is
 // missing severity data, then replaces the placeholder records in place.
 //
@@ -69,15 +89,16 @@ func (c *Client) Hydrate(ctx context.Context, comps []model.Component) (failed i
 	// Write the hydrated fields back onto every matching record.
 	for ci := range comps {
 		for vi := range comps[ci].Vulnerabilities {
-			d, ok := details[comps[ci].Vulnerabilities[vi].ID]
+			detail, ok := details[comps[ci].Vulnerabilities[vi].ID]
 			if !ok {
 				continue
 			}
+			d := detail.forComponent(comps[ci])
 			v := &comps[ci].Vulnerabilities[vi]
 			if d.CVSSv3 > v.CVSSv3 {
 				v.CVSSv3 = d.CVSSv3
-			}
-			if d.CVSSVector != "" {
+				v.CVSSVector = d.CVSSVector
+			} else if d.CVSSv3 == v.CVSSv3 && v.CVSSVector == "" {
 				v.CVSSVector = d.CVSSVector
 			}
 			if d.Summary != "" {
@@ -106,8 +127,8 @@ func (c *Client) Hydrate(ctx context.Context, comps []model.Component) (failed i
 
 // fetchDetails retrieves full records with bounded concurrency, using the
 // cache to skip anything already fetched.
-func (c *Client) fetchDetails(ctx context.Context, ids []string) map[string]model.Vuln {
-	out := make(map[string]model.Vuln, len(ids))
+func (c *Client) fetchDetails(ctx context.Context, ids []string) map[string]advisoryDetail {
+	out := make(map[string]advisoryDetail, len(ids))
 
 	// A job is one id still needing a network fetch, plus the cache key its
 	// result should be stored under.
@@ -117,11 +138,11 @@ func (c *Client) fetchDetails(ctx context.Context, ids []string) map[string]mode
 	}
 	jobs := make([]job, 0, len(ids))
 	for _, id := range ids {
-		key := CacheKey("vuln-detail", "osv", id)
+		key := CacheKey("vuln-detail-v2", "osv", id)
 		if c.Cache != nil {
 			if b, ok := c.Cache.Get(key); ok {
-				var v model.Vuln
-				if json.Unmarshal(b, &v) == nil {
+				var v advisoryDetail
+				if json.Unmarshal(b, &v) == nil && v.Vuln.ID == id {
 					out[id] = v
 					continue
 				}
@@ -175,42 +196,45 @@ func (c *Client) fetchDetails(ctx context.Context, ids []string) map[string]mode
 }
 
 // fetchOne retrieves and normalizes a single OSV vulnerability record.
-func (c *Client) fetchOne(ctx context.Context, id string) (model.Vuln, error) {
+func (c *Client) fetchOne(ctx context.Context, id string) (advisoryDetail, error) {
 	url := OSVBaseURL + "/v1/vulns/" + id
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return model.Vuln{}, err
+		return advisoryDetail{}, err
 	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return model.Vuln{}, err
+		return advisoryDetail{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		// The advisory was withdrawn between the batch query and now.
-		return model.Vuln{}, fmt.Errorf("OSV has no record %s (withdrawn?)", id)
+		return advisoryDetail{}, fmt.Errorf("OSV has no record %s (withdrawn?)", id)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return model.Vuln{}, fmt.Errorf("OSV returned %s for %s", resp.Status, id)
+		return advisoryDetail{}, fmt.Errorf("OSV returned %s for %s", resp.Status, id)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
-		return model.Vuln{}, err
+		return advisoryDetail{}, err
 	}
 	var detail vulnDetail
 	if err := json.Unmarshal(body, &detail); err != nil {
-		return model.Vuln{}, err
+		return advisoryDetail{}, err
 	}
 
+	if detail.ID != id {
+		return advisoryDetail{}, fmt.Errorf("OSV returned advisory %q for requested %q", detail.ID, id)
+	}
 	records := normalizeOSV([]osvVuln{detail.osvVuln})
 	if len(records) == 0 {
-		return model.Vuln{}, fmt.Errorf("OSV record %s normalized to nothing", id)
+		return advisoryDetail{}, fmt.Errorf("OSV record %s normalized to nothing", id)
 	}
-	return records[0], nil
+	return advisoryDetail{Vuln: records[0], Affected: detail.Affected}, nil
 }
 
 // mergeAliases combines alias lists, dropping the record's own ID and any

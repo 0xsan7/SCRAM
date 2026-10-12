@@ -8,8 +8,13 @@
 package policy
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -82,17 +87,31 @@ func Default() *Config {
 // Load reads .scram.yml from root. A missing file is not an error — defaults
 // apply (FR-501).
 func Load(root string) (*Config, error) {
+	return loadFile(filepath.Join(root, ConfigName), true)
+}
+
+// LoadFile reads an explicitly requested policy; a missing file is an error.
+func LoadFile(path string) (*Config, error) {
+	return loadFile(path, false)
+}
+
+func loadFile(path string, missingOK bool) (*Config, error) {
 	cfg := Default()
-	path := root + "/" + ConfigName
 	b, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if missingOK && os.IsNotExist(err) {
 			return cfg, nil
 		}
 		return nil, err
 	}
-	if err := yaml.Unmarshal(b, cfg); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(b))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(cfg); err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("parsing %s: expected one YAML document", path)
 	}
 	// Validate rather than trusting the file, since a typo in fail_on would
 	// otherwise silently mean "never fail".
@@ -103,6 +122,9 @@ func Load(root string) (*Config, error) {
 }
 
 func (c *Config) normalize() error {
+	if c.Version != 1 {
+		return fmt.Errorf("unsupported policy version %d (want 1)", c.Version)
+	}
 	c.FailOn = strings.ToLower(strings.TrimSpace(c.FailOn))
 	if _, ok := model.SeverityRank[c.FailOn]; !ok {
 		return fmt.Errorf("fail_on: %q is not a severity (use clean, low, medium, high, or critical)", c.FailOn)
@@ -111,8 +133,9 @@ func (c *Config) normalize() error {
 		c.SBOM.Formats = []string{"cyclonedx"}
 	}
 	valid := map[string]bool{"cyclonedx": true, "spdx": true}
-	for _, f := range c.SBOM.Formats {
+	for i, f := range c.SBOM.Formats {
 		f = strings.ToLower(strings.TrimSpace(f))
+		c.SBOM.Formats[i] = f
 		if !valid[f] {
 			return fmt.Errorf("sbom.formats: %q is not supported (use cyclonedx or spdx)", f)
 		}
@@ -121,6 +144,21 @@ func (c *Config) normalize() error {
 	// worst possible failure mode for a security scanner.
 	if !c.Sources.OSV && !c.Sources.NVD && !c.Sources.GHSA {
 		return fmt.Errorf("sources: at least one of osv, nvd, ghsa must be enabled")
+	}
+	if !c.Sources.OSV || c.Sources.NVD || c.Sources.GHSA {
+		return fmt.Errorf("only the OSV source is implemented; enable osv and disable nvd/ghsa")
+	}
+	for i, pattern := range c.IgnorePaths {
+		pattern = strings.Trim(strings.TrimPrefix(strings.ReplaceAll(strings.TrimSpace(pattern), "\\", "/"), "./"), "/")
+		for _, segment := range strings.Split(pattern, "/") {
+			if segment == "**" {
+				continue
+			}
+			if _, err := path.Match(segment, ""); err != nil {
+				return fmt.Errorf("ignore_paths: invalid pattern %q: %w", pattern, err)
+			}
+		}
+		c.IgnorePaths[i] = pattern
 	}
 	if c.CacheTTLHours < 0 {
 		return fmt.Errorf("cache_ttl_hours: must not be negative")
@@ -204,7 +242,7 @@ func Evaluate(cfg *Config, scan model.Scan, diff *model.DiffResult, degraded boo
 			}
 			allFindings = append(allFindings, f)
 			// A vuln counts as new if the drift set says so.
-			if isNewFinding(diff, v.ID) {
+			if isNewFinding(diff, c.Purl, v.ID) {
 				newFindings = append(newFindings, f)
 			}
 		}
@@ -220,7 +258,7 @@ func Evaluate(cfg *Config, scan model.Scan, diff *model.DiffResult, degraded boo
 		}
 	} else if cfg.FailOnExisting {
 		// Both new and pre-existing are in scope.
-		gateSet = append(append([]finding{}, newFindings...), allFindings...)
+		gateSet = allFindings
 	}
 
 	for _, f := range gateSet {
@@ -276,7 +314,7 @@ func Evaluate(cfg *Config, scan model.Scan, diff *model.DiffResult, degraded boo
 	// never actually established.
 	if degraded && !cfg.AllowDegraded {
 		d.Reasons = append(d.Reasons,
-			"vulnerability data incomplete (an upstream source was unreachable or rate-limited); "+
+			"dependency inventory or vulnerability data incomplete; "+
 				"refusing to pass a scan that could not verify. "+
 				"Set allow_degraded_scan: true in .scram.yml to accept this explicitly.")
 	}
@@ -302,10 +340,25 @@ func worseBucket(a, b string) string {
 }
 
 // isNewFinding reports whether a vuln id appears in the diff's new set.
-func isNewFinding(diff *model.DiffResult, id string) bool {
+func isNewFinding(diff *model.DiffResult, purl, id string) bool {
 	if diff == nil {
 		return false
 	}
+	// Detailed drift is authoritative; summary IDs cannot distinguish packages.
+	if len(diff.Drifts) > 0 {
+		for _, d := range diff.Drifts {
+			if d.Purl != purl {
+				continue
+			}
+			for _, n := range d.NewVulnerabilities {
+				if n == id {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	// Preserve compatibility with callers supplying only a summary.
 	for _, n := range diff.Summary.NewVulnIDs {
 		if n == id {
 			return true
@@ -363,7 +416,7 @@ func Explain(cfg *Config, d Decision) string {
 const Starter = `version: 1
 
 # Ecosystems to scan. Omit to auto-detect from lockfiles.
-ecosystems: [npm, pypi, go]
+ecosystems: [npm, pypi, go, cargo]
 
 # Severity threshold. Applied to findings NEW since the baseline, so
 # pre-existing issues don't block every PR.

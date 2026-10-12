@@ -4,6 +4,8 @@
 package detect
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -123,16 +125,29 @@ const maxDepth = 3
 // Detect returns every supported project found under root. Manifests and
 // lockfiles inside vendored/build directories are ignored so that a repo
 // doesn't get scanned twice because it vendors another project.
-func Detect(root string) ([]Project, error) {
-	if _, err := os.Stat(root); err != nil {
+func Detect(root string) ([]Project, error) { return DetectFiltered(root, nil) }
+
+// DetectFiltered excludes matching paths before reading their directories or
+// choosing a dependency file. Unreadable included directories are errors.
+func DetectFiltered(root string, ignore func(string) bool) ([]Project, error) {
+	info, err := os.Stat(root)
+	if err != nil {
 		return nil, err
 	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("scan root %s is not a directory", root)
+	}
+	var walkErr error
 	var found []Project
 
 	var walk func(dir, rel string, depth int)
 	walk = func(dir, rel string, depth int) {
+		if ignore != nil && ignore(rel) {
+			return
+		}
 		entries, err := os.ReadDir(dir)
 		if err != nil {
+			walkErr = errors.Join(walkErr, fmt.Errorf("reading dependency directory %s: %w", dir, err))
 			return
 		}
 
@@ -142,6 +157,9 @@ func Detect(root string) ([]Project, error) {
 		taken := map[string]bool{}
 
 		for _, c := range candidates {
+			if ignore != nil && ignore(joinRel(rel, c.File)) {
+				continue
+			}
 			if _, err := os.Stat(filepath.Join(dir, c.File)); err != nil {
 				continue
 			}
@@ -168,11 +186,14 @@ func Detect(root string) ([]Project, error) {
 			if !e.IsDir() || skipDir(e.Name()) {
 				continue
 			}
-			walk(filepath.Join(dir, e.Name()), e.Name(), depth+1)
+			walk(filepath.Join(dir, e.Name()), joinRel(rel, e.Name()), depth+1)
 		}
 	}
 
 	walk(root, ".", 0)
+	if walkErr != nil {
+		return nil, walkErr
+	}
 
 	sort.Slice(found, func(i, j int) bool {
 		if found[i].Ecosystem != found[j].Ecosystem {

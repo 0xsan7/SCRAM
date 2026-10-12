@@ -1727,4 +1727,4 @@ five-platform push matrices passed. Unchanged PRs passed and rendered
 `21/65`; new-finding PRs remained red and rendered `25/65`, two new
 advisories, one new high and one new critical finding. Comment IDs were
 retained across reruns. Immutable run links are in
-[the release validation record](docs/releases/v0.2.0.md).
+[the release validation record](https://github.com/0xsan7/SCRAM/blob/71b2e122481c1062e5839700b12517a108f34812/docs/releases/v0.2.0.md).

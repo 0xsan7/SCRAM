@@ -368,7 +368,7 @@ jobs:
         with:
           distribution: goreleaser
           version: v2.5.1
-          args: release --clean
+          args: release --clean --release-header docs/BREAKING-2.0.0.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

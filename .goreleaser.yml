@@ -194,7 +194,7 @@ release:
     matched what was in the certificate`.
 
     The certificate's identity is
-    `https://github.com/0xsan7/SCRAM/.github/workflows/ci.yml@refs/tags/v0.1.0-rc1`,
+    `https://github.com/0xsan7/SCRAM/.github/workflows/ci.yml@refs/tags/{{ .Tag }}`,
     which is what ties the binary to this specific tag.
 
     Built from commit `{{ .ShortCommit }}`.

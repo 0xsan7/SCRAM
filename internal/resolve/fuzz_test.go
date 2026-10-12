@@ -495,6 +495,8 @@ func FuzzCargoLock(f *testing.F) {
 // upstream source of truth in the old corpus: a project with no go.sum is
 // now inventoried from go.mod instead of silently scanning as empty.
 func FuzzGoMod(f *testing.F) {
+	// Nightly fuzzing accepted invalid UTF-8 as a Go module path.
+	f.Add([]byte("require A./\x93 v0\n"))
 	seedFromCorpus(f, "go", "go.mod")
 	f.Add([]byte(""))
 	f.Add([]byte("module github.com/go-chi/chi/v5\n\n// Chi supports the four most recent major versions of Go.\ngo 1.24\n"))

@@ -56,6 +56,13 @@ func TestPlausibleGoModule(t *testing.T) {
 		{"empty leading segment", "/a/b"},
 		{"empty middle segment", "github.com//b"},
 		{"empty", ""},
+		{"invalid UTF-8 from nightly fuzzing", "A./\x93"},
+		{"invalid UTF-8 in host", "A\x93.com/pkg"},
+		{"non-ASCII path", "example.com/café"},
+		{"query delimiter", "example.com/pkg?query"},
+		{"fragment delimiter", "example.com/pkg#fragment"},
+		{"version delimiter", "example.com/pkg@other"},
+		{"percent-encoded byte", "example.com/%93"},
 	}
 	for _, c := range rejected {
 		if plausibleGoModule(c.m) {

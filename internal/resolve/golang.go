@@ -27,6 +27,8 @@ func (goResolver) Handles(path string) bool {
 //	<module> <version>[/go.mod] <hash>
 var goSumLine = regexp.MustCompile(`^(\S+)\s+(\S+?)(/go\.mod)?\s+(\S+)$`)
 
+var goModulePathChars = regexp.MustCompile(`^[A-Za-z0-9._~/-]+$`)
+
 // goModRequire matches require directives in go.mod, both the block form
 //
 //	require (
@@ -301,6 +303,11 @@ func goModComponents(src string) []model.Component {
 // turned into a component: a component with a fabricated name builds a
 // PURL that matches no advisory while still counting toward the inventory.
 func plausibleGoModule(m string) bool {
+	// Go module paths contain only ASCII letters, digits and -._~/.
+	// Reject malformed bytes before constructing a PURL or an OSV key.
+	if !goModulePathChars.MatchString(m) {
+		return false
+	}
 	if m == "" {
 		return false
 	}

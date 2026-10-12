@@ -29,6 +29,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # `find` must be present verbatim in the file, or the mutant is a no-op and
 # is reported as BROKEN rather than silently passing.
 MUTANTS = [
+    ("D48-gomod-invalid-path", "internal/resolve/golang.go",
+     "if !goModulePathChars.MatchString(m) {",
+     "if false && !goModulePathChars.MatchString(m) {",
+     ["internal/resolve"]),
     # --- D01: npm v3 top-level "requires": true unmarshalled as a map -----
     ("D01-requires-bool", "internal/resolve/npm.go",
      "\tRequiresTrue bool `json:\"requires\"`",

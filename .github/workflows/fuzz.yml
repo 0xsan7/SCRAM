@@ -118,7 +118,8 @@ jobs:
           name: fuzz-crashers
           path: |
             ${{ runner.temp }}/fuzz/
-            testdata/fuzz/**/*crash*
+            internal/**/testdata/fuzz/**
+            testdata/fuzz/**
           if-no-files-found: ignore
           retention-days: 14
 

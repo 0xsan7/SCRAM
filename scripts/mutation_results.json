@@ -170,6 +170,11 @@
     "why": "caught by internal/resolve"
   },
   {
+    "id": "D48-gomod-invalid-path",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
     "id": "DEDUPE-alias",
     "status": "killed",
     "why": "caught by internal/vuln"

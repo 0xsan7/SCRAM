@@ -182,11 +182,11 @@ release:
     #    darwin-arm64, darwin-amd64, linux-amd64, linux-arm64, or
     #    windows-amd64.exe
     cosign verify-blob \
-      --certificate scram_{{ .Version }}-linux-amd64.pem \
-      --signature    scram_{{ .Version }}-linux-amd64.sig \
+      --certificate scram-{{ .Version }}-linux-amd64.pem \
+      --signature    scram-{{ .Version }}-linux-amd64.sig \
       --certificate-identity-regexp 'https://github.com/0xsan7/SCRAM/' \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-      scram_{{ .Version }}-linux-amd64
+      scram-{{ .Version }}-linux-amd64
     ```
 
     Success prints `Verified OK`. A signature from a different

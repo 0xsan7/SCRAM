@@ -44,7 +44,7 @@ func TestCVSSBaseFromVector(t *testing.T) {
 			// different PR weights; getting this wrong is easy.
 			name: "local, high complexity, privileges required, scope changed",
 			vec:  "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:C/C:L/I:L/A:N",
-			want: 3.4,
+			want: 3.7, // FIRST v3.1 section 7.1: ISS .3916, raw 3.610888..., Roundup 3.7
 		},
 		{
 			name: "high attack complexity penalty",

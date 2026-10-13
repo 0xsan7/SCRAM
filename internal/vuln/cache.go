@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -74,7 +75,7 @@ func (f *FileCache) Get(key string) ([]byte, bool) {
 		_ = os.Remove(f.path(key))
 		return nil, false
 	}
-	if f.now().After(e.ExpiresAt) {
+	if e.Key != key || !f.now().Before(e.ExpiresAt) {
 		// Expired: drop it so the directory doesn't grow without bound.
 		_ = os.Remove(f.path(key))
 		return nil, false
@@ -99,16 +100,26 @@ func (f *FileCache) Set(key string, value []byte, ttl time.Duration) {
 	}
 	// Write to a temp file and rename, so a crashed or concurrent scan can
 	// never leave a half-written entry that reads as corrupt.
-	tmp := f.path(key) + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+	tmp, err := os.CreateTemp(f.Dir, ".scram-cache-*.tmp")
+	if err != nil {
 		return
 	}
-	_ = os.Rename(tmp, f.path(key))
+	name := tmp.Name()
+	defer os.Remove(name)
+	if _, err := tmp.Write(b); err != nil {
+		_ = tmp.Close()
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		return
+	}
+	_ = os.Rename(name, f.path(key))
 }
 
 // MemoryCache is a no-persistence Cache for tests and for --no-cache runs.
 type MemoryCache struct {
-	m map[string]memoryEntry
+	mu sync.Mutex
+	m  map[string]memoryEntry
 }
 
 type memoryEntry struct {
@@ -122,6 +133,8 @@ func NewMemoryCache() *MemoryCache {
 }
 
 func (c *MemoryCache) Get(key string) ([]byte, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	e, ok := c.m[key]
 	if !ok {
 		return nil, false
@@ -130,7 +143,7 @@ func (c *MemoryCache) Get(key string) ([]byte, bool) {
 		delete(c.m, key)
 		return nil, false
 	}
-	return e.payload, true
+	return append([]byte(nil), e.payload...), true
 }
 
 // Set stores a value. A non-positive ttl means "already expired", which is
@@ -138,5 +151,7 @@ func (c *MemoryCache) Get(key string) ([]byte, bool) {
 // to the default by NewFileCache, so this cannot silently disable caching
 // by accident.
 func (c *MemoryCache) Set(key string, value []byte, ttl time.Duration) {
-	c.m[key] = memoryEntry{payload: value, expires: time.Now().Add(ttl)}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.m[key] = memoryEntry{payload: append([]byte(nil), value...), expires: time.Now().Add(ttl)}
 }

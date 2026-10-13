@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/0xsan7/scram/internal/model"
+	"github.com/0xsan7/scram/internal/policy"
 	"github.com/0xsan7/scram/internal/score"
 )
 
@@ -24,18 +25,18 @@ const (
 )
 
 // Write renders the scan in the given format to w.
-func Write(w io.Writer, scan model.Scan, diff *model.DiffResult, f Format) error {
-	return WriteWithTrend(w, scan, diff, f, nil)
+func Write(w io.Writer, scan model.Scan, diff *model.DiffResult, f Format, decision ...policy.Decision) error {
+	return WriteWithTrend(w, scan, diff, f, nil, decision...)
 }
 
 // WriteWithTrend renders a scan, optionally including the repo's risk-score
 // history. The trend is a separate argument rather than a global so that
 // rendering stays deterministic and testable: the same inputs always produce
 // the same bytes, and a caller that does not have history simply passes nil.
-func WriteWithTrend(w io.Writer, scan model.Scan, diff *model.DiffResult, f Format, tr *Trend) error {
+func WriteWithTrend(w io.Writer, scan model.Scan, diff *model.DiffResult, f Format, tr *Trend, decision ...policy.Decision) error {
 	switch f {
 	case FormatJSON:
-		return writeJSON(w, scan, diff)
+		return writeJSON(w, scan, diff, decision...)
 	case FormatSARIF:
 		return writeSARIF(w, scan, diff)
 	case FormatTable:
@@ -69,11 +70,15 @@ type JSONDocument struct {
 	FailReasons   []string          `json:"fail_reasons,omitempty"`
 }
 
-func writeJSON(w io.Writer, scan model.Scan, diff *model.DiffResult) error {
+func writeJSON(w io.Writer, scan model.Scan, diff *model.DiffResult, decision ...policy.Decision) error {
 	doc := JSONDocument{
 		SchemaVersion: model.SchemaVersion,
 		Scan:          scan,
 		Drift:         diff,
+	}
+	if len(decision) > 0 {
+		doc.Passed = decision[0].Pass
+		doc.FailReasons = decision[0].Reasons
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")

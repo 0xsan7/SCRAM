@@ -266,6 +266,9 @@ jobs:
       - name: Every corpus lockfile resolves non-empty
         run: go run ./cmd/corpus-check
 
+      - name: Mutation harness regression tests
+        run: python3 -m unittest discover -s scripts -p test_mutation_audit.py
+
       - name: Fetcher regression tests
         run: python3 scripts/test_fetch_corpus.py
 

@@ -11,7 +11,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,7 +83,8 @@ type osvBatchResponse struct {
 }
 
 type osvResult struct {
-	Vulns []osvVuln `json:"vulns"`
+	NextPageToken string    `json:"next_page_token,omitempty"`
+	Vulns         []osvVuln `json:"vulns"`
 }
 
 type osvVuln struct {
@@ -183,7 +186,7 @@ func (c *Client) QueryOSV(ctx context.Context, comps []model.Component) error {
 
 	if c.UseEPSS {
 		if err := c.enrichEPSS(ctx, comps); err != nil {
-			c.warn("EPSS enrichment failed, exploitability scored as 0: %v", err)
+			c.warn("EPSS enrichment incomplete; unavailable scores contribute 0: %v", err)
 		}
 	}
 
@@ -232,6 +235,14 @@ func (c *Client) batchQuery(ctx context.Context, req osvBatchRequest) ([]osvResu
 		resp.Body.Close()
 		if decErr != nil {
 			return nil, decErr
+		}
+		if len(batch.Results) != len(chunk.Queries) {
+			return nil, fmt.Errorf("OSV batch returned %d results for %d queries", len(batch.Results), len(chunk.Queries))
+		}
+		for _, result := range batch.Results {
+			if result.NextPageToken != "" {
+				return nil, fmt.Errorf("OSV batch requires additional pages; vulnerability data incomplete")
+			}
 		}
 		out = append(out, batch.Results...)
 	}
@@ -309,10 +320,10 @@ func parseCVSSVector(s string) (float64, string) {
 		return 0, ""
 	}
 	// Some feeds give a bare number instead of a vector.
-	if n := parseFloat(s); n > 0 && !strings.Contains(s, ":") {
+	if n := parseFloat(s); n > 0 && n <= 10 && !math.IsInf(n, 0) && !math.IsNaN(n) && !strings.Contains(s, ":") {
 		return n, ""
 	}
-	if !strings.HasPrefix(s, "CVSS:3") {
+	if !strings.HasPrefix(s, "CVSS:3.0/") && !strings.HasPrefix(s, "CVSS:3.1/") {
 		return 0, ""
 	}
 	// Reconstruct the base score from the metric values, since OSV gives us
@@ -335,13 +346,11 @@ var (
 	ciaVals     = map[string]float64{"H": 0.56, "L": 0.22, "N": 0.0}
 	// scopeModifier is applied to the final sum only when Scope is Changed.
 	scopeModifier = 1.08
-	// scopeWeight is the multiplier on each CIA value when Scope is Changed.
-	scopeWeight = 0.914
 )
 
 // cvssBaseFromVector implements the CVSS v3.1 base score equation:
 //
-//	ISCBase = 1 - (1-C)*(1-I)*(1-A)          [each C/I/A x 0.914 if S:C]
+//	ISCBase = 1 - (1-C)*(1-I)*(1-A)          [CIA weights do not depend on Scope]
 //	Impact  = 6.42 * ISCBase                  [S:U]
 //	Impact  = 7.52*(ISC-0.029) - 3.25*(ISC-0.02)^15   [S:C]
 //	Exploit = 8.22 * AV * AC * PR * UI
@@ -351,6 +360,15 @@ var (
 // Verified against the worked examples in the specification; see
 // cvss_test.go.
 func cvssBaseFromVector(vec string) float64 {
+	// Duplicate metrics are invalid, even if their first value looks valid.
+	seen := map[string]bool{}
+	for _, part := range strings.Split(vec, "/")[1:] {
+		key, _, ok := strings.Cut(part, ":")
+		if !ok || seen[key] {
+			return 0
+		}
+		seen[key] = true
+	}
 	// metricValue pulls a single "XX:value" pair out of the vector.
 	metricValue := func(short string) (string, bool) {
 		for _, part := range strings.Split(vec, "/") {
@@ -376,7 +394,7 @@ func cvssBaseFromVector(vec string) float64 {
 	// A vector missing a required base metric cannot be scored; returning 0
 	// is correct because an unscorable vector is not a low score, it is an
 	// unknown one, and the caller must not invent a number.
-	if !okAV || !okAC || !okUI || !okScope {
+	if !okAV || !okAC || !okUI || !okScope || (scope != "U" && scope != "C") {
 		return 0
 	}
 
@@ -401,11 +419,6 @@ func cvssBaseFromVector(vec string) float64 {
 		return 0
 	}
 
-	if changed {
-		c *= scopeWeight
-		i *= scopeWeight
-		a *= scopeWeight
-	}
 	isc := 1 - (1-c)*(1-i)*(1-a)
 
 	var impact float64
@@ -515,12 +528,8 @@ func firstNonEmpty(ss ...string) string {
 }
 
 func parseFloat(s string) float64 {
-	var f float64
-	// Sscanf returns io.EOF when it hits end-of-input before a verb. That
-	// is an error like any other here, and `err != nil` already covers it;
-	// an explicit `|| err == io.EOF` would be a second clause on a path
-	// that cannot be reached.
-	if _, err := fmt.Sscanf(s, "%g", &f); err != nil {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
 		return 0
 	}
 	return f

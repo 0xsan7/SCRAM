@@ -71,10 +71,10 @@ func TestCycloneDXStructure(t *testing.T) {
 	if first["purl"] != "pkg:npm/lodash@4.17.11" {
 		t.Errorf("purl: got %v", first["purl"])
 	}
-	// Every component must carry at least one hash; some consumers require it.
+	// Unknown package hashes must not be fabricated from identity metadata.
 	hashes, _ := first["hashes"].([]any)
-	if len(hashes) == 0 {
-		t.Error("component has no hashes")
+	if len(hashes) != 0 {
+		t.Error("fixture without a digest gained a fabricated content hash")
 	}
 	// Hash content must be valid hex, or schema validation fails.
 	for _, h := range hashes {
@@ -254,7 +254,7 @@ func TestEmptyComponentListIsValid(t *testing.T) {
 	// An empty scan must still produce a schema-valid document, not null.
 	for _, tc := range []struct {
 		name string
-		fn   func(string, []model.Component) ([]byte, error)
+		fn   func(string, []model.Component, ...string) ([]byte, error)
 		key  string
 	}{
 		{"cyclonedx", marshalCycloneDX, "components"},

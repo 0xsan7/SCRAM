@@ -4,13 +4,14 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/0xsan7/scram/internal/model"
-	"github.com/0xsan7/scram/internal/policy"
+	"github.com/0xsan7/scram/internal/scan"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +34,7 @@ func ExitCodeFor(err error) int {
 // Version is the build version, overridable at link time:
 //
 //	go build -ldflags "-X .../cli.Version=1.2.3"
-var Version = "0.1.0-dev"
+var Version = "dev"
 
 // Commit and Date are stamped at link time alongside Version. They exist
 // because a bug report that cannot be tied to a build is a bug report
@@ -142,21 +143,6 @@ var severityRank = map[string]int{
 	"clean": 1, "low": 2, "medium": 3, "high": 4, "critical": 5,
 }
 
-// loadConfig reads the policy file, applying the --fail-on override.
-func loadConfig(root string) (*policy.Config, error) {
-	cfg, err := policy.Load(root)
-	if err != nil {
-		return nil, err
-	}
-	if g.failOn != "" {
-		cfg.FailOn = g.failOn
-	}
-	if g.offline {
-		cfg.Offline = true
-	}
-	return cfg, nil
-}
-
 // isTTY reports whether stdout is a terminal, so colors are only emitted
 // when a human is looking.
 func isTTY(f *os.File) bool {
@@ -210,4 +196,14 @@ func warnIfNothingResolved(scan model.Scan, path string) error {
 	return fmt.Errorf("%s: no components resolved and %d lockfile(s) could not be parsed "+
 		"(treating this as a clean SBOM would be a false negative):\n  - %s",
 		path, len(parseFailures), strings.Join(parseFailures, "\n  - "))
+}
+
+// runConfiguredScan is the single CLI-to-engine adapter for persistent flags.
+func runConfiguredScan(ctx context.Context, opts scan.Options) (*scan.Result, error) {
+	opts.ToolVersion = Version
+	opts.ConfigPath = g.configPath
+	opts.FailOn = g.failOn
+	opts.Offline = opts.Offline || g.offline
+	opts.DisableCache = opts.DisableCache || g.noCache
+	return scan.Run(ctx, opts)
 }

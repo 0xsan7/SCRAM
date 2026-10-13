@@ -43,7 +43,7 @@ before:
     # hooks run before `dist/` is cleaned, so writing there loses the output
     # and the release aborts with "dist is not empty". The copy into dist/
     # is the `before` hook immediately below, which runs afterwards.
-    - go run ./cmd/scram sbom generate . --format both --out .release-sbom
+    - go run -ldflags "-X github.com/0xsan7/scram/internal/cli.Version={{ .Version }}" ./cmd/scram sbom generate . --format both --out .release-sbom
 
 builds:
   - id: scram

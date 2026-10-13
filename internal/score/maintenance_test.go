@@ -16,13 +16,13 @@ func TestMaintenanceScalesOntoBudget(t *testing.T) {
 		score float64
 		want  int
 	}{
-		{10, 20}, // full budget
-		{0, 0},
+		{10, 0}, // full budget
+		{0, 20},
 		{5, 10}, // linear
-		{7, 14},
-		{2.5, 5},
+		{7, 6},
+		{2.5, 15},
 		// Out-of-range input is clamped rather than trusted.
-		{12, 20},
+		{12, 0},
 		{-3, 0},
 	}
 	for _, c := range cases {
@@ -52,8 +52,8 @@ func TestMaintenanceNilMeansUnknown(t *testing.T) {
 	if !e.HasMaintenance() {
 		t.Error("after SetMaintenance(0, ...) HasMaintenance is false; a real 0 is being reported as unknown")
 	}
-	if got := e.maintenancePoints(model.Component{}); got != 0 {
-		t.Errorf("Scorecard 0 -> %d points, want 0", got)
+	if got := e.maintenancePoints(model.Component{}); got != 20 {
+		t.Errorf("Scorecard 0 -> %d points, want 20", got)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestMaintenanceAllChecksInapplicable(t *testing.T) {
 func TestMaintenanceInapplicableIsNotSilentlyZero(t *testing.T) {
 	// 1 inapplicable out of 12: a real score of 10 is still a real score.
 	mostlyScored := New()
-	mostlyScored.SetMaintenance(10, 11, 1, "2026-09-28", "abc123")
+	mostlyScored.SetMaintenance(0, 11, 1, "2026-09-28", "abc123")
 	if !mostlyScored.HasMaintenance() {
 		t.Error("a project with 11 usable checks claims to have no Scorecard")
 	}
@@ -107,8 +107,8 @@ func TestMaintenanceIsTheSameForEveryComponent(t *testing.T) {
 	}
 	for i := range comps {
 		got := e.maintenancePoints(comps[i])
-		if got != 16 {
-			t.Errorf("component %s -> %d points, want 16 (repo-level score applied uniformly)", comps[i].Name, got)
+		if got != 4 {
+			t.Errorf("component %s -> %d points, want 4 (repo-level score applied uniformly)", comps[i].Name, got)
 		}
 	}
 }
@@ -126,7 +126,7 @@ func TestScoreIncludesMaintenance(t *testing.T) {
 	s1 := without.Score([]model.Component{base})
 
 	with := New()
-	with.SetMaintenance(10, 11, 3, "2026-09-28", "abc123")
+	with.SetMaintenance(0, 11, 3, "2026-09-28", "abc123")
 	s2 := with.Score([]model.Component{base})
 
 	if s1.TotalComponents != 1 || s2.TotalComponents != 1 {
@@ -136,7 +136,7 @@ func TestScoreIncludesMaintenance(t *testing.T) {
 	// deliberately left the formula alone:
 	//
 	//   - Score.Total is the FORMULA's 0-100 figure, and the delta there
-	//     is exactly the maintenance budget at a perfect Scorecard. This
+	//     is exactly the maintenance budget at a zero Scorecard. This
 	//     is what pins the arithmetic.
 	//   - Summary.RepoScore is the PRESENTED 0-65 figure, and its delta is
 	//     that same change rescaled.
@@ -146,7 +146,7 @@ func TestScoreIncludesMaintenance(t *testing.T) {
 	// of 65 and both look like "a number went up". So the formula-scale
 	// delta is checked too, via the component's own Score.Total.
 	eng := New()
-	eng.SetMaintenance(10, 11, 3, "2026-09-28", "abc123")
+	eng.SetMaintenance(0, 11, 3, "2026-09-28", "abc123")
 	// Score writes back into the slice it is given, so the component has
 	// to be addressed through it rather than through a copy.
 	slice := []model.Component{base}
@@ -161,10 +161,10 @@ func TestScoreIncludesMaintenance(t *testing.T) {
 	// The presented delta is the formula delta rescaled onto 0-65.
 	wantPresented := Presented(model.MaxScore) - Presented(model.MaxScore-model.MaxMaintenancePoints)
 	if got := s2.RepoScore - s1.RepoScore; got != wantPresented {
-		t.Errorf("presented repo score moved by %d with a perfect Scorecard, want %d",
+		t.Errorf("presented repo score moved by %d with a zero Scorecard, want %d",
 			got, wantPresented)
 	}
-	t.Logf("presented: no scorecard %d -> perfect %d (delta %d of %d)",
+	t.Logf("presented: no scorecard %d -> zero %d (delta %d of %d)",
 		s1.RepoScore, s2.RepoScore, s2.RepoScore-s1.RepoScore, model.PresentedMax)
 }
 
@@ -174,9 +174,9 @@ func TestMaintenanceScaledFormula(t *testing.T) {
 	e := New()
 	for _, score := range []float64{0, 1, 2.5, 5, 7.5, 9, 10} {
 		e.SetMaintenance(score, 11, 3, "2026-09-28", "abc123")
-		want := int(math.Round(score / 10 * float64(model.MaxMaintenancePoints)))
+		want := int(math.Round((10 - score) / 10 * float64(model.MaxMaintenancePoints)))
 		if got := e.maintenancePoints(model.Component{}); got != want {
-			t.Errorf("Scorecard %v -> %d, want %d (round(%v/10*20))",
+			t.Errorf("Scorecard %v -> %d, want %d (round((10-%v)/10*20))",
 				score, got, want, score)
 		}
 	}
@@ -229,7 +229,7 @@ func TestExplainNeverContradictsItself(t *testing.T) {
 	c.Bucket = BucketFor(40)
 
 	e := New()
-	e.SetMaintenance(10, 11, 3, "2026-09-28", "abc123def456")
+	e.SetMaintenance(0, 11, 3, "2026-09-28", "abc123def456")
 	out := ExplainScored(c, e)
 
 	if !strings.Contains(out, "maintenance      20 / 20") {
@@ -238,7 +238,7 @@ func TestExplainNeverContradictsItself(t *testing.T) {
 	if strings.Contains(out, "no OpenSSF Scorecard available") {
 		t.Errorf("output claims no Scorecard while showing 20 maintenance points:\n%s", out)
 	}
-	if !strings.Contains(out, "OpenSSF Scorecard 10.0/10") {
+	if !strings.Contains(out, "OpenSSF Scorecard 0.0/10") {
 		t.Errorf("output does not attribute the 20 points to a Scorecard:\n%s", out)
 	}
 }

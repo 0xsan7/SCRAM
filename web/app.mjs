@@ -1,4 +1,4 @@
-import { MAX_BYTES, parseReport, reportOverview, matchingComponents, safeAdvisoryURL, severity } from './report.mjs';
+import { MAX_BYTES, parseReport, reportOverview, matchingComponents, safeAdvisoryURL, severity, highestCVSS, summaryText } from './report.mjs';
 
 const $ = id => document.getElementById(id);
 const format = new Intl.NumberFormat('en');
@@ -22,7 +22,14 @@ function button(label, action, className) {
 function setList(id, values) { $(id).replaceChildren(...values.map(value => el('li', '', value))); }
 function friendlyEcosystem(value) { return ({ npm: 'npm', pypi: 'PyPI', go: 'Go', cargo: 'Rust / Cargo' })[value] ?? value; }
 function highestSeverity(component) {
-  return severity(Math.max(0, ...component.vulnerabilities.map(finding => finding.cvss_v3)));
+  return severity(highestCVSS(component));
+}
+function filteredComponents() {
+  return matchingComponents(state.doc, $('search').value, $('filter').value, { ecosystem: $('ecosystem').value, minimum: $('minimum').value, sort: $('sort').value });
+}
+function resetFilters() {
+  $('search').value = ''; $('filter').value = 'all'; $('ecosystem').value = 'all'; $('minimum').value = '0'; $('sort').value = 'severity';
+  state.page = 0;
 }
 function resetView() {
   state = { doc: null, selected: null, page: 0, driftPage: 0, findingPage: 0, source: null };
@@ -33,8 +40,11 @@ function resetView() {
   $('detail').replaceChildren();
   $('components').replaceChildren();
   $('drift-list').replaceChildren();
-  $('search').value = '';
-  $('filter').value = 'all';
+  resetFilters();
+  $('export-summary').disabled = true;
+  $('export-panel').hidden = true;
+  $('export-text').textContent = '';
+  $('action-status').textContent = '';
   $('report-context').textContent = 'Opening report…';
   document.querySelectorAll('[data-example]').forEach(node => node.setAttribute('aria-pressed', 'false'));
 }
@@ -75,10 +85,13 @@ function renderReport() {
   const { doc, source } = state;
   const overview = reportOverview(doc);
   $('report').hidden = false;
+  $('export-summary').disabled = false;
+  $('ecosystem').replaceChildren(new Option('All ecosystems', 'all'), ...[...new Set(doc.scan.components.map(c => c.ecosystem))].sort().map(value => new Option(friendlyEcosystem(value), value)));
   $('report-context').textContent = `${doc.scan.repo} · ${source.kind === 'example' ? 'Bundled example' : source.name}`;
   $('schema-label').textContent = `Schema ${doc.schema_version}`;
   $('schema-label').hidden = false;
   const synthetic = source.kind === 'example' || doc.scan.components.some(component => component.vulnerabilities.some(v => v.source === 'synthetic'));
+  state.synthetic = synthetic;
   $('provenance').textContent = synthetic ? 'Synthetic demonstration. Invented identifiers; no live vulnerability observations.' : 'Local report. Origin, scan mode and completeness have not been independently verified.';
   $('policy').className = `policy ${overview.status}`;
   $('policy-title').textContent = overview.headline;
@@ -94,7 +107,7 @@ function renderReport() {
     $(id).classList.toggle('unknown', value === null);
   }
   $('repo-score').replaceChildren(document.createTextNode(format.format(doc.scan.summary.repo_score)), el('span', '', `/ ${doc.scan.summary.repo_score_max}`));
-  $('report-footer-detail').textContent = `${source.kind === 'example' ? 'Synthetic data' : 'Imported report'} · Scan time not provided · No live checks performed by this viewer`;
+  $('report-footer-detail').textContent = `${source.kind === 'example' ? 'Synthetic data' : 'Local report'} · Scan time not provided · No live checks performed by this viewer`;
   document.querySelectorAll('[data-example]').forEach(node => node.setAttribute('aria-pressed', String(source.kind === 'example' && node.dataset.example === source.name)));
   $('filter').querySelector('[value="new"]').disabled = !doc.drift;
   renderComponents();
@@ -102,7 +115,7 @@ function renderReport() {
 }
 function renderComponents() {
   const { doc } = state;
-  const matched = matchingComponents(doc, $('search').value, $('filter').value);
+  const matched = filteredComponents();
   const pages = Math.ceil(matched.length / PAGE_SIZE);
   state.page = Math.min(state.page, Math.max(0, pages - 1));
   if (!matched.includes(state.selected)) {
@@ -110,6 +123,7 @@ function renderComponents() {
     state.findingPage = 0;
   }
   const page = matched.slice(state.page * PAGE_SIZE, (state.page + 1) * PAGE_SIZE);
+  if (page.length && !page.includes(state.selected)) { state.selected = page[0]; state.findingPage = 0; }
   $('inventory-total').textContent = `${format.format(matched.length)} of ${format.format(doc.scan.components.length)}`;
   const rows = page.map(component => {
     const row = el('tr', state.selected === component ? 'selected' : '');
@@ -119,6 +133,7 @@ function renderComponents() {
       state.findingPage = 0;
       renderComponents();
       document.querySelector('#components tr.selected .row-select')?.focus({ preventScroll: true });
+      if (matchMedia('(max-width: 1240px)').matches) { $('detail-title').focus(); $('inspector').scrollIntoView({ block: 'start' }); }
     }, 'row-select');
     choose.setAttribute('aria-pressed', String(component === state.selected));
     choose.setAttribute('aria-label', `Inspect ${component.name} version ${component.version || 'not provided'}`);
@@ -156,6 +171,7 @@ function renderDetail() {
   }
   const title = el('h3', '', component.name);
   title.id = 'detail-title';
+  title.tabIndex = -1;
   const purl = el('p', 'detail-purl identifier', component.purl);
   const facts = el('dl', 'detail-facts');
   facts.append(fact('Version', component.version || 'Not provided'), fact('Relationship', component.direct ? 'Direct' : 'Transitive'), fact('License', component.license || 'Not provided'));
@@ -244,16 +260,48 @@ function renderDrift() {
 }
 
 document.querySelectorAll('[data-example]').forEach(node => node.addEventListener('click', () => { $('report-file').value = ''; openExample(node.dataset.example); }));
-$('report-file').addEventListener('change', event => {
-  const file = event.target.files[0];
+function openFile(file) {
   if (!file) return;
   openReport(async () => {
     if (file.size > MAX_BYTES) throw new Error('This report is larger than 5 MiB. Export a smaller report.');
     return file.text();
   }, { kind: 'local', name: file.name });
+}
+$('report-file').addEventListener('change', event => openFile(event.target.files[0]));
+for (const id of ['search', 'filter', 'ecosystem', 'minimum', 'sort']) $(id).addEventListener(id === 'search' ? 'input' : 'change', () => { if (state.doc) { state.page = 0; renderComponents(); } });
+for (const id of ['clear-filters','reset-filters']) $(id).addEventListener('click', () => { resetFilters(); renderComponents(); $('search').focus(); });
+for (const event of ['dragenter','dragover']) $('drop-zone').addEventListener(event, e => { if (e.dataTransfer?.types.includes('Files')) { e.preventDefault(); $('drop-zone').classList.add('drag-active'); } });
+$('drop-zone').addEventListener('dragleave', () => $('drop-zone').classList.remove('drag-active'));
+$('drop-zone').addEventListener('drop', event => {
+  event.preventDefault(); $('drop-zone').classList.remove('drag-active');
+  const files = event.dataTransfer?.files;
+  if (files?.length !== 1) { openReport(() => { throw new Error('Choose one JSON report at a time.'); }, { kind: 'local', name: '' }); return; }
+  $('report-file').value = ''; openFile(files[0]);
 });
-for (const id of ['search', 'filter']) $(id).addEventListener(id === 'search' ? 'input' : 'change', () => { if (state.doc) { state.page = 0; renderComponents(); } });
-$('clear-filters').addEventListener('click', () => { $('search').value = ''; $('filter').value = 'all'; state.page = 0; renderComponents(); $('search').focus(); });
+$('copy-command').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('scan-command').textContent); $('copy-status').textContent = 'Scan command copied.'; }
+  catch { $('copy-status').textContent = 'Select and copy the command above.'; }
+});
+$('export-summary').addEventListener('click', () => {
+  if (!state.doc) return;
+  $('export-text').textContent = summaryText(state.doc, filteredComponents(), state.synthetic);
+  $('export-panel').hidden = false; $('export-panel').open = true;
+  $('export-text').focus();
+  $('action-status').textContent = 'Review summary ready. Copy it or download a text file below.';
+});
+$('copy-summary').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('export-text').textContent); $('action-status').textContent = 'Review summary copied.'; }
+  catch { $('action-status').textContent = 'Select and copy the summary text above.'; }
+});
+$('download-summary').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([$('export-text').textContent], { type: 'text/plain;charset=utf-8' }));
+  const link = el('a'); link.href = url; link.download = 'scram-review.txt';
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $('action-status').textContent = 'Text download requested. If your browser blocks it, use Copy summary.';
+});
 for (const [id, delta] of [['previous', -1], ['next', 1]]) $(id).addEventListener('click', () => { state.page += delta; renderComponents(); });
 for (const [id, delta] of [['drift-previous', -1], ['drift-next', 1]]) $(id).addEventListener('click', () => { state.driftPage += delta; renderDrift(); });
-openExample('blocked-new-finding');
+if (new URL(location.href).searchParams.get('local') === '1') {
+  openReport(async () => { const response = await fetch('report.json'); if (!response.ok) throw new Error('No local report is available at this address. Choose a file or an example.'); return response.text(); }, { kind: 'local', name: 'Report opened by SCRAM' });
+} else openExample('full-review');

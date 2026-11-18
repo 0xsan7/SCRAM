@@ -19,29 +19,30 @@
       <svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><path d="M14 2 24 6v8c0 6-10 12-10 12S4 20 4 14V6Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m9 14 3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       <span>SCRAM</span><span class="brand-divider"></span><span class="app-name">Report viewer</span>
     </a>
-    <a class="source-link" href="https://github.com/0xsan7/SCRAM" target="_blank" rel="noopener noreferrer">Source code <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 15 15 5M5 5h10v10"/></svg></a>
+    <a class="source-link" href="https://github.com/0xsan7/SCRAM" target="_blank" rel="noopener noreferrer">Source code</a>
   </header>
 
   <div class="app-layout">
     <aside class="report-rail" aria-label="Report selection">
       <div class="rail-intro"><h2>Choose a report</h2><p>See what changed.<br>Keep the evidence in view.</p></div>
-      <label class="file-label" for="report-file">Open a local report</label>
+      <div id="drop-zone" class="drop-zone"><label class="file-label" for="report-file">Open a local report</label>
       <input id="report-file" type="file" accept=".json,application/json" aria-describedby="file-help">
-      <p class="help" id="file-help">SCRAM JSON · up to 5 MiB<br>Your file stays in this browser.</p>
+      <p class="help" id="file-help">SCRAM JSON · up to 5 MiB<br>Drop a JSON file here or choose it above.<br>Your file stays on this computer.</p></div>
       <div class="rail-section">
         <h3>Explore an example</h3>
         <div class="examples">
+          <button class="example" data-example="full-review" type="button"><span class="example-dot blocked" aria-hidden="true"></span><span><strong>A full review</strong><small>Multiple ecosystems</small></span></button>
           <button class="example" data-example="blocked-new-finding" type="button"><span class="example-dot blocked" aria-hidden="true"></span><span><strong>A new finding</strong><small>Policy failed</small></span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5"/></svg></button>
           <button class="example" data-example="passed-with-existing-finding" type="button"><span class="example-dot passed" aria-hidden="true"></span><span><strong>An existing finding</strong><small>Policy passed</small></span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5"/></svg></button>
           <button class="example" data-example="incomplete-no-findings" type="button"><span class="example-dot warning" aria-hidden="true"></span><span><strong>Missing evidence</strong><small>Assessment incomplete</small></span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5"/></svg></button>
         </div>
         <p class="help">These are synthetic examples.<br>They are not live scan results.</p>
       </div>
-      <div class="rail-note"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><rect x="5" y="9" width="10" height="8" rx="2"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg><p>No account. No upload.<br>No automatic advisory requests.</p></div>
+      <details id="get-started" class="getting-started"><summary>Create your own report</summary><p>Run SCRAM inside your project, then open the JSON file here.</p><code id="scan-command">scram scan --format json &gt; report.json</code><button id="copy-command" type="button">Copy scan command</button><p id="copy-status" role="status"></p><p>A failed policy can still produce a report. Keep the warnings when reviewing it.</p><a href="https://github.com/0xsan7/SCRAM#install" target="_blank" rel="noopener noreferrer">Install the scanner</a></details><div class="rail-note"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><rect x="5" y="9" width="10" height="8" rx="2"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg><p>No account. No upload.<br>No automatic advisory requests.</p></div>
     </aside>
 
     <main id="main" tabindex="-1">
-      <div class="page-heading"><div><h1>Dependency report</h1><p id="report-context">Open a report or explore an example.</p></div><span id="schema-label" class="quiet-tag" hidden></span></div>
+      <div class="page-heading"><div><h1>Dependency report</h1><p id="report-context">Open a report or explore an example.</p></div><div class="report-actions"><span id="schema-label" class="quiet-tag" hidden></span><button id="export-summary" type="button" disabled>Export summary</button></div></div><p id="action-status" class="help" role="status"></p><details id="export-panel" class="export-panel" hidden><summary>Generated review summary</summary><p class="help">Snapshot of the filtered inventory, with the full policy reasons and warnings.</p><pre id="export-text" tabindex="0"></pre><div class="export-actions"><button id="copy-summary" type="button">Copy summary</button><button id="download-summary" type="button">Download text</button></div></details>
       <p id="loading" class="loading" role="status" hidden>Loading report…</p>
       <section id="error" class="error-message" role="alert" tabindex="-1" hidden><h2>Report could not be opened</h2><p id="error-detail"></p><p>Choose another file or open an example to continue.</p></section>
       <section id="welcome" class="welcome" hidden><h2>Review a report, without running a scan.</h2><p>Choose a JSON report on the left. Policy outcomes, warnings and dependency changes will appear here.</p><code>scram scan --format json &gt; report.json</code><p class="help">A passing policy does not mean a repository is safe. This viewer shows what the report says, including its limits.</p></section>
@@ -64,15 +65,16 @@
 
         <div class="workbench">
           <section class="inventory" aria-labelledby="inventory-title">
-            <div class="section-heading"><h2 id="inventory-title">Dependency inventory</h2><span id="inventory-total" class="help"></span></div>
-            <div class="inventory-controls"><label class="search-control" for="search"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="search" type="search" placeholder="Search name, PURL or finding" autocomplete="off"></label><label class="filter-control" for="filter"><span class="sr-only">Filter dependencies</span><select id="filter"><option value="all">All dependencies</option><option value="findings">With findings</option><option value="new">With new findings</option><option value="direct">Direct dependencies</option></select></label></div>
+            <div class="section-heading"><h2 id="inventory-title" tabindex="-1">Dependency inventory</h2><span id="inventory-total" class="help"></span></div>
+            <div class="inventory-controls"><label class="search-control" for="search"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="search" type="search" aria-label="Search dependencies" placeholder="Search dependencies or finding IDs" autocomplete="off"></label><label class="filter-control" for="filter"><span class="sr-only">Filter dependencies</span><select id="filter"><option value="all">All dependencies</option><option value="findings">With findings</option><option value="new">With new findings</option><option value="direct">Direct dependencies</option></select></label></div>
+            <div class="refine-controls"><label for="ecosystem">Ecosystem<select id="ecosystem"><option value="all">All ecosystems</option></select></label><label for="minimum">Advisory severity<select id="minimum"><option value="0">Any severity</option><option value="7">High and critical</option><option value="9">Critical only</option></select></label><label for="sort">Sort by<select id="sort"><option value="severity">Highest CVSS first</option><option value="name">Dependency name</option><option value="reported">Report order</option></select></label><button id="reset-filters" type="button">Reset</button></div>
             <div class="table-wrap"><table><caption class="sr-only">Choose a dependency to inspect its findings and score breakdown.</caption><thead><tr><th scope="col">Dependency</th><th scope="col">Ecosystem</th><th scope="col">Findings</th></tr></thead><tbody id="components"></tbody></table></div>
             <div id="no-components" class="empty-state" hidden><h3>No dependencies match</h3><p id="no-components-detail"></p><button id="clear-filters" class="text-button" type="button">Clear filters</button></div>
             <div class="pagination"><span id="page-status" class="help" aria-live="polite"></span><div><button id="previous" type="button" aria-label="Previous dependency page">Previous</button><button id="next" type="button" aria-label="Next dependency page">Next</button></div></div>
             <p class="inventory-note">Direct and transitive describe dependency relationships. They do not distinguish production and development packages.</p>
           </section>
 
-          <section id="inspector" class="inspector" aria-labelledby="detail-title" aria-live="polite"><div class="section-heading"><h2>Component inspector</h2><span class="help">Selected dependency</span></div><div id="detail"></div></section>
+          <section id="inspector" class="inspector" aria-labelledby="detail-title" aria-live="polite"><div class="section-heading"><h2>Component inspector</h2><a class="back-to-inventory" href="#inventory-title">Back to inventory</a></div><div id="detail"></div></section>
         </div>
 
         <section class="drift-section" aria-labelledby="drift-title"><div class="section-heading"><h2 id="drift-title">Changes against the baseline</h2><span id="drift-count" class="help"></span></div><p id="drift-context" class="help"></p><div id="drift-list"></div><div class="pagination" id="drift-pagination" hidden><span id="drift-page-status" class="help" aria-live="polite"></span><div><button id="drift-previous" type="button">Previous changes</button><button id="drift-next" type="button">Next changes</button></div></div></section>

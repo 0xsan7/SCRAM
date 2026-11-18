@@ -25,8 +25,8 @@ function array(value, label, max = 50_000) {
   if (!Array.isArray(value) || value.length > max) fail(`${label} must be a list of at most ${max.toLocaleString('en')} items.`);
   return value;
 }
-function strings(value, label) {
-  return array(value, label).map(item => text(item, label));
+function strings(value, label, max = 50_000) {
+  return array(value, label, max).map(item => text(item, label));
 }
 function schema(value, label) {
   if (typeof value !== 'string' || !/^2\.\d+\.\d+$/.test(value)) fail(`${label} is unsupported. Open a SCRAM schema 2.x report.`);
@@ -60,8 +60,8 @@ export function parseReport(source) {
   schema(scan.schema_version, 'Scan schema');
   if (!text(scan.repo, 'Repository').trim()) fail('Repository name is missing.');
   text(scan.commit, 'Commit', true);
-  scan.warnings = strings(scan.warnings, 'Warnings');
-  doc.fail_reasons = strings(doc.fail_reasons, 'Failure reasons');
+  scan.warnings = strings(scan.warnings, 'Warnings', 500);
+  doc.fail_reasons = strings(doc.fail_reasons, 'Failure reasons', 500);
   if (!Object.hasOwn(scan, 'components')) fail('The component inventory is missing.');
   scan.components = array(scan.components, 'Components', MAX_COMPONENTS);
   let findings = 0;
@@ -74,7 +74,8 @@ export function parseReport(source) {
     if (component.bucket !== undefined && !buckets.includes(component.bucket)) fail('Component risk bucket is unsupported.');
     if (component.score !== undefined) {
       object(component.score, 'Component score');
-      for (const field of ['total', 'severity', 'exploitability', 'maintenance', 'freshness']) number(component.score[field], `Component score ${field}`, 0, 100, true);
+      for (const [field, max] of Object.entries({ total: 100, severity: 40, exploitability: 25, maintenance: 20, freshness: 15 })) number(component.score[field], `Component score ${field}`, 0, max, true);
+      if (component.score.total !== component.score.severity + component.score.exploitability + component.score.maintenance + component.score.freshness) fail('Component score terms do not match its total.');
     }
     if (!Object.hasOwn(component, 'vulnerabilities')) fail('A component is missing its vulnerability list.');
     component.vulnerabilities = array(component.vulnerabilities, 'Vulnerabilities');
@@ -107,6 +108,7 @@ export function parseReport(source) {
       number(change.score_before, 'Previous raw score', 0, 100, true);
       number(change.score_after, 'Current raw score', 0, 100, true);
       number(change.score_delta, 'Raw score change', -100, 100, true);
+      if (change.score_delta !== change.score_after - change.score_before) fail('Raw score change does not match its before/after values.');
     }
     summary(doc.drift.summary, scan.components.length, findings, 'Drift summary');
   }

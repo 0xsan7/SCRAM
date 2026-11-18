@@ -46,6 +46,9 @@ test('malformed, unsupported and inconsistent reports are rejected', async () =>
     [doc => { doc.scan.components[0].vulnerabilities[0].cvss_v3 = 99; }, /CVSS/],
     [doc => { doc.scan.components[0].vulnerabilities[0].epss = -1; }, /EPSS/],
     [doc => { doc.drift.drifts[0].change = 'invented'; }, /change type/],
+    [doc => { doc.drift.drifts[0].score_delta = 0; }, /score change/],
+    [doc => { doc.scan.components[0].score.total = 0; }, /score terms/],
+    [doc => { doc.scan.warnings = Array(501).fill('warning'); }, /500/],
   ];
   for (const [mutate, error] of cases) {
     const doc = await fixture('blocked-new-finding');

@@ -3,6 +3,10 @@
 **Supply Chain Risk Assessment & Monitoring.** A dependency scanner built
 around one question: *what did this pull request actually change?*
 
+Supports four ecosystems: **npm** (including Yarn and pnpm lockfiles),
+**PyPI**, **Go**, and **Rust/Cargo**. See [Ecosystems](#ecosystems) for formats
+and [limitations](LIMITATIONS.md) for incomplete inventory cases.
+
 ```
  ___  ___ ___    _   __  __ 
 / __|/ __| _ \  /_\ |  \/  |

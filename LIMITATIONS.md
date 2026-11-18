@@ -1,13 +1,9 @@
 # SCRAM limitations
 
-Stated plainly, and each claim here is checked by a test. If a limitation
-below stops being true, a test fails and this file has to change — that is the
-same rule the rest of the project runs on, and it applies to documentation
-too: a stale claim in a README is the "guard that can't fail" failure mode
-moved out of the test suite.
-
-Nothing on this page is aspirational. If SCRAM does not do something, it says
-so here rather than failing quietly at scan time.
+Current coverage and known gaps. The resolver and corpus tests exercise the
+implemented formats; they do not establish that every dependency in an
+installed environment was found. The supported-format overview is in
+[README.md](README.md#ecosystems).
 
 ---
 
@@ -15,15 +11,25 @@ so here rather than failing quietly at scan time.
 
 | Ecosystem | Files read | Real-fixture coverage | Gaps |
 |---|---|---|---|
-| **npm** | `package-lock.json`, `npm-shrinkwrap.json` | 16 lockfiles: **6 × v1, 1 × v2, 9 × v3** | See "npm lockfileVersion 1" below |
-| **PyPI** | `poetry.lock`, `Pipfile.lock`, `requirements*.txt`, `pyproject.toml` | 7 lockfiles + 44 `pyproject.toml` | See "Python resolution" below |
-| **Go** | `go.sum` | 63 files, 16,832 components | `go.mod` is not read; a module with no `go.sum` is not scanned (fails closed, exit 1) |
+| **npm** | `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml` | npm v1/v2/v3, Yarn classic/Berry, pnpm 5.x/6.x/9.x | Yarn and pnpm are formats within npm, not separate ecosystems; see the npm v1 and JavaScript limits below |
+| **PyPI** | `poetry.lock`, `Pipfile.lock`, the detector's explicit requirements filenames, `pyproject.toml` | Poetry/Pipenv/requirements files and real `pyproject.toml` fixtures | Arbitrary `requirements*.txt` filenames are not globbed; see "Python resolution" below |
+| **Go** | `go.sum`, falling back to `go.mod` | Real `go.sum` and `go.mod` fixtures, including the fallback and OSV lookup-key checks | `go.mod` is a declared-dependency floor, not a complete resolved module graph |
+| **Rust/Cargo** | `Cargo.lock` (v1–v4); `Cargo.toml` for direct dependencies | Versioned and versionless real Cargo lockfiles | Path/workspace and git sources are not a crates.io provenance guarantee; see "Rust/Cargo" below |
 
-Each fixture is unmodified output from a real project at a pinned tag or
-branch, fetched by `scripts/fetch_corpus.py` and committed under
-`testdata/fixtures/<eco>/real/`. The counts above are asserted by
-`TestNpmCorpusCoversEveryLockfileVersion` and the corpus invariant tests, not
-maintained by hand.
+The committed real-world corpus lives under `testdata/fixtures/`. Run
+`go test ./internal/resolve` for all resolver checks; `go run ./cmd/corpus-check`
+summarizes the original npm/PyPI/Go-sum corpus. Format-generation checks live
+in `internal/resolve/keyformat_test.go`. Exact npm v1/v2/v3 fixture counts are
+asserted by `TestNpmCorpusCoversEveryLockfileVersion`.
+
+### JavaScript formats
+
+The detector chooses the first supported npm-ecosystem lockfile in each
+directory: npm lockfiles before Yarn, then pnpm. It does not merge competing
+lockfiles or verify which package manager built a deployed application.
+Workspace members sharing a root lockfile are not given separate usage
+attribution. A committed fixture for a format is evidence about that fixture,
+not a guarantee about all future package-manager releases.
 
 ### npm lockfileVersion 1
 
@@ -31,21 +37,16 @@ v1 (npm 5/6, 2017–2020) is parsed, and **is** covered by real fixtures: mocha
 6.2.0 / 8.0.0 / 9.0.0, marked 0.6.0 / 0.8.0, and less 3.13.0 — six lockfiles
 totalling 2.8 MB, all resolving non-empty (829 to 2,492 components each).
 
-The actual limitation is **not** missing coverage. It is that the v1 format
-records no dependency flags: v2/v3 carry `dev`, `optional` and `peer` in the
-`packages` map, and v1 carries nothing. SCRAM therefore **cannot distinguish a
-production dependency from a development-only one** in a v1 lockfile, and
-reports both in the component list. A v1 project's dev/prod split in the
-report is not reliable.
+Real v1 files can contain `dev` and `optional` flags. The gap is in SCRAM's
+output: its component model does not expose development/optional/peer
+classifications, in v1 or in v2/v3. `direct` means declared versus transitive;
+it is not a production-versus-development flag. Development-only packages
+may therefore appear in the inventory.
 
-SCRAM emits a warning to that effect on every v1 scan, in the normal output
-rather than behind `--verbose`, because a silently-incomplete answer from a
-security tool is the failure mode this project cares most about. The warning
-states the corpus count it is relying on, computed at runtime from the
-fixtures rather than hardcoded, so it cannot drift into a claim the corpus
-does not support.
-
-Fix: regenerate the lockfile with npm 7 or later.
+SCRAM's v1 warning describes that limitation. Regenerating with npm 7 or later
+changes the lockfile layout but does not add a production-only filter to
+SCRAM. Fixture coverage belongs to the test results, not a runtime count
+dependent on the launch directory or an installed binary bundling test data.
 
 ### Python resolution
 
@@ -69,22 +70,27 @@ resulting PURL cannot be matched against OSV.
 
 ### Go
 
-Only `go.sum` is read, so it carries module paths and hashes but **no version
-for the main module itself**. A repository with `go.mod` and no `go.sum` is
-therefore not scanned, and SCRAM does not read the `require` block to
-reconstruct it.
+`go.sum` is preferred when present. It records downloaded module versions,
+not necessarily only the modules selected for the current build. SCRAM keeps
+the highest recorded version per module and does not run Go's module graph
+selection or apply `replace` directives.
 
-This is a coverage gap, and it fails closed rather than silently: a repo with
-no recognised lockfile produces `no dependency lockfiles found, so nothing
-was scanned; this is not a clean result`, a warning listing every filename
-that was looked for, and **exit code 1**. It never reports CLEAN on a project
-it did not read.
+When `go.sum` is absent, the resolver reads `go.mod` requirements. This scans
+declared modules but cannot reconstruct undeclared transitive dependencies.
+Both paths use full module paths for OSV lookup. Neither gives a version for
+the main module itself or proves the exact contents of a deployed binary.
+A repository with neither supported input still fails the no-lockfile check;
+a genuinely dependency-free Go module is a different case and may have an
+empty inventory.
 
-The practical consequence is that a Go module whose dependencies have never
-been downloaded (`go mod download` has not been run) is invisible to SCRAM
-until they are. Note that `go.mod` on its own *does* declare dependencies, so
-this is a deliberate choice to read only the resolved file rather than an
-oversight in the silent-zero guard.
+### Rust/Cargo
+
+The resolver reads package name/version pairs from `Cargo.lock` and marks
+direct dependencies from `Cargo.toml`. Local path/workspace packages are
+included and marked direct. The component model does not preserve their
+source kind; git and local package names/versions must not be treated as
+proof that the code came from crates.io. A matching name/version alone does
+not establish that an advisory applies to a private or modified source.
 
 ---
 

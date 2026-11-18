@@ -30,6 +30,12 @@ See [viewer setup and limits](web/README.md) for the local preview commands.
 The viewer is a static report reader; it does not run scans or enable public
 hosting automatically.
 
+New in this branch: `scram view` serves the bundled viewer locally, or
+`scram view report.json` opens a saved report. No frontend runtime is required.
+Until a release includes this command, run `go run ./cmd/scram view` from this
+checkout. Generate your own report with `scram scan --format json > report.json`;
+a failed policy can exit nonzero while still writing a usable JSON report.
+
 ## The three things that are hard to get at once
 
 A scanner can do any one of these. Doing all three means the score, the

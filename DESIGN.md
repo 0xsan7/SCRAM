@@ -22,37 +22,37 @@ colors:
 typography:
   display:
     fontFamily: "Sora, system-ui, sans-serif"
-    fontSize: "clamp(25px, 3vw, 34px)"
+    fontSize: "clamp(28px, 3vw, 38px)"
     fontWeight: 500
     lineHeight: 1.3
     letterSpacing: "-0.035em"
   policy:
     fontFamily: "Sora, system-ui, sans-serif"
-    fontSize: "20px"
+    fontSize: "23px"
     fontWeight: 500
     lineHeight: 1.3
     letterSpacing: "-0.02em"
   title:
     fontFamily: "Sora, system-ui, sans-serif"
-    fontSize: "15px"
+    fontSize: "18px"
     fontWeight: 500
     lineHeight: 1.3
     letterSpacing: "-0.02em"
   body:
     fontFamily: "Manrope, system-ui, sans-serif"
-    fontSize: "14px"
+    fontSize: "16px"
     lineHeight: 1.65
   help:
     fontFamily: "Manrope, system-ui, sans-serif"
-    fontSize: "12px"
+    fontSize: "13px"
     lineHeight: 1.7
   detail:
     fontFamily: "Manrope, system-ui, sans-serif"
-    fontSize: "11px"
+    fontSize: "14px"
     lineHeight: 1.8
   number:
     fontFamily: "Sora, system-ui, sans-serif"
-    fontSize: "23px"
+    fontSize: "28px"
     fontWeight: 400
     lineHeight: 1.4
     letterSpacing: "-0.025em"
@@ -91,7 +91,7 @@ components:
     backgroundColor: "{colors.file-button}"
     textColor: "{colors.file-button-text}"
     rounded: "{rounded.file-button}"
-    padding: "11px 12px"
+    padding: "10px"
   example-selected:
     backgroundColor: "{colors.selected-example}"
     textColor: "{colors.accent}"
@@ -108,12 +108,12 @@ components:
   policy:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.surface}"
-    padding: "23px 25px"
+    padding: "24px"
   inspector:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text}"
     rounded: "{rounded.surface}"
-    padding: "22px"
+    padding: "24px"
   inventory-row-selected:
     backgroundColor: "{colors.selected-row}"
     textColor: "{colors.accent}"
@@ -175,24 +175,24 @@ These are semantic status roles, not interchangeable decorative accents. Low sev
 
 Both primary families are self-hosted variable WOFF2 assets under `web/assets/fonts/`; the stylesheet declares Sora weights 100–800 and Manrope weights 200–800 with swap loading. Use the source assets and retain their license notices.
 
-Sora supplies compact heading shapes; Manrope supplies report prose, labels and controls. The frontmatter's body role is the global base. Most actual report labels, table content, metadata and finding prose use the smaller detail/help roles; do not infer a uniform body-size rule from the base alone. Numeric figures inherit tabular numerals throughout.
+Sora supplies compact heading shapes; Manrope supplies report prose, labels and controls. The frontmatter's body role is the 16px global base. Regular report and control text uses 14–15px, with secondary labels and metadata at 12–13px. The final readability overrides at the end of `web/styles.css` are authoritative over its original compact rules. Numeric figures inherit tabular numerals throughout.
 
-- **Display:** report title; the responsive clamp is overridden to 27px at the narrow breakpoint.
-- **Policy:** outcome heading; reduced to 18px on narrow screens.
-- **Title:** inventory, inspector and other section headings; reduced to 14px on narrow screens. The generic h2 base is 17px; component roles override it.
+- **Display:** report title; the responsive clamp is overridden to 29px at the narrow breakpoint.
+- **Policy:** outcome heading; reduced to 21px on narrow screens.
+- **Title:** inventory, inspector and other section headings; reduced to 17px on narrow screens. Component roles override the generic h2 base.
 - **Body / help / detail:** base text, explanatory text and compact evidence respectively. Policy explanations cap at 75ch; evidence lists at 90ch.
-- **Number:** summary facts; reduced to 22px on narrow screens. Unknown baseline values use smaller Manrope text rather than a numeric zero.
-- **Identifier:** package identifiers and commands; PURLs and finding IDs use local 11px variants and wrap when necessary.
+- **Number:** summary facts; reduced to 27px on narrow screens. Unknown baseline values use smaller Manrope text rather than a numeric zero.
+- **Identifier:** package identifiers and commands; PURLs use 13px (12px narrow) and finding IDs use 13px variants and wrap when necessary.
 
 **The Identifier Rule.** Reserve monospace for actual identifiers, versions where represented as code, and commands; retain Manrope for human explanations.
 
 ## Layout
 
-The desktop frame has a 76px application header and a 238px report rail beside flexible main content. The main region caps at 1720px and uses 36px top padding, fluid horizontal padding `clamp(22px, 3.5vw, 56px)` and 24px bottom padding. The rail remains part of the page grid; it is not fixed or sticky.
+The desktop frame has a 76px application header and a 270px report rail beside flexible main content. The main region caps at 1720px and uses 30px top padding, fluid horizontal padding `clamp(22px, 3.5vw, 56px)` and 24px bottom padding. The rail remains part of the page grid; it is not fixed or sticky.
 
-Policy reasons and warnings lead above a wrapping strip of summary facts. The workbench pairs inventory and inspector using `minmax(0, 1.35fr) minmax(280px, 1fr)` with a 28px gap. At widths of at least 1600px this becomes `minmax(0, 1.55fr) minmax(330px, 1fr)`.
+Policy reasons and warnings lead above a wrapping strip of summary facts. The workbench pairs inventory and inspector using `minmax(0, 1.2fr) minmax(320px, 1fr)` with a 28px gap. The final override retains this ratio at wider widths.
 
-At 1180px and below, the rail contracts to 205px and the inspector moves below the inventory. At 720px and below, the header becomes 65px tall, the rail becomes a stacked report control, examples form three columns, main padding becomes `27px 20px 23px`, controls stack and summary facts use three columns. Drift rows become stacked blocks. Secondary source-link text and the rail privacy note are visually removed on narrow screens; the source-link SVG retains its link target.
+At 1240px and below, the rail contracts to 245px and the inspector moves below the inventory. At 720px and below, the header becomes 65px tall, the rail becomes a stacked report control, examples form two columns, main padding becomes `26px 18px`, controls stack and summary facts use two columns. Drift rows become stacked blocks. The text-only source link remains visible on narrow screens; the rail privacy note is visually removed.
 
 Keep flexible areas at `min-width: 0`, wrap long report strings, and allow the inventory table's local horizontal scroll rather than page overflow. Inventory and drift paginate at 15 items, finding details at 8. Pagination, filtered-empty recovery and errors remain part of the responsive structure.
 
@@ -212,7 +212,7 @@ Borders are generally one pixel. Inline SVG uses a 1.5px stroke with rounded cap
 
 ### Buttons
 
-Ordinary actions are compact outlined charcoal controls. Default padding and radius are in the frontmatter, with a 40px minimum height. Hover changes background and border; disabled buttons retain the surface and rule colors at 0.42 opacity. Pagination uses smaller padding (`5px 9px`) and a 34px minimum height, returning to 40px at the narrow breakpoint. Finding pagination has a local 32px minimum height.
+Ordinary actions are compact outlined charcoal controls. Default padding and radius are in the frontmatter, with a 40px minimum height. Hover changes background and border; disabled buttons retain the surface and rule colors at 0.42 opacity. Pagination uses smaller padding (`5px 9px`) and a 44px minimum height. Search and primary filter controls have a 46px minimum height; refinement controls use 44px.
 
 The native file-selector button is the strongest light action. Its hover surface becomes white. Do not treat it as evidence that every action should be filled or light.
 
@@ -220,11 +220,13 @@ Keyboard focus uses a 2px amber outline with a 4px offset. When reduced motion i
 
 ### Report selection
 
-Example choices combine a status dot, a title, an explicit policy description and a chevron. Their selected state uses `aria-pressed`, a warm outlined surface and amber title. Narrow-screen examples have visible borders, no chevron and a 73px minimum height. Selection indicates the currently opened report, not a safety judgment.
+Example choices combine a status dot, a title, an explicit policy description and a chevron. Their selected state uses `aria-pressed`, a warm outlined surface and amber title. Narrow-screen examples have visible borders, no chevron and a 76px minimum height. Selection indicates the currently opened report, not a safety judgment.
 
 ### Inputs / Fields
 
-Search combines an inline SVG with a surface-colored field and a single rounded border. Focus-within makes the wrapper border amber; the input retains visible keyboard focus. The native select shares the control material and becomes full width below the search on narrow screens. Labels and accessible names remain available when visible field labels are compacted.
+The dashed, rounded drop zone surrounds native file selection and highlights on file drag. A native Create your own report disclosure holds the scan command, copy feedback and install link. Four production-verified synthetic examples remain explicitly labeled; optional CLI opening serves only the selected report on loopback.
+
+Search combines an inline SVG with a surface-colored field and a single rounded border. Focus-within makes the wrapper border amber; the input retains visible keyboard focus. The native select shares the control material and becomes full width below the search on narrow screens. Ecosystem, severity and sort refinements wrap on desktop and use a two-column narrow grid, with a Reset action. Labels and accessible names remain available when visible field labels are compacted.
 
 ### Chips
 
@@ -232,15 +234,17 @@ Schema and severity tags are quiet outlined labels. Severity text carries its st
 
 ### Cards / Containers
 
-The policy panel and inspector share the major surface shape and rule. The policy panel has `23px 25px` padding; the inspector uses 22px. On narrow screens these become `20px 17px` and `19px 17px`. Warnings sit inside the policy panel behind a top divider; they do not become a competing summary tile.
+The policy panel and inspector share the major surface shape and rule. The policy panel and inspector use 24px padding. On narrow screens these become `20px 17px` and `22px 17px`. Warnings sit inside the policy panel behind a top divider; they do not become a competing summary tile.
+
+The Generated review summary disclosure uses horizontal rules, wrapping monospace text in a scrollable surface capped at 280px, and Copy summary / Download text actions. Export captures the filtered inventory while retaining full policy reasons and warnings.
 
 ### Navigation
 
-The application header combines the shield, SCRAM name, divider and report-viewer label. Source navigation is a quiet external link with an inline arrow. The report rail is a chooser, not a route navigation menu. A keyboard-visible skip link leads directly to the report.
+The application header combines the shield, SCRAM name, divider and report-viewer label. Source navigation is a quiet, text-only external link. The report rail is a chooser, not a route navigation menu. A keyboard-visible skip link leads directly to the report.
 
 ### Dependency inventory and inspector
 
-Inventory rows use human-readable names as real buttons, then compact version/relationship metadata, ecosystem and explicit finding counts. A selected row has a warm background, amber name and inset marker; its name button exposes `aria-pressed`. Selecting a row updates the adjacent inspector without moving the page; on narrow layouts the inspector follows the inventory.
+Inventory rows use human-readable names as real buttons, then compact version/relationship metadata, ecosystem and explicit finding counts. A selected row has a warm background, amber name and inset marker; its name button exposes `aria-pressed`. Selecting a row updates the adjacent inspector. At 1240px and below, selection focuses the detail heading and scrolls the stacked inspector into view; its Back to inventory link returns to the inventory heading.
 
 The inspector keeps the PURL, version, relationship and license distinct from score terms and known findings. Score terms are ruled text rows, not gauges. Finding IDs remain monospace, summaries wrap, and source/EPSS/fixed-version caveats stay in supporting text. New findings are listed before others. Error and empty states use plain explanations and a recovery action where applicable.
 

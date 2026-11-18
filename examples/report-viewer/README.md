@@ -1,7 +1,8 @@
 # Report viewer: first build brief
 
-Status: data fixtures and implementation brief only. No browser UI or hosting
-has been built or enabled by this change.
+Status: implemented in the browser-local viewer and embedded `scram view`
+command. Hosting remains a separate review decision. This document records the
+original input contract; see `web/README.md` for current setup and capabilities.
 
 ## Job and audience
 
@@ -57,6 +58,7 @@ Keep a visible synthetic-example label whenever they are loaded.
 
 | File | Expected behavior |
 |---|---|
+| `full-review.json` | Six invented dependencies across four ecosystems; one new critical finding and three existing findings exercise combined filters, sorting and export |
 | `passed-with-existing-finding.json` | Policy passes with a pre-existing high finding; show that finding and zero new findings |
 | `blocked-new-finding.json` | Same package/version gains a new high finding; show a failed gate and its reason even though the dependency version did not change |
 | `incomplete-no-findings.json` | Zero known findings with unavailable data; show warning and failed policy, never a clean success |

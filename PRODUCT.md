@@ -33,7 +33,8 @@ the scanner or sending the report to a server.
   cannot establish completeness or safety.
 - Warnings/failure reasons remain prominent. Missing evidence stays unknown.
 - No upload endpoint, public scan service, account, live model call or
-  automatic advisory request. Local files stay in the browser.
+  automatic advisory request. File-picker and drop imports stay in the browser;
+  the optional CLI viewer serves an explicitly selected file on loopback only.
 - Prepare responsive keyboard-usable layouts, native file selection, clear
   errors and safe text rendering for untrusted report strings.
 - The user authorizes pushing ready, verified commits to GitHub. Merging,
@@ -49,11 +50,12 @@ implementation choice within this approved direction.
 
 ## Evidence on Hand
 
-Three synthetic reports in examples/report-viewer/fixtures are generated and
+Four synthetic reports in examples/report-viewer/fixtures are generated and
 checked against the production score, drift, policy and JSON writer. They
 demonstrate an existing finding that passes policy, a newly disclosed finding
 that fails policy and incomplete data with zero known findings. These are
-synthetic demonstrations, not live observations. The implementation brief is
+synthetic demonstrations, not live observations. The fourth supports a full
+review of six dependencies across four ecosystems. The implementation brief is
 examples/report-viewer/README.md.
 
 ## Product Principles

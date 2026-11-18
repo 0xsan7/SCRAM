@@ -6,7 +6,20 @@ portfolio direction and uses its self-hosted fonts.
 
 ## Check and preview
 
-Requires Node.js 24 and Python 3 for the local preview command:
+With a SCRAM binary built from this branch, start the embedded viewer:
+
+```sh
+scram view
+scram view report.json
+```
+
+Open the printed local URL. The optional file is loaded automatically; without
+one, explore the synthetic examples. Ctrl+C stops the server. The viewer needs
+no Node or Python runtime. This command is new in this branch and is not yet
+part of the existing v0.2.0 release. From this checkout, use `go run ./cmd/scram view`.
+
+For frontend development or a static hosting artifact, use Node.js 24 and
+Python 3:
 
 ```sh
 node --test web/*.test.mjs
@@ -21,14 +34,24 @@ publish, change DNS or create GitHub Pages settings.
 
 ## Behavior and limits
 
-- Load a bundled synthetic scenario or choose a local JSON file. The only
-  fetches in application code load the explicitly chosen same-origin example.
-  File contents are read locally, and changing reports clears prior state.
+- Load one of four synthetic scenarios, choose a local JSON file or drop one
+  onto the file picker. File-picker/drop contents stay in the browser. The
+  embedded CLI can serve an explicitly selected report from memory on loopback;
+  the browser reads it from a same-origin endpoint under a random session path.
+  Changing reports clears prior state. No arbitrary remote report URL is fetched.
 - Policy outcome, failure reasons and warnings appear before inventory.
   A pass with existing findings is not labeled safe; missing drift is unknown.
 - Search names, PURLs, ecosystems and finding IDs; filter inventory; inspect
   component findings/raw score terms; review new/resolved findings even when
   the dependency version is unchanged. Lists are paginated.
+- Combine relationship, ecosystem and advisory-severity filters; sort by CVSS,
+  name or original report order. Export a filtered inventory summary that keeps
+  the full policy reasons/warnings: review it onscreen, copy it or request a text
+  download. Browser download restrictions do not block the copyable summary.
+- A native expandable guide provides the report-generation command. Larger
+  report text, labeled controls and mobile inspector focus preserve keyboard
+  access. The full-review example exercises six dependencies across four
+  ecosystems; all identifiers and findings in it are invented.
 - Schema 2.x, 5 MiB, 10,000 components, 50,000 findings and 500 warnings/failure
   reasons. Missing fields, inconsistent counts/score arithmetic and unsupported
   schemas fail explicitly. These are viewer limits, not scanner limits.
@@ -50,3 +73,10 @@ the root portfolio unchanged and review the artifact, domain and hosting
 configuration before enabling publication. A host should serve correct module
 MIME types and may strengthen the supplied CSP with response headers such as
 `frame-ancestors 'none'` and `X-Content-Type-Options: nosniff`.
+
+The embedded server binds to `127.0.0.1` on a random port, accepts GET/HEAD
+only, checks the Host/Origin, disables caching and frames, and embeds only viewer
+assets plus synthetic examples. It never exposes the working directory or an
+upload endpoint. The random URL is for local use, not a public share link.
+
+See `docs/report-viewer-hosting.md` for the proposed public demo configuration.

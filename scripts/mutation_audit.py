@@ -29,6 +29,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # `find` must be present verbatim in the file, or the mutant is a no-op and
 # is reported as BROKEN rather than silently passing.
 MUTANTS = [
+    ("CI-self-check-schedule", ".github/workflows/vulnerability-check.yml",
+     "  schedule:\n    # Monday 06:37 UTC, separate from the nightly fuzz workflow.\n    - cron: '37 6 * * 1'\n",
+     "",
+     ["scripts"]),
+    ("CI-self-check-manual", ".github/workflows/vulnerability-check.yml",
+     "  workflow_dispatch:\n",
+     "",
+     ["scripts"]),
     ("D48-gomod-invalid-path", "internal/resolve/golang.go",
      "if !goModulePathChars.MatchString(m) {",
      "if false && !goModulePathChars.MatchString(m) {",

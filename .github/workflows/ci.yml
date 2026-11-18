@@ -109,25 +109,6 @@ jobs:
         with:
           version: v1.64.5
 
-  govulncheck:
-    name: govulncheck (self)
-    runs-on: ubuntu-latest
-    # Scheduled rather than on every push: it queries the Go vulnerability
-    # database, so running it on every PR is slow and rate-limit prone.
-    # A vulnerability scanner running the official Go checker on itself is
-    # the cheapest credibility available for this project.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache: true
-
-      - name: Run govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
-
   dogfood:
     name: SCRAM scans itself
     runs-on: ubuntu-latest

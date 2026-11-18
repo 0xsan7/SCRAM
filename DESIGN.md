@@ -1,6 +1,6 @@
 ---
-name: SCRAM Report Viewer
-description: A dark dependency registry that keeps policy decisions connected to evidence.
+name: SCRAM Report Viewer — Glass Trial
+description: Branch-scoped adjustable glass trial over the existing dependency registry.
 colors:
   page: "#0b0c0e"
   rail: "#0e0f11"
@@ -19,10 +19,27 @@ colors:
   selected-example-line: "#4b4334"
   file-button: "#e5e7eb"
   file-button-text: "#111214"
+  glass-ground: "#0b1016"
+  glass-tint: "#9abbd1"
+  glass-secondary: "#bbc6d1"
+  glass-inner: "#0a10182e"
+  glass-field: "#0a101847"
+  glass-tag: "#0a101826"
+  glass-line: "#b0c4d526"
+  glass-field-line: "#b0c4d52e"
+  glass-strong-line: "#b0c4d54a"
+  glass-action: "#ffffff08"
+  glass-action-hover: "#ffffff12"
+  glass-action-line: "#b0c4d533"
+  glass-selected: "#f4ba6314"
+  glass-selected-line: "#f4ba634d"
+  glass-row-selected: "#f4ba6312"
+  glass-solid: "#18212b"
+  glass-settings-panel: "#171e27"
 typography:
   display:
     fontFamily: "Sora, system-ui, sans-serif"
-    fontSize: "clamp(28px, 3vw, 38px)"
+    fontSize: "clamp(27px, 2.6vw, 36px)"
     fontWeight: 500
     lineHeight: 1.3
     letterSpacing: "-0.035em"
@@ -34,7 +51,7 @@ typography:
     letterSpacing: "-0.02em"
   title:
     fontFamily: "Sora, system-ui, sans-serif"
-    fontSize: "18px"
+    fontSize: "17px"
     fontWeight: 500
     lineHeight: 1.3
     letterSpacing: "-0.02em"
@@ -65,8 +82,14 @@ rounded:
   quiet-tag: "5px"
   file-button: "6px"
   control: "7px"
-  example: "8px"
+  example: "10px"
   surface: "12px"
+  glass-action: "9px"
+  glass-control: "10px"
+  glass-panel: "16px"
+  glass-frame: "20px"
+  glass-workspace: "24px"
+  glass-workspace-mobile: "18px"
 spacing:
   compact: "6px"
   small: "8px"
@@ -77,68 +100,70 @@ spacing:
   panel: "22px"
   section: "25px"
   workbench: "28px"
+  frame-gap: "18px"
+  frame-inset: "24px"
 components:
   button-default:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.glass-action}"
     textColor: "{colors.text}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.glass-action}"
     padding: "8px 12px"
   button-hover:
-    backgroundColor: "{colors.hover}"
+    backgroundColor: "{colors.glass-action-hover}"
     textColor: "{colors.text}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.glass-action}"
   file-button:
     backgroundColor: "{colors.file-button}"
     textColor: "{colors.file-button-text}"
     rounded: "{rounded.file-button}"
     padding: "10px"
   example-selected:
-    backgroundColor: "{colors.selected-example}"
+    backgroundColor: "{colors.glass-selected}"
     textColor: "{colors.accent}"
     rounded: "{rounded.example}"
-    padding: "11px 8px"
+    padding: "12px 10px"
   search:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.glass-field}"
     textColor: "{colors.text}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.glass-control}"
   severity-tag:
     textColor: "{colors.red}"
     rounded: "{rounded.tag}"
     padding: "2px 6px"
   policy:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.surface}"
+    backgroundColor: "{colors.glass-inner}"
+    rounded: "{rounded.glass-panel}"
     padding: "24px"
   inspector:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.glass-inner}"
     textColor: "{colors.text}"
-    rounded: "{rounded.surface}"
+    rounded: "{rounded.glass-panel}"
     padding: "24px"
   inventory-row-selected:
-    backgroundColor: "{colors.selected-row}"
+    backgroundColor: "{colors.glass-row-selected}"
     textColor: "{colors.accent}"
 ---
 
-# Design System: SCRAM Report Viewer
+# Design System: SCRAM Report Viewer — Glass Trial
 
 ## Overview
 
-**Creative North Star: "Dependency registry"**
+**Creative North Star: "Frosted dependency registry"**
 
-A quiet, dark review desk: ruled dependency rows sit beside a component inspector, with report provenance and policy evidence above them. The interface gives reading, comparison and selection more weight than decoration. The registry metaphor is the implemented direction recorded in `docs/report-viewer-design.md` (Operate mode, grounded candidate 6); it is descriptive language for this build.
+This document describes the styling trial on `codex/scram-glass-preview` only. Production remains on `codex/scram-usability` and is unchanged. The user explicitly chose to apply the supplied adjustable-glass styling to the existing viewer; this is authorization for the trial, not approval to replace production. There is no approved image comp.
 
-The user selected a dark interface matching the portfolio. Sora headings and Manrope text reuse its self-hosted font assets. Specific colors, dimensions, component arrangements and the rules below record current implementation patterns; they are not claims of separate user approval. There is no approved image comp. This document covers `web/`, not the scanner's terminal output or the root portfolio.
+The existing dependency registry now sits inside a floating frosted header, rail and workspace over a restrained warm/cool gradient ground. Inner evidence panels stay quiet and unblurred. Sora, Manrope, amber selection and explicit policy/severity semantics retain their established roles. `web/glass.css`, loaded after `web/styles.css`, owns this trial's overrides; `web/glass.mjs` controls session-only material settings. No framework migration, dependency or image was added.
 
 **Key Characteristics:**
-- Near-black surfaces separated by fine rules and restrained tonal changes.
+- Translucent dark outer surfaces, illuminated edges and quiet inner evidence panels.
 - Amber selection and focus, with explicit status words alongside status colors.
-- Compact, tabular report facts and wrapping identifiers.
+- Readable tabular report facts and wrapping identifiers.
 - A report chooser, inventory and inspector that stack as space narrows.
-- Immediate report-state changes and optional short control transitions.
+- Immediate report-state changes, optional short control transitions and adjustable session-only glass.
 
 ## Colors
 
-The palette combines warm selection with cool dark neutrals; exact reusable values live in the frontmatter and mirror `web/styles.css`.
+The palette combines warm selection with cool dark neutrals; exact reusable values live in the frontmatter and reflect the base stylesheet plus effective trial overrides.
 
 ### Primary
 
@@ -154,13 +179,15 @@ These are semantic status roles, not interchangeable decorative accents. Low sev
 
 ### Neutral
 
-- **Page black** (`page`) and **rail black** (`rail`): the application frame and report chooser.
-- **Inspection charcoal** (`surface`): controls, policy and inspector backgrounds.
-- **Hover charcoal** (`hover`): ordinary button hover state.
-- **Rule gray** (`line`, `row-line`): outer boundaries and quieter inventory/drift separators.
-- **Off-white** (`text`) and **secondary gray** (`muted`): primary and supporting text.
-- **Selected row charcoal** (`selected-row`): dependency selection without obscuring its row structure.
-- **Selected report olive-charcoal** (`selected-example`, `selected-example-line`): warm, restrained report-choice selection.
+The `glass-*` colors are the trial layer: blue-black ground, cool secondary text, transparent inner panels/fields, translucent rules and low-opacity amber selection. Base tokens remain available for inherited controls and semantic text; they do not imply a return to the production flat frame. The default glass tint is separately adjustable and never replaces status colors.
+
+- **Base page/rail black** (`page`, `rail`): retained inherited values; the trial’s outer frame uses the adjustable glass material over `glass-ground`.
+- **Base inspection charcoal** (`surface`): retained inherited controls; trial policy/inspector panels use `glass-inner` and search/filter fields use `glass-field`.
+- **Base hover charcoal** (`hover`): inherited button hover; trial report actions use the translucent `glass-action-hover`.
+- **Base rule gray** (`line`, `row-line`): inherited boundary values; trial report separators use `glass-line`.
+- **Off-white** (`text`): primary text. Base `muted` remains available; trial supporting prose uses `glass-secondary`.
+- **Base selected-row charcoal** (`selected-row`): retained base value; the trial uses `glass-row-selected`.
+- **Base selected-report values** (`selected-example`, `selected-example-line`): retained base values; the trial uses `glass-selected` and `glass-selected-line`.
 - **File-action paper** (`file-button`, `file-button-text`): the high-contrast native file selection action.
 
 **The Status Has Words Rule.** Preserve the visible policy, severity and example labels when using status color; a dot or color alone does not carry the result.
@@ -177,34 +204,34 @@ Both primary families are self-hosted variable WOFF2 assets under `web/assets/fo
 
 Sora supplies compact heading shapes; Manrope supplies report prose, labels and controls. The frontmatter's body role is the 16px global base. Regular report and control text uses 14–15px, with secondary labels and metadata at 12–13px. The final readability overrides at the end of `web/styles.css` are authoritative over its original compact rules. Numeric figures inherit tabular numerals throughout.
 
-- **Display:** report title; the responsive clamp is overridden to 29px at the narrow breakpoint.
+- **Display:** report title; the responsive clamp is overridden to 27px at the narrow breakpoint.
 - **Policy:** outcome heading; reduced to 21px on narrow screens.
-- **Title:** inventory, inspector and other section headings; reduced to 17px on narrow screens. Component roles override the generic h2 base.
+- **Title:** inventory, inspector and other section headings; reduced to 16px on narrow screens. Component roles override the generic h2 base.
 - **Body / help / detail:** base text, explanatory text and compact evidence respectively. Policy explanations cap at 75ch; evidence lists at 90ch.
-- **Number:** summary facts; reduced to 27px on narrow screens. Unknown baseline values use smaller Manrope text rather than a numeric zero.
+- **Number:** summary facts; reduced to 26px on narrow screens. Unknown baseline values use smaller Manrope text rather than a numeric zero.
 - **Identifier:** package identifiers and commands; PURLs use 13px (12px narrow) and finding IDs use 13px variants and wrap when necessary.
 
 **The Identifier Rule.** Reserve monospace for actual identifiers, versions where represented as code, and commands; retain Manrope for human explanations.
 
 ## Layout
 
-The desktop frame has a 76px application header and a 270px report rail beside flexible main content. The main region caps at 1720px and uses 30px top padding, fluid horizontal padding `clamp(22px, 3.5vw, 56px)` and 24px bottom padding. The rail remains part of the page grid; it is not fixed or sticky.
+The trial floats inside a 1680px maximum frame with `calc(100% - 48px)` width. The 72px header has a 24px top margin and 18px gap below; the rail/workspace grid uses a 252px rail and 18px gap. Main padding is 30px, rail padding `25px 22px`. The workbench retains `minmax(0, 1.2fr) minmax(320px, 1fr)` and a 28px gap.
 
-Policy reasons and warnings lead above a wrapping strip of summary facts. The workbench pairs inventory and inspector using `minmax(0, 1.2fr) minmax(320px, 1fr)` with a 28px gap. The final override retains this ratio at wider widths.
-
-At 1240px and below, the rail contracts to 245px and the inspector moves below the inventory. At 720px and below, the header becomes 65px tall, the rail becomes a stacked report control, examples form two columns, main padding becomes `26px 18px`, controls stack and summary facts use two columns. Drift rows become stacked blocks. The text-only source link remains visible on narrow screens; the rail privacy note is visually removed.
+At 1240px and below, the rail becomes 235px, main padding becomes 26px and the inspector stacks. At 720px and below, the frame uses 12px side margins, a 65px header, a stacked rail with `22px 18px` padding, and main padding `24px 18px`. Header/rail corners become 16px, workspace corners 18px. Examples, summary facts and refinements retain two-column narrow grids. The compact header hides the report-viewer sublabel/divider while retaining SCRAM, Adjust glass and the text source link.
 
 Keep flexible areas at `min-width: 0`, wrap long report strings, and allow the inventory table's local horizontal scroll rather than page overflow. Inventory and drift paginate at 15 items, finding details at 8. Pagination, filtered-empty recovery and errors remain part of the responsive structure.
 
 ## Elevation & Depth
 
-Depth comes from tonal layering and one-pixel borders, with no drop shadows or floating overlays. The only box-shadow is the selected row's inset one-pixel amber marker; it communicates selection, not elevation. Policy and inspector share the same surface material. Avoid introducing a hierarchy of floating cards where the implemented registry uses rules and adjacency.
+The trial uses blur only on the three outer surfaces: header, report rail and main workspace. Default material settings are blur 22px, opacity 0.82, saturation 1.2, edge light 0.6 and tint `glass-tint`. The exact dynamic color-mix formulas and shadows are in the sidecar. Outer surfaces combine an inset illuminated top edge, a fine inset rule and a soft ambient shadow; the opaque appearance panel has its own soft shadow. Inner policy/inspector panels have no shadow or backdrop blur.
 
-**The Ruled Surface Rule.** Separate evidence groups with the existing line and surface vocabulary; keep row selection legible through both the warm background and inset marker.
+**The Ruled Surface Rule.** Keep inner evidence legible with quiet translucent fills and fine rules; reserve backdrop blur and ambient lift for the outer workspace surfaces.
+
+Solid mode removes blur/transparency. Unsupported backdrop-filter and reduced-transparency preferences use the solid surface; forced colors removes the gradient and shadows and uses Canvas/CanvasText borders. Reduced-transparency or forced-colors preferences also disable appearance controls. Existing reduced-motion behavior remains unchanged.
 
 ## Shapes
 
-Major report surfaces use gently rounded 12px corners. Controls use 7px, example choices 8px, the file action 6px, schema tags 5px and severity tags 4px. Small provenance/example dots are circular. The frontmatter records extracted role names for these values; only the major surface radius is a CSS custom property today.
+The floating header and rail use 20px corners, the workspace 24px, and inner policy/inspector panels 16px. Narrow outer corners are 16px for header/rail and 18px for the workspace. Search/filter controls and examples use 10px, common report actions 9px, the drop zone 12px, schema tags 7px and severity tags retain 4px. Native file selection retains its existing shape. Small provenance/example dots remain circular.
 
 Borders are generally one pixel. Inline SVG uses a 1.5px stroke with rounded caps and joins, with no icon font. Tables retain rectangular ruled rows rather than individually rounded tiles.
 
@@ -212,15 +239,15 @@ Borders are generally one pixel. Inline SVG uses a 1.5px stroke with rounded cap
 
 ### Buttons
 
-Ordinary actions are compact outlined charcoal controls. Default padding and radius are in the frontmatter, with a 40px minimum height. Hover changes background and border; disabled buttons retain the surface and rule colors at 0.42 opacity. Pagination uses smaller padding (`5px 9px`) and a 44px minimum height. Search and primary filter controls have a 46px minimum height; refinement controls use 44px.
+Report actions use faint translucent fills and cool outlines; the native file action retains its light treatment. Default padding and radius are in the frontmatter, with a 40px minimum height. Hover changes background and border; disabled buttons retain the surface and rule colors at 0.42 opacity. Pagination uses smaller padding (`5px 9px`) and a 44px minimum height. Search and primary filter controls have a 46px minimum height; refinement controls use 44px.
 
-The native file-selector button is the strongest light action. Its hover surface becomes white. Do not treat it as evidence that every action should be filled or light.
+The native file-selector button remains the strongest light action. Its hover surface becomes white. Do not treat it as evidence that every action should be filled or light.
 
 Keyboard focus uses a 2px amber outline with a 4px offset. When reduced motion is not requested, buttons, links, inputs and selects transition background, border and text colors for 0.14s with ease-out timing. No entrance motion delays report content.
 
 ### Report selection
 
-Example choices combine a status dot, a title, an explicit policy description and a chevron. Their selected state uses `aria-pressed`, a warm outlined surface and amber title. Narrow-screen examples have visible borders, no chevron and a 76px minimum height. Selection indicates the currently opened report, not a safety judgment.
+Example choices combine a status dot, a title, an explicit policy description and a chevron. Their selected state uses `aria-pressed`, a translucent amber outlined surface and amber title. Examples retain a 66px minimum height in this trial, including narrow screens; narrow choices hide chevrons. Selection indicates the currently opened report, not a safety judgment.
 
 ### Inputs / Fields
 
@@ -234,13 +261,13 @@ Schema and severity tags are quiet outlined labels. Severity text carries its st
 
 ### Cards / Containers
 
-The policy panel and inspector share the major surface shape and rule. The policy panel and inspector use 24px padding. On narrow screens these become `20px 17px` and `22px 17px`. Warnings sit inside the policy panel behind a top divider; they do not become a competing summary tile.
+The policy panel and inspector share the major surface shape and rule. The policy panel and inspector use 24px padding. On narrow screens these become `20px 16px` and `21px 16px`. Warnings sit inside the policy panel behind a top divider; they do not become a competing summary tile.
 
 The Generated review summary disclosure uses horizontal rules, wrapping monospace text in a scrollable surface capped at 280px, and Copy summary / Download text actions. Export captures the filtered inventory while retaining full policy reasons and warnings.
 
 ### Navigation
 
-The application header combines the shield, SCRAM name, divider and report-viewer label. Source navigation is a quiet, text-only external link. The report rail is a chooser, not a route navigation menu. A keyboard-visible skip link leads directly to the report.
+The application header combines the shield, SCRAM name, divider and report-viewer label. Source navigation is a quiet, text-only external link. A native Adjust glass disclosure opens a 320px opaque settings panel, constrained to the viewport on mobile. Four ranges control blur (0–40px), opacity (58–100%), saturation (50–160%) and edge light (0–100%); a color input supplies tint. Clear, Frosted and Solid presets plus Reset appearance affect material only and reset on reload. Close, Escape and outside-pointer dismissal are implemented; closing with the button/Escape returns focus to the disclosure. The sidecar records exact presets and fallbacks. The report rail is a chooser, not a route navigation menu. A keyboard-visible skip link leads directly to the report.
 
 ### Dependency inventory and inspector
 
@@ -252,7 +279,7 @@ The inspector keeps the PURL, version, relationship and license distinct from sc
 
 ### Do:
 
-- **Do** use the near-black surface hierarchy, fine rules and Sora/Manrope pairing already implemented.
+- **Do** use this branch’s frosted outer frame, quiet inner evidence, fine rules and existing Sora/Manrope pairing.
 - **Do** keep provenance, policy explanations and missing-evidence warnings visible before interpreting scores.
 - **Do** pair semantic colors with explicit words and preserve the amber keyboard focus outline.
 - **Do** preserve identifier wrapping, responsive stacking and local table overflow.
@@ -262,5 +289,5 @@ The inspector keeps the PURL, version, relationship and license distinct from sc
 
 - **Don't** turn a passed policy or zero known findings into a visual claim of repository safety.
 - **Don't** replace unknown baseline values with zeros or successful status decoration.
-- **Don't** turn these extracted implementation details into claims of user-approved composition or an approved image comp.
+- **Don't** treat this styling trial as production approval or claim an approved image comp.
 - **Don't** add decorative graph data, artificial live activity or entrance motion to this saved-report registry.

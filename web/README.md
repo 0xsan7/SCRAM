@@ -67,10 +67,10 @@ license notices are retained in `assets/`.
 
 ## Hosting review
 
-The packaged directory can be served as static files. The proposed subdomain
-is `scram.0xsan7.in`; nothing here enables automatic public deployment. Keep
-the root portfolio unchanged and review the artifact, domain and hosting
-configuration before enabling publication. A host should serve correct module
+The production viewer is published at `https://scram.0xsan7.in/` through
+Cloudflare Pages from `codex/scram-usability`. Other branches receive preview
+deployments; the glass trial does not change production or the root portfolio.
+A host should serve correct module
 MIME types and may strengthen the supplied CSP with response headers such as
 `frame-ancestors 'none'` and `X-Content-Type-Options: nosniff`.
 
@@ -79,4 +79,24 @@ only, checks the Host/Origin, disables caching and frames, and embeds only viewe
 assets plus synthetic examples. It never exposes the working directory or an
 upload endpoint. The random URL is for local use, not a public share link.
 
-See `docs/report-viewer-hosting.md` for the proposed public demo configuration.
+## Glass styling trial
+
+The `codex/scram-glass-preview` branch applies the supplied dashboard's glass
+material to this existing viewer, as requested. It adds no React, Tailwind,
+GSAP, remote images or frontend dependencies. The production branch remains
+`codex/scram-usability` until the trial is reviewed.
+
+Use **Adjust glass** to choose Clear, Frosted or Solid, or adjust blur, opacity,
+saturation, edge light and tint. Settings last only for the current page session;
+they are never read from reports or saved to local storage. Solid mode removes
+blur/transparency, and browser accessibility preferences can enforce solid
+surfaces. Escape closes the appearance disclosure and restores trigger focus.
+The module bounds all material values and accepts only six-digit hex tints.
+`glass.css` and `glass.mjs` are packaged both in the static output and Go binary.
+
+This is a visual adaptation of the user's supplied component, not a copy of its
+finance demo or its React implementation. Report policy, inventory, warnings,
+filters, imports and export retain the existing behavior. The trial direction
+is recorded in `docs/report-viewer-glass-preview.md`.
+
+See `docs/report-viewer-hosting.md` for the public demo configuration.

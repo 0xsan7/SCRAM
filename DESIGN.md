@@ -20,7 +20,9 @@ colors:
   file-button: "#e5e7eb"
   file-button-text: "#111214"
   glass-ground: "#0b1016"
-  glass-tint: "#9abbd1"
+  glass-material-base: "#17191d"
+  glass-scenery-shade: "#06090db3"
+  glass-tint: "#eadbc7"
   glass-secondary: "#bbc6d1"
   glass-inner: "#0a10182e"
   glass-field: "#0a101847"
@@ -152,7 +154,7 @@ components:
 
 This document describes the styling trial on `codex/scram-glass-preview` only. Production remains on `codex/scram-usability` and is unchanged. The user explicitly chose to apply the supplied adjustable-glass styling to the existing viewer; this is authorization for the trial, not approval to replace production. There is no approved image comp.
 
-The existing dependency registry now sits inside a floating frosted header, rail and workspace over a restrained warm/cool gradient ground. Inner evidence panels stay quiet and unblurred. Sora, Manrope, amber selection and explicit policy/severity semantics retain their established roles. `web/glass.css`, loaded after `web/styles.css`, owns this trial's overrides; `web/glass.mjs` controls session-only material settings. No framework migration, dependency or image was added.
+The existing dependency registry now sits inside a floating frosted header, rail and workspace over the reference room photograph (`web/assets/glass-room.jpg`). Fixed viewport scenery and a dark shade supply visible detail for the actual backdrop blur; the photograph is not pre-blurred. Inner evidence panels stay quiet and unblurred. Sora, Manrope, amber selection and explicit policy/severity semantics retain their established roles. `web/glass.css`, loaded after `web/styles.css`, owns this trial's overrides; `web/glass.mjs` controls session-only material settings. The corrected trial follows the supplied 21st adjustable-glass-dashboard reference. It adds the local reference room image while retaining native HTML/CSS/JavaScript, without a framework migration or new dependency.
 
 **Key Characteristics:**
 - Translucent dark outer surfaces, illuminated edges and quiet inner evidence panels.
@@ -179,7 +181,7 @@ These are semantic status roles, not interchangeable decorative accents. Low sev
 
 ### Neutral
 
-The `glass-*` colors are the trial layer: blue-black ground, cool secondary text, transparent inner panels/fields, translucent rules and low-opacity amber selection. Base tokens remain available for inherited controls and semantic text; they do not imply a return to the production flat frame. The default glass tint is separately adjustable and never replaces status colors.
+The `glass-*` colors are the trial layer: a shaded photographic ground, neutral dark material, warm ivory tint, cool secondary text, transparent inner panels/fields, translucent rules and low-opacity amber selection. Base tokens remain available for inherited controls and semantic text; they do not imply a return to the production flat frame. The default glass tint is separately adjustable and never replaces status colors.
 
 - **Base page/rail black** (`page`, `rail`): retained inherited values; the trial’s outer frame uses the adjustable glass material over `glass-ground`.
 - **Base inspection charcoal** (`surface`): retained inherited controls; trial policy/inspector panels use `glass-inner` and search/filter fields use `glass-field`.
@@ -223,11 +225,11 @@ Keep flexible areas at `min-width: 0`, wrap long report strings, and allow the i
 
 ## Elevation & Depth
 
-The trial uses blur only on the three outer surfaces: header, report rail and main workspace. Default material settings are blur 22px, opacity 0.82, saturation 1.2, edge light 0.6 and tint `glass-tint`. The exact dynamic color-mix formulas and shadows are in the sidecar. Outer surfaces combine an inset illuminated top edge, a fine inset rule and a soft ambient shadow; the opaque appearance panel has its own soft shadow. Inner policy/inspector panels have no shadow or backdrop blur.
+The trial uses blur only on the three outer surfaces: header, report rail and main workspace. Default material settings are blur 22px, opacity 0.30, saturation 1.2, edge light 0.6 and tint `glass-tint`. Opacity controls the dark material independently of the separate 12% tint wash, so changes remain visible against the scenery. The exact dynamic color-mix formulas and shadows are in the sidecar. Outer surfaces combine an inset illuminated top edge, a fine inset rule and a soft ambient shadow; the opaque appearance panel has its own soft shadow. Inner policy/inspector panels have no shadow or backdrop blur.
 
 **The Ruled Surface Rule.** Keep inner evidence legible with quiet translucent fills and fine rules; reserve backdrop blur and ambient lift for the outer workspace surfaces.
 
-Solid mode removes blur/transparency. Unsupported backdrop-filter and reduced-transparency preferences use the solid surface; forced colors removes the gradient and shadows and uses Canvas/CanvasText borders. Reduced-transparency or forced-colors preferences also disable appearance controls. Existing reduced-motion behavior remains unchanged.
+Solid mode removes blur/transparency. Unsupported backdrop-filter and reduced-transparency preferences use the solid surface; forced colors removes the photographic backdrop and shadows and uses Canvas/CanvasText borders. Reduced-transparency or forced-colors preferences also disable appearance controls. Existing reduced-motion behavior remains unchanged.
 
 ## Shapes
 
@@ -267,7 +269,7 @@ The Generated review summary disclosure uses horizontal rules, wrapping monospac
 
 ### Navigation
 
-The application header combines the shield, SCRAM name, divider and report-viewer label. Source navigation is a quiet, text-only external link. A native Adjust glass disclosure opens a 320px opaque settings panel, constrained to the viewport on mobile. Four ranges control blur (0–40px), opacity (58–100%), saturation (50–160%) and edge light (0–100%); a color input supplies tint. Clear, Frosted and Solid presets plus Reset appearance affect material only and reset on reload. Close, Escape and outside-pointer dismissal are implemented; closing with the button/Escape returns focus to the disclosure. The sidecar records exact presets and fallbacks. The report rail is a chooser, not a route navigation menu. A keyboard-visible skip link leads directly to the report.
+The application header combines the shield, SCRAM name, divider and report-viewer label. Source navigation is a quiet, text-only external link. A native Adjust glass disclosure opens a 320px opaque settings panel, constrained to the viewport on mobile. Four ranges control blur (0–40px), opacity (8–100%), saturation (50–200%) and edge light (0–100%); a color input supplies tint. Clear, Frosted and Solid presets plus Reset appearance affect material only and reset on reload. Close, Escape and outside-pointer dismissal are implemented; closing with the button/Escape returns focus to the disclosure. A 94px-minimum live material sample inside the appearance panel uses the same room image, material, filter and edge variables. Clear uses blur 8px / opacity 12% / saturation 110% / edge 80%; Frosted uses 22px / 30% / 120% / 60%. Solid intentionally uses true opaque 100% material and no blur, rather than the reference’s 86% preset, to preserve the accessibility fallback. The sidecar records exact presets and fallbacks. The report rail is a chooser, not a route navigation menu. A keyboard-visible skip link leads directly to the report.
 
 ### Dependency inventory and inspector
 

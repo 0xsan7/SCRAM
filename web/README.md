@@ -83,7 +83,9 @@ upload endpoint. The random URL is for local use, not a public share link.
 
 The `codex/scram-glass-preview` branch applies the supplied dashboard's glass
 material to this existing viewer, as requested. It adds no React, Tailwind,
-GSAP, remote images or frontend dependencies. The production branch remains
+GSAP or frontend dependencies. The reference's room photograph is bundled
+locally, so appearance makes no third-party image requests. Its source is
+recorded in `assets/GLASS-ROOM-SOURCE.md`. The production branch remains
 `codex/scram-usability` until the trial is reviewed.
 
 Use **Adjust glass** to choose Clear, Frosted or Solid, or adjust blur, opacity,
@@ -93,6 +95,12 @@ blur/transparency, and browser accessibility preferences can enforce solid
 surfaces. Escape closes the appearance disclosure and restores trigger focus.
 The module bounds all material values and accepts only six-digit hex tints.
 `glass.css` and `glass.mjs` are packaged both in the static output and Go binary.
+
+The reference's 30% default opacity lets the sharp room image show through;
+blur (0–40 px) and saturation (50–200%) filter that scenery, while report text
+stays sharp. A live sample uses the same material. Opacity spans 8–100%; at
+100%, the opaque surface hides the backdrop, so blur and saturation cannot
+show through. Solid intentionally removes blur as an accessibility fallback.
 
 This is a visual adaptation of the user's supplied component, not a copy of its
 finance demo or its React implementation. Report policy, inventory, warnings,

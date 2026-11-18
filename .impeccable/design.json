@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-18T23:15:42.702584+00:00",
+  "generatedAt": "2026-11-18T23:26:35.206807+00:00",
   "title": "Design System: SCRAM Report Viewer \u2014 Glass Trial",
   "extensions": {
     "colorMeta": {
@@ -309,6 +309,14 @@
       "glass-settings-panel": {
         "role": "neutral",
         "displayName": "Glass Settings Panel"
+      },
+      "glass-material-base": {
+        "role": "neutral",
+        "displayName": "Glass Material Base"
+      },
+      "glass-scenery-shade": {
+        "role": "neutral",
+        "displayName": "Glass Scenery Shade"
       }
     },
     "typographyMeta": {
@@ -398,7 +406,8 @@
       "approvalBoundary": "User explicitly chose glass styling for this trial on codex/scram-glass-preview. Detailed implementation is recorded, not claimed separately approved. Production codex/scram-usability is unchanged. No approved image comp.",
       "tonalRampNote": "Preview-only OKLCH ramps synthesized from each extracted color at eight stepped lightness values. They are not implemented CSS tokens or approved palette additions.",
       "componentNote": "Self-contained source-derived samples use fallback values when project custom properties are unavailable. Package data is illustrative. Samples do not execute the viewer application.",
-      "readabilityUpdate": "Approved readability/usability extension, retaining the dependency registry world. Final CSS overrides define effective sizes. Native how-to details, file drop zone, filter refinements and export disclosure are implemented. Four verified synthetic examples; optional CLI report serving stays on loopback."
+      "readabilityUpdate": "Approved readability/usability extension, retaining the dependency registry world. Final CSS overrides define effective sizes. Native how-to details, file drop zone, filter refinements and export disclosure are implemented. Four verified synthetic examples; optional CLI report serving stays on loopback.",
+      "correctedReference": "User explicitly requested matching the supplied 21st adjustable-glass-dashboard behavior after rejecting the first trial. Scenery, independent opacity/tint wash and a live material sample now reflect the reference; production remains unchanged."
     },
     "layout": {
       "frame": "max-width:1680px; width:calc(100% - 48px); mobile width:calc(100% - 24px)",
@@ -413,42 +422,75 @@
       "scope": "Trial branch codex/scram-glass-preview only; production codex/scram-usability unchanged.",
       "defaults": {
         "blur": "22px",
-        "opacity": 0.82,
+        "opacity": 0.3,
         "saturation": 1.2,
         "edge": 0.6,
-        "tint": "#9abbd1"
+        "tint": "#eadbc7"
       },
       "variables": {
-        "tone": "color-mix(in srgb, #0b111a 88%, var(--glass-tint))",
-        "material": "color-mix(in srgb, var(--glass-tone) calc(var(--glass-opacity) * 100%), transparent)",
+        "material": "color-mix(in srgb, #17191d calc(var(--glass-opacity) * 100%), transparent)",
+        "tintWash": "color-mix(in srgb, var(--glass-tint) 12%, transparent)",
+        "filter": "blur(var(--glass-blur)) saturate(var(--glass-saturation))",
         "rule": "color-mix(in srgb, var(--glass-tint) calc(var(--glass-edge) * 28%), transparent)",
         "highlight": "color-mix(in srgb, #e8f3fb calc(var(--glass-edge) * 40%), transparent)"
       },
       "presets": {
         "clear": {
           "blur": 8,
-          "opacity": 0.62,
+          "opacity": 0.12,
           "saturation": 1.1,
-          "edge": 0.7,
-          "tint": "#9abbd1"
+          "edge": 0.8,
+          "tint": "#eadbc7"
         },
         "frosted": {
           "blur": 22,
-          "opacity": 0.82,
+          "opacity": 0.3,
           "saturation": 1.2,
           "edge": 0.6,
-          "tint": "#9abbd1"
+          "tint": "#eadbc7"
         },
         "solid": {
           "blur": 0,
           "opacity": 1,
           "saturation": 1,
           "edge": 0.35,
-          "tint": "#9abbd1"
+          "tint": "#eadbc7"
         }
       },
       "controls": "Native details; four bounded ranges and one hex color input; three presets, reset and close. Session-only, report data unchanged.",
-      "fallbacks": "Solid preset, unsupported backdrop-filter and reduced transparency use #18212b without blur/transparency. Forced colors uses Canvas/CanvasText and removes gradient/shadows; preference modes disable appearance controls."
+      "fallbacks": "Solid preset, unsupported backdrop-filter and reduced transparency use #18212b without blur/transparency. Forced colors uses Canvas/CanvasText and removes gradient/shadows; preference modes disable appearance controls.",
+      "ranges": {
+        "blur": [
+          0,
+          40
+        ],
+        "opacity": [
+          0.08,
+          1
+        ],
+        "saturation": [
+          0.5,
+          2
+        ],
+        "edge": [
+          0,
+          1
+        ],
+        "tint": "Six-digit hex color"
+      },
+      "scenery": {
+        "asset": "web/assets/glass-room.jpg",
+        "position": "fixed; inset:0",
+        "background": "linear-gradient(#06090db3, #06090db3), url('assets/glass-room.jpg') center 56% / cover",
+        "purpose": "Local room image from the supplied reference provides real scenery behind backdrop-filter; no pre-blurring."
+      },
+      "liveSample": {
+        "minimumHeight": "94px",
+        "radius": "10px",
+        "background": "linear-gradient(#06090d99, #06090d99), url('assets/glass-room.jpg') center 56% / cover",
+        "material": "Same tint wash, material, filter and edge variables as the outer surfaces. Solid mode is opaque and unblurred."
+      },
+      "solidDifference": "Solid intentionally remains opacity 1 / blur 0, rather than the supplied reference\u2019s 86% preset, for a true opaque accessibility fallback."
     }
   },
   "components": [
@@ -526,14 +568,14 @@
     {
       "name": "Application header navigation",
       "kind": "nav",
-      "description": "A quiet brand/home link and explicit external source link frame the report viewer.",
+      "description": "Floating glass header navigation. The project\u2019s fixed local room photograph supplies the backdrop; this isolated specimen preserves the material without loading remote imagery.",
       "html": "<nav class=\"ds-nav\" aria-label=\"Application\"><a class=\"ds-brand\" href=\"./\"><svg viewBox=\"0 0 28 28\" aria-hidden=\"true\"><path d=\"M14 2 24 6v8c0 6-10 12-10 12S4 20 4 14V6Z\"/><path d=\"m9 14 3 3 7-7\"/></svg><span>SCRAM</span><span class=\"ds-divider\"></span><span class=\"ds-app-name\">Report viewer</span></a><a class=\"ds-source\" href=\"https://github.com/0xsan7/SCRAM\" target=\"_blank\" rel=\"noopener noreferrer\">Source code</a></nav>",
-      "css": ".ds-nav{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:1px solid var(--line,#2b2f35);background:var(--page,#0b0c0e);color:var(--text,#eceef0);font-family:var(--body,Manrope,system-ui,sans-serif);}.ds-nav a{text-decoration:none}.ds-nav a:hover{color:var(--accent,#f4ba63)}.ds-nav a:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}.ds-brand{display:flex;align-items:center;gap:12px;font-family:var(--display,Sora,system-ui,sans-serif);font-size:18px;font-weight:600;letter-spacing:-.03em;color:inherit}.ds-brand svg{width:28px;height:28px;color:var(--accent,#f4ba63)}.ds-nav svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}.ds-divider{width:1px;height:22px;background:var(--line,#2b2f35);margin:0 5px}.ds-app-name{font-family:var(--body,Manrope,system-ui,sans-serif);font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted,#a5acb6)}.ds-source{font-size:12px;color:var(--muted,#a5acb6)}.ds-source svg{width:16px;height:16px;vertical-align:middle;margin-left:8px}@media(max-width:720px){.ds-nav{height:65px;padding:0 20px}.ds-brand{font-size:16px;gap:9px}.ds-divider{margin:0 2px}.ds-app-name{font-size:11px}.ds-source{font-size:0}.ds-source svg{width:20px;height:20px}}.ds-app-name,.ds-source{font-size:14px}.ds-source{white-space:nowrap}@media(max-width:720px){.ds-nav{padding:0 18px}.ds-app-name,.ds-source{font-size:12px}}.ds-nav{background:var(--glass-material,color-mix(in srgb,color-mix(in srgb,#0b111a 88%,var(--glass-tint,#9abbd1)) 82%,transparent));backdrop-filter:blur(var(--glass-blur,22px)) saturate(var(--glass-saturation,1.2));-webkit-backdrop-filter:blur(var(--glass-blur,22px)) saturate(var(--glass-saturation,1.2));box-shadow:inset 0 1px 0 var(--glass-highlight,#e8f3fb3d),inset 0 0 0 1px var(--glass-rule,#9abbd12b),0 22px 52px -30px #000b;border:0;border-radius:20px;height:72px;padding:0 26px}.ds-brand{font-size:19px}.ds-brand svg{width:30px;height:30px}.ds-app-name,.ds-source{color:#bbc6d1}@media(max-width:720px){.ds-nav{height:65px;padding:0 16px;border-radius:16px}.ds-brand{font-size:17px;gap:8px}.ds-brand svg{width:26px;height:26px}.ds-app-name,.ds-divider{display:none}}@supports not (backdrop-filter:blur(1px)){.ds-nav{background:#18212b}}@media(prefers-reduced-transparency:reduce){.ds-nav{background:#18212b;backdrop-filter:none;-webkit-backdrop-filter:none}}@media(forced-colors:active){.ds-nav{background:Canvas;color:CanvasText;box-shadow:none;border:1px solid CanvasText;backdrop-filter:none;-webkit-backdrop-filter:none}}"
+      "css": ".ds-nav{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:1px solid var(--line,#2b2f35);background:var(--page,#0b0c0e);color:var(--text,#eceef0);font-family:var(--body,Manrope,system-ui,sans-serif);}.ds-nav a{text-decoration:none}.ds-nav a:hover{color:var(--accent,#f4ba63)}.ds-nav a:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}.ds-brand{display:flex;align-items:center;gap:12px;font-family:var(--display,Sora,system-ui,sans-serif);font-size:18px;font-weight:600;letter-spacing:-.03em;color:inherit}.ds-brand svg{width:28px;height:28px;color:var(--accent,#f4ba63)}.ds-nav svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}.ds-divider{width:1px;height:22px;background:var(--line,#2b2f35);margin:0 5px}.ds-app-name{font-family:var(--body,Manrope,system-ui,sans-serif);font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted,#a5acb6)}.ds-source{font-size:12px;color:var(--muted,#a5acb6)}.ds-source svg{width:16px;height:16px;vertical-align:middle;margin-left:8px}@media(max-width:720px){.ds-nav{height:65px;padding:0 20px}.ds-brand{font-size:16px;gap:9px}.ds-divider{margin:0 2px}.ds-app-name{font-size:11px}.ds-source{font-size:0}.ds-source svg{width:20px;height:20px}}.ds-app-name,.ds-source{font-size:14px}.ds-source{white-space:nowrap}@media(max-width:720px){.ds-nav{padding:0 18px}.ds-app-name,.ds-source{font-size:12px}}.ds-nav{background:linear-gradient(var(--glass-tint-wash,color-mix(in srgb,var(--glass-tint,#eadbc7) 12%,transparent)),var(--glass-tint-wash,color-mix(in srgb,var(--glass-tint,#eadbc7) 12%,transparent))),var(--glass-material,color-mix(in srgb,#17191d 30%,transparent));backdrop-filter:blur(var(--glass-blur,22px)) saturate(var(--glass-saturation,1.2));-webkit-backdrop-filter:blur(var(--glass-blur,22px)) saturate(var(--glass-saturation,1.2));box-shadow:inset 0 1px 0 var(--glass-highlight,#e8f3fb3d),inset 0 0 0 1px var(--glass-rule,#eadbc72b),0 22px 52px -30px #000b;border:0;border-radius:20px;height:72px;padding:0 26px}.ds-brand{font-size:19px}.ds-brand svg{width:30px;height:30px}.ds-app-name,.ds-source{color:#bbc6d1}@media(max-width:720px){.ds-nav{height:65px;padding:0 16px;border-radius:16px}.ds-brand{font-size:17px;gap:8px}.ds-brand svg{width:26px;height:26px}.ds-app-name,.ds-divider{display:none}}@supports not (backdrop-filter:blur(1px)){.ds-nav{background:#18212b}}@media(prefers-reduced-transparency:reduce){.ds-nav{background:#18212b;backdrop-filter:none;-webkit-backdrop-filter:none}}@media(forced-colors:active){.ds-nav{background:Canvas;color:CanvasText;box-shadow:none;border:1px solid CanvasText;backdrop-filter:none;-webkit-backdrop-filter:none}}"
     }
   ],
   "narrative": {
     "northStar": "Frosted dependency registry",
-    "overview": "This document describes the styling trial on `codex/scram-glass-preview` only. Production remains on `codex/scram-usability` and is unchanged. The user explicitly chose to apply the supplied adjustable-glass styling to the existing viewer; this is authorization for the trial, not approval to replace production. There is no approved image comp.\n\nThe existing dependency registry now sits inside a floating frosted header, rail and workspace over a restrained warm/cool gradient ground. Inner evidence panels stay quiet and unblurred. Sora, Manrope, amber selection and explicit policy/severity semantics retain their established roles. `web/glass.css`, loaded after `web/styles.css`, owns this trial's overrides; `web/glass.mjs` controls session-only material settings. No framework migration, dependency or image was added.",
+    "overview": "This document describes the styling trial on `codex/scram-glass-preview` only. Production remains on `codex/scram-usability` and is unchanged. The user explicitly chose to apply the supplied adjustable-glass styling to the existing viewer; this is authorization for the trial, not approval to replace production. There is no approved image comp.\n\nThe existing dependency registry now sits inside a floating frosted header, rail and workspace over the reference room photograph (`web/assets/glass-room.jpg`). Fixed viewport scenery and a dark shade supply visible detail for the actual backdrop blur; the photograph is not pre-blurred. Inner evidence panels stay quiet and unblurred. Sora, Manrope, amber selection and explicit policy/severity semantics retain their established roles. `web/glass.css`, loaded after `web/styles.css`, owns this trial's overrides; `web/glass.mjs` controls session-only material settings. The corrected trial follows the supplied 21st adjustable-glass-dashboard reference. It adds the local reference room image while retaining native HTML/CSS/JavaScript, without a framework migration or new dependency.",
     "keyCharacteristics": [
       "Translucent dark outer surfaces, illuminated edges and quiet inner evidence panels.",
       "Amber selection and focus, with explicit status words alongside status colors.",

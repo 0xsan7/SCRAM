@@ -1,32 +1,31 @@
 /* User-requested glass styling trial. Report content and status colors stay intact. */
 :root {
   --glass-blur: 22px;
-  --glass-opacity: .82;
+  --glass-opacity: .3;
   --glass-saturation: 1.2;
   --glass-edge: .6;
-  --glass-tint: #9abbd1;
-  --glass-tone: color-mix(in srgb, #0b111a 88%, var(--glass-tint));
-  --glass-material: color-mix(in srgb, var(--glass-tone) calc(var(--glass-opacity) * 100%), transparent);
+  --glass-tint: #eadbc7;
+  --glass-material: color-mix(in srgb, #17191d calc(var(--glass-opacity) * 100%), transparent);
+  --glass-tint-wash: color-mix(in srgb, var(--glass-tint) 12%, transparent);
+  --glass-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
   --glass-rule: color-mix(in srgb, var(--glass-tint) calc(var(--glass-edge) * 28%), transparent);
   --glass-highlight: color-mix(in srgb, #e8f3fb calc(var(--glass-edge) * 40%), transparent);
 }
 body { position: relative; background: #0b1016; isolation: isolate; min-height: 100vh; }
 body::before {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse at 6% 12%, #34546c 0, transparent 48%),
-    radial-gradient(ellipse at 94% 60%, #544333 0, transparent 48%),
-    linear-gradient(150deg, #111923 0%, #111b21 48%, #17161b 100%);
+  /* Detailed scenery is the input to backdrop-filter, not a pre-blurred image. */
+  background: linear-gradient(#06090db3, #06090db3), url('assets/glass-room.jpg') center 56% / cover;
 }
 .app-header, .report-rail, main {
-  background: var(--glass-material);
+  background: linear-gradient(var(--glass-tint-wash), var(--glass-tint-wash)), var(--glass-material);
   border: 0;
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   box-shadow: inset 0 1px 0 var(--glass-highlight), inset 0 0 0 1px var(--glass-rule), 0 22px 52px -30px #000b;
 }
 .app-header {
@@ -139,6 +138,24 @@ tr.selected td:first-child { box-shadow: inset 1px 0 #f4ba6380; }
 .glass-panel h2 { font-size: 17px; }
 .glass-panel-heading button { min-height: 36px; width: 36px; padding: 7px; background: transparent; border-color: transparent; }
 .glass-panel > p { color: #bbc6d1; font-size: 13px; margin-top: 12px; }
+.glass-sample {
+  position: relative;
+  overflow: hidden;
+  min-height: 94px;
+  margin-top: 18px;
+  border-radius: 10px;
+  background: linear-gradient(#06090d99, #06090d99), url('assets/glass-room.jpg') center 56% / cover;
+}
+.glass-sample::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(var(--glass-tint-wash), var(--glass-tint-wash)), var(--glass-material);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), inset 0 0 0 1px var(--glass-rule);
+}
+.glass-sample span { position: relative; display: block; padding: 34px 12px; text-align: center; font-size: 13px; }
 .glass-presets { display: flex; gap: 6px; margin: 20px 0; }
 .glass-presets button { flex: 1; padding: 8px; font-size: 13px; min-height: 42px; background: #ffffff06; border-color: #b0c4d533; }
 .glass-presets button[aria-pressed=true] { color: var(--accent); background: #f4ba6314; border-color: #f4ba6355; }
@@ -152,6 +169,7 @@ tr.selected td:first-child { box-shadow: inset 1px 0 #f4ba6380; }
 .glass-panel .glass-access-note { font-size: 12px; }
 :root[data-glass=solid] .app-header, :root[data-glass=solid] .report-rail,
 :root[data-glass=solid] main { backdrop-filter: none; -webkit-backdrop-filter: none; background: #18212b; }
+:root[data-glass=solid] .glass-sample::before { backdrop-filter: none; -webkit-backdrop-filter: none; background: #18212b; }
 @supports not (backdrop-filter: blur(1px)) {
   .app-header, .report-rail, main { background: #18212b; }
 }

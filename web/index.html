@@ -27,12 +27,13 @@
         <section id="glass-panel" class="glass-panel" aria-labelledby="glass-title">
           <div class="glass-panel-heading"><h2 id="glass-title">Glass appearance</h2><button id="close-glass" type="button" aria-label="Close glass settings"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></div>
           <p>Adjust the workspace material. Your report stays the same.</p>
+          <div class="glass-sample" aria-hidden="true"><span>Live material preview</span></div>
           <div class="glass-presets" role="group" aria-label="Glass presets"><button type="button" data-glass-preset="clear" aria-pressed="false">Clear</button><button type="button" data-glass-preset="frosted" aria-pressed="true">Frosted</button><button type="button" data-glass-preset="solid" aria-pressed="false">Solid</button></div>
           <label class="glass-range" for="glass-blur"><span>Blur <output id="glass-blur-value" for="glass-blur">22 px</output></span><input id="glass-blur" type="range" min="0" max="40" step="1" value="22"></label>
-          <label class="glass-range" for="glass-opacity"><span>Opacity <output id="glass-opacity-value" for="glass-opacity">82%</output></span><input id="glass-opacity" type="range" min="58" max="100" step="1" value="82"></label>
-          <label class="glass-range" for="glass-saturation"><span>Saturation <output id="glass-saturation-value" for="glass-saturation">120%</output></span><input id="glass-saturation" type="range" min="50" max="160" step="5" value="120"></label>
+          <label class="glass-range" for="glass-opacity"><span>Opacity <output id="glass-opacity-value" for="glass-opacity">30%</output></span><input id="glass-opacity" type="range" min="8" max="100" step="1" value="30"></label>
+          <label class="glass-range" for="glass-saturation"><span>Saturation <output id="glass-saturation-value" for="glass-saturation">120%</output></span><input id="glass-saturation" type="range" min="50" max="200" step="5" value="120"></label>
           <label class="glass-range" for="glass-edge"><span>Edge light <output id="glass-edge-value" for="glass-edge">60%</output></span><input id="glass-edge" type="range" min="0" max="100" step="5" value="60"></label>
-          <label class="glass-tint" for="glass-tint">Glass tint <input id="glass-tint" type="color" value="#9abbd1"></label>
+          <label class="glass-tint" for="glass-tint">Glass tint <input id="glass-tint" type="color" value="#eadbc7"></label>
           <button id="reset-glass" type="button">Reset appearance</button><p class="glass-access-note">Solid mode removes blur and transparency. Appearance resets when you reload.</p>
         </section>
       </details>

@@ -1,16 +1,16 @@
 // Appearance is intentionally session-only; report data never enters these controls.
 export const GLASS_PRESETS = Object.freeze({
-  clear: { blur: 8, opacity: .62, saturation: 1.1, edge: .7, tint: '#9abbd1' },
-  frosted: { blur: 22, opacity: .82, saturation: 1.2, edge: .6, tint: '#9abbd1' },
-  solid: { blur: 0, opacity: 1, saturation: 1, edge: .35, tint: '#9abbd1' },
+  clear: { blur: 8, opacity: .12, saturation: 1.1, edge: .8, tint: '#eadbc7' },
+  frosted: { blur: 22, opacity: .3, saturation: 1.2, edge: .6, tint: '#eadbc7' },
+  solid: { blur: 0, opacity: 1, saturation: 1, edge: .35, tint: '#eadbc7' },
 });
 
 export function normalizeGlass(value = {}) {
   const defaults = GLASS_PRESETS.frosted;
   const bound = (key, min, max) => Number.isFinite(value[key]) ? Math.min(max, Math.max(min, value[key])) : defaults[key];
   return {
-    blur: bound('blur', 0, 40), opacity: bound('opacity', .58, 1),
-    saturation: bound('saturation', .5, 1.6), edge: bound('edge', 0, 1),
+    blur: bound('blur', 0, 40), opacity: bound('opacity', .08, 1),
+    saturation: bound('saturation', .5, 2), edge: bound('edge', 0, 1),
     tint: typeof value.tint === 'string' && /^#[0-9a-f]{6}$/i.test(value.tint) ? value.tint : defaults.tint,
   };
 }

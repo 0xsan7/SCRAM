@@ -19,6 +19,17 @@ and [limitations](LIMITATIONS.md) for incomplete inventory cases.
 **Upgrading from v0.1.0?** JSON schema 2.0.0 reports scores out of 65.
 Read the [migration notes](docs/BREAKING-2.0.0.md) before upgrading a JSON consumer.
 
+## Browser report viewer
+
+Inspect a local schema 2.x JSON report or three bundled synthetic examples in
+the dark report viewer. Review policy reasons, warnings, dependencies and
+finding changes without sending your report to a server. A passed policy can
+still contain findings; zero known findings does not establish completeness.
+
+See [viewer setup and limits](web/README.md) for the local preview commands.
+The viewer is a static report reader; it does not run scans or enable public
+hosting automatically.
+
 ## The three things that are hard to get at once
 
 A scanner can do any one of these. Doing all three means the score, the

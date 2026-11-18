@@ -21,6 +21,8 @@ func TestHandlerServesEmbeddedAssetsAndProtectsLocalReport(t *testing.T) {
 	}{
 		{"GET", "/session/", host, "", 200, "Dependency report"},
 		{"GET", "/session/app.mjs", host, "", 200, "parseReport"},
+		{"GET", "/session/glass.css", host, "", 200, "--glass-blur"},
+		{"GET", "/session/glass.mjs", host, "", 200, "normalizeGlass"},
 		{"GET", "/session/assets/fonts/sora-latin.woff2", host, "", 200, ""},
 		{"GET", "/session/fixtures/blocked-new-finding.json", host, "", 200, "DEMO-HIGH-001"},
 		{"GET", "/session/report.json", host, "", 200, "local report"},

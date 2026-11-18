@@ -140,11 +140,42 @@ export function reportOverview(doc) {
   };
 }
 
-export function matchingComponents(doc, query = '', filter = 'all') {
+export function highestCVSS(component) {
+  return component.vulnerabilities.reduce((max, finding) => Math.max(max, finding.cvss_v3), 0);
+}
+
+export function matchingComponents(doc, query = '', filter = 'all', options = {}) {
   const search = query.trim().toLocaleLowerCase();
   const fresh = new Set((doc.drift?.drifts ?? []).filter(change => change.new_vulnerabilities.length).map(change => change.purl));
-  return doc.scan.components.filter(component => {
+  const matched = doc.scan.components.filter(component => {
     const matches = !search || `${component.name} ${component.purl} ${component.ecosystem} ${component.vulnerabilities.map(v => v.id).join(' ')}`.toLocaleLowerCase().includes(search);
-    return matches && (filter === 'all' || (filter === 'findings' && component.vulnerabilities.length > 0) || (filter === 'new' && fresh.has(component.purl)) || (filter === 'direct' && component.direct));
+    return matches && (!options.ecosystem || options.ecosystem === 'all' || component.ecosystem === options.ecosystem)
+      && (!options.minimum || highestCVSS(component) >= Number(options.minimum))
+      && (filter === 'all' || (filter === 'findings' && component.vulnerabilities.length > 0) || (filter === 'new' && fresh.has(component.purl)) || (filter === 'direct' && component.direct));
   });
+  if (options.sort === 'severity') matched.sort((a, b) => highestCVSS(b) - highestCVSS(a) || a.name.localeCompare(b.name));
+  if (options.sort === 'name') matched.sort((a, b) => a.name.localeCompare(b.name));
+  return matched;
+}
+
+// Plain-text export keeps the policy and its caveats, even for a filtered list.
+export function summaryText(doc, components = doc.scan.components, synthetic = false) {
+  const line = value => String(value).replace(/[\u0000-\u001f\u007f]/g, ' ');
+  const overview = reportOverview(doc);
+  const lines = ['SCRAM dependency review', `Repository: ${line(doc.scan.repo)}`,
+    `Policy: ${overview.headline}`, `Provenance: ${synthetic ? 'Synthetic demonstration' : 'Imported report; origin and completeness unverified'}`,
+    `Reported repository score: ${doc.scan.summary.repo_score}/${doc.scan.summary.repo_score_max}`,
+    `Known findings in full report: ${doc.scan.summary.vuln_total}`,
+    `New findings: ${overview.newFindings ?? 'Unknown (no baseline)'}`,
+    `Resolved findings: ${overview.resolvedFindings ?? 'Unknown (no baseline)'}`,
+    'Policy is a configured decision, not a safety guarantee. Scan time is not provided.', '',
+    'Policy reasons:', ...(doc.fail_reasons.length ? doc.fail_reasons.map(x => `- ${line(x)}`) : ['- None provided']),
+    '', 'Warnings:', ...(doc.scan.warnings.length ? doc.scan.warnings.map(x => `- ${line(x)}`) : ['- None provided; completeness is not established']), '',
+    `Selected inventory: ${components.length} of ${doc.scan.components.length} dependencies`];
+  for (const component of components) {
+    lines.push('', `${line(component.name)} ${line(component.version)} (${line(component.ecosystem)}, ${component.direct ? 'direct' : 'transitive'})`, line(component.purl));
+    if (!component.vulnerabilities.length) lines.push('  No known findings reported; check warnings.');
+    for (const finding of component.vulnerabilities) lines.push(`  ${line(finding.id)} | ${severity(finding.cvss_v3)} | CVSS ${finding.cvss_v3}${finding.fixed_version ? ` | reported fixed version ${line(finding.fixed_version)}` : ''}`);
+  }
+  return lines.join('\n') + '\n';
 }

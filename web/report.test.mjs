@@ -82,3 +82,32 @@ test('advisory links permit only explicit HTTP(S) URLs without embedded credenti
   for (const url of ['javascript:alert(1)', 'data:text/html,test', 'file:///etc/passwd', '//example.com', 'https://user:secret@example.com', 'not a URL']) assert.equal(safeAdvisoryURL(url), null);
   assert.equal(safeAdvisoryURL('https://osv.dev/vulnerability/GO-2024-0000'), 'https://osv.dev/vulnerability/GO-2024-0000');
 });
+
+test('combined filters and sorting preserve report order and unknown severity', async () => {
+  const { highestCVSS } = await import('./report.mjs');
+  const doc = parse(await fixture('blocked-new-finding'));
+  const original = doc.scan.components[0];
+  const low = structuredClone(original);
+  low.name = 'a-low'; low.ecosystem = 'pypi'; low.vulnerabilities[0].cvss_v3 = 3;
+  doc.scan.components.push(low);
+  assert.deepEqual(matchingComponents(doc, '', 'all', { ecosystem: 'pypi', minimum: '7' }), []);
+  assert.equal(matchingComponents(doc, '', 'findings', { minimum: '7' })[0], original);
+  assert.equal(matchingComponents(doc, '', 'all', { sort: 'name' })[0], low);
+  assert.equal(matchingComponents(doc, '', 'all', { sort: 'severity' })[0], original);
+  assert.equal(doc.scan.components[0], original);
+  assert.equal(highestCVSS({ vulnerabilities: [] }), 0);
+});
+
+test('export retains warnings, policy and missing-baseline truth for filtered results', async () => {
+  const { summaryText } = await import('./report.mjs');
+  const doc = parse(await fixture('incomplete-no-findings'));
+  doc.drift = null;
+  doc.scan.repo = 'untrusted\nPolicy: safe\u001b[2J';
+  const text = summaryText(doc, [], true);
+  assert.match(text, /Policy: Policy failed/);
+  assert.match(text, /Synthetic demonstration/);
+  assert.match(text, /New findings: Unknown \(no baseline\)/);
+  assert.match(text, /vulnerability data was unavailable/);
+  assert.match(text, /Selected inventory: 0 of 1/);
+  assert.doesNotMatch(text, /\u001b/);
+});

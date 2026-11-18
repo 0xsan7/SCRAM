@@ -1,0 +1,273 @@
+{
+  "schema_version": "2.0.0",
+  "scan": {
+    "schema_version": "2.0.0",
+    "repo": "synthetic-multi-ecosystem-demo",
+    "components": [
+      {
+        "purl": "pkg:npm/demo-web-client@2.0.0",
+        "name": "demo-web-client",
+        "version": "2.0.0",
+        "ecosystem": "npm",
+        "direct": true,
+        "license": "MIT",
+        "vulnerabilities": [
+          {
+            "id": "DEMO-REVIEW-001",
+            "source": "synthetic",
+            "cvss_v3": 9.6,
+            "epss": 0,
+            "summary": "Invented finding for exploring the report viewer; not a real vulnerability.",
+            "fixed_version": "2.1.0"
+          }
+        ],
+        "score": {
+          "total": 38,
+          "severity": 38,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "low"
+      },
+      {
+        "purl": "pkg:pypi/demo-task-worker@2.0.0",
+        "name": "demo-task-worker",
+        "version": "2.0.0",
+        "ecosystem": "pypi",
+        "direct": false,
+        "license": "MIT",
+        "vulnerabilities": [
+          {
+            "id": "DEMO-REVIEW-002",
+            "source": "synthetic",
+            "cvss_v3": 8.1,
+            "epss": 0,
+            "summary": "Invented finding for exploring the report viewer; not a real vulnerability.",
+            "fixed_version": "2.1.0"
+          }
+        ],
+        "score": {
+          "total": 32,
+          "severity": 32,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "low"
+      },
+      {
+        "purl": "pkg:golang/demo-request-router@2.0.0",
+        "name": "demo-request-router",
+        "version": "2.0.0",
+        "ecosystem": "go",
+        "direct": true,
+        "license": "MIT",
+        "vulnerabilities": [
+          {
+            "id": "DEMO-REVIEW-003",
+            "source": "synthetic",
+            "cvss_v3": 5.3,
+            "epss": 0,
+            "summary": "Invented finding for exploring the report viewer; not a real vulnerability.",
+            "fixed_version": "2.1.0"
+          }
+        ],
+        "score": {
+          "total": 21,
+          "severity": 21,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "low"
+      },
+      {
+        "purl": "pkg:npm/demo-log-adapter@2.0.0",
+        "name": "demo-log-adapter",
+        "version": "2.0.0",
+        "ecosystem": "npm",
+        "direct": false,
+        "license": "MIT",
+        "vulnerabilities": [
+          {
+            "id": "DEMO-REVIEW-004",
+            "source": "synthetic",
+            "cvss_v3": 2.4,
+            "epss": 0,
+            "summary": "Invented finding for exploring the report viewer; not a real vulnerability.",
+            "fixed_version": "2.1.0"
+          }
+        ],
+        "score": {
+          "total": 10,
+          "severity": 10,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "low"
+      },
+      {
+        "purl": "pkg:cargo/demo-config-reader@2.0.0",
+        "name": "demo-config-reader",
+        "version": "2.0.0",
+        "ecosystem": "cargo",
+        "direct": true,
+        "license": "MIT",
+        "vulnerabilities": [],
+        "score": {
+          "total": 0,
+          "severity": 0,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "clean"
+      },
+      {
+        "purl": "pkg:golang/demo-metrics-agent@2.0.0",
+        "name": "demo-metrics-agent",
+        "version": "2.0.0",
+        "ecosystem": "go",
+        "direct": false,
+        "license": "MIT",
+        "vulnerabilities": [],
+        "score": {
+          "total": 0,
+          "severity": 0,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "clean"
+      }
+    ],
+    "summary": {
+      "repo_score": 25,
+      "repo_score_max": 65,
+      "repo_bucket": "low",
+      "total_components": 6,
+      "counts_by_bucket": {
+        "clean": 2,
+        "critical": 0,
+        "high": 0,
+        "low": 4,
+        "medium": 0
+      },
+      "vuln_total": 4,
+      "new_high_count": 0,
+      "new_critical_count": 0
+    }
+  },
+  "drift": {
+    "schema_version": "2.0.0",
+    "base": "synthetic-multi-ecosystem-demo@",
+    "head": "synthetic-multi-ecosystem-demo@",
+    "drifts": [
+      {
+        "purl": "pkg:cargo/demo-config-reader@2.0.0",
+        "name": "demo-config-reader",
+        "change": "unchanged",
+        "previous_version": "2.0.0",
+        "new_version": "2.0.0",
+        "new_vulnerabilities": null,
+        "resolved_vulnerabilities": null,
+        "score_delta": 0,
+        "score_before": 0,
+        "score_after": 0,
+        "bucket": "clean"
+      },
+      {
+        "purl": "pkg:golang/demo-metrics-agent@2.0.0",
+        "name": "demo-metrics-agent",
+        "change": "unchanged",
+        "previous_version": "2.0.0",
+        "new_version": "2.0.0",
+        "new_vulnerabilities": null,
+        "resolved_vulnerabilities": null,
+        "score_delta": 0,
+        "score_before": 0,
+        "score_after": 0,
+        "bucket": "clean"
+      },
+      {
+        "purl": "pkg:golang/demo-request-router@2.0.0",
+        "name": "demo-request-router",
+        "change": "unchanged",
+        "previous_version": "2.0.0",
+        "new_version": "2.0.0",
+        "new_vulnerabilities": null,
+        "resolved_vulnerabilities": null,
+        "score_delta": 0,
+        "score_before": 21,
+        "score_after": 21,
+        "bucket": "low"
+      },
+      {
+        "purl": "pkg:npm/demo-log-adapter@2.0.0",
+        "name": "demo-log-adapter",
+        "change": "unchanged",
+        "previous_version": "2.0.0",
+        "new_version": "2.0.0",
+        "new_vulnerabilities": null,
+        "resolved_vulnerabilities": null,
+        "score_delta": 0,
+        "score_before": 10,
+        "score_after": 10,
+        "bucket": "low"
+      },
+      {
+        "purl": "pkg:npm/demo-web-client@2.0.0",
+        "name": "demo-web-client",
+        "change": "unchanged",
+        "previous_version": "2.0.0",
+        "new_version": "2.0.0",
+        "new_vulnerabilities": [
+          "DEMO-REVIEW-001"
+        ],
+        "resolved_vulnerabilities": null,
+        "score_delta": 38,
+        "score_before": 0,
+        "score_after": 38,
+        "bucket": "low"
+      },
+      {
+        "purl": "pkg:pypi/demo-task-worker@2.0.0",
+        "name": "demo-task-worker",
+        "change": "unchanged",
+        "previous_version": "2.0.0",
+        "new_version": "2.0.0",
+        "new_vulnerabilities": null,
+        "resolved_vulnerabilities": null,
+        "score_delta": 0,
+        "score_before": 32,
+        "score_after": 32,
+        "bucket": "low"
+      }
+    ],
+    "summary": {
+      "repo_score": 25,
+      "repo_score_max": 65,
+      "repo_bucket": "low",
+      "total_components": 6,
+      "counts_by_bucket": {
+        "clean": 2,
+        "critical": 0,
+        "high": 0,
+        "low": 4,
+        "medium": 0
+      },
+      "vuln_total": 4,
+      "new_high_count": 1,
+      "new_critical_count": 1,
+      "new_vuln_ids": [
+        "DEMO-REVIEW-001"
+      ]
+    }
+  },
+  "passed": false,
+  "fail_reasons": [
+    "DEMO-REVIEW-001 affects pkg:npm/demo-web-client@2.0.0 (severity critical, at or above fail-on high)"
+  ]
+}

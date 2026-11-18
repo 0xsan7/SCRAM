@@ -19,6 +19,20 @@ permissions:
   contents: read
 
 jobs:
+  viewer:
+    name: Report viewer checks and static build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check viewer modules
+        run: node --test web/*.test.mjs
+      - name: Build static viewer
+        run: node scripts/build-viewer.mjs
+
   build:
     name: Build, test, vet (${{ matrix.os }}, go ${{ matrix.go }})
     runs-on: ${{ matrix.os }}

@@ -21,6 +21,8 @@ Read the [migration notes](docs/BREAKING-2.0.0.md) before upgrading a JSON consu
 
 ## Browser report viewer
 
+[**Open the live viewer — scram.0xsan7.in**](https://scram.0xsan7.in)
+
 Inspect a local schema 2.x JSON report or three bundled synthetic examples in
 the dark report viewer. Review policy reasons, warnings, dependencies and
 finding changes without sending your report to a server. A passed policy can

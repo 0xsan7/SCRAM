@@ -39,7 +39,7 @@ the scanner or sending the report to a server.
   errors and safe text rendering for untrusted report strings.
 - The user authorizes pushing ready, verified commits to GitHub. Merging,
   public deployment and DNS changes remain separate review decisions.
-- Future proposed subdomain: scram.0xsan7.in. The root portfolio stays unchanged.
+- Published viewer: https://scram.0xsan7.in on Cloudflare Pages. The root portfolio stays unchanged.
 
 ## Brand Commitments
 

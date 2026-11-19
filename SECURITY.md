@@ -51,9 +51,15 @@ prefer otherwise.
 
 ## Supported versions
 
-SCRAM has no release yet, so there is no version table to keep honest.
-Once `v1` exists, security fixes land on the newest minor and the
-previous one.
+The current stable release is [v0.2.0](https://github.com/0xsan7/SCRAM/releases/tag/v0.2.0).
+Please report security defects in that release or the development source using
+the private reporting process above. Include the version and commit: fixes in
+the development source are not automatically present in downloaded binaries.
+The [post-release audit](docs/audits/2026-10-12.md) records corrections made
+after v0.2.0; the [release-readiness checklist](docs/release-readiness.md)
+tracks the next candidate without claiming it has been released.
+
+Once `v1` exists, security fixes land on the newest minor and the previous one.
 
 ## What "verified" means here
 

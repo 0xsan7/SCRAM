@@ -55,11 +55,23 @@ test('CLI exit status, report viewer and SBOMs agree on a fresh inventory', asyn
     );
     assert.equal(scan.status, blocked ? 1 : 0, scan.error?.message ?? scan.stderr);
     const report = parseReport(scan.stdout);
+    assert.equal(report.scan.mode, 'inventory');
+    assert.equal(report.scan.scanner_version, 'dev');
+    assert.ok(Number.isFinite(Date.parse(report.scan.started_at)));
+    assert.match(summaryText(report), /Inventory only · SCRAM dev · Started /);
     assert.equal(report.passed, !blocked);
     assert.equal(reportOverview(report).status, blocked ? 'blocked' : 'warning');
     assert.equal(reportOverview(report).newFindings, null);
     assert.match(summaryText(report), /vulnerability matching was skipped/);
-    if (blocked) assert.match(summaryText(report), /MIT/);
+    if (blocked) {
+      assert.match(summaryText(report), /MIT/);
+      const saved = join(root, 'review.json');
+      await writeFile(saved, scan.stdout);
+      const sarif = spawnSync(binary, ['report', '--from', saved, '--format', 'sarif'], { encoding: 'utf8' });
+      assert.equal(sarif.status, 0, sarif.stderr);
+      const run = JSON.parse(sarif.stdout).runs[0];
+      assert.match(JSON.stringify(run.invocations), /vulnerability matching was skipped/);
+    }
   }
   const cdx = JSON.parse(await readFile(join(root, 'sbom.cdx.json'), 'utf8'));
   const spdx = JSON.parse(await readFile(join(root, 'sbom.spdx.json'), 'utf8'));

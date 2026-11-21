@@ -1,4 +1,4 @@
-import { MAX_BYTES, parseReport, reportOverview, matchingComponents, safeAdvisoryURL, severity, highestCVSS, summaryText } from './report.mjs';
+import { collectionDetails, MAX_BYTES, parseReport, reportOverview, matchingComponents, safeAdvisoryURL, severity, highestCVSS, summaryText } from './report.mjs';
 
 const $ = id => document.getElementById(id);
 const format = new Intl.NumberFormat('en');
@@ -107,7 +107,7 @@ function renderReport() {
     $(id).classList.toggle('unknown', value === null);
   }
   $('repo-score').replaceChildren(document.createTextNode(format.format(doc.scan.summary.repo_score)), el('span', '', `/ ${doc.scan.summary.repo_score_max}`));
-  $('report-footer-detail').textContent = `${source.kind === 'example' ? 'Synthetic data' : 'Local report'} · Scan time not provided · No live checks performed by this viewer`;
+  $('report-footer-detail').textContent = `${source.kind === 'example' ? 'Synthetic data' : 'Local report'} · ${collectionDetails(doc.scan)}`;
   document.querySelectorAll('[data-example]').forEach(node => node.setAttribute('aria-pressed', String(source.kind === 'example' && node.dataset.example === source.name)));
   $('filter').querySelector('[value="new"]').disabled = !doc.drift;
   renderComponents();

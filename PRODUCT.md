@@ -22,6 +22,12 @@ and limitations behind it.
 
 ## Product Purpose
 
+A maintainer deciding whether to merge a dependency change needs to identify
+the new finding, verify the affected version and understand why the gate
+acted. The scanner, GitHub Action and viewer use one report to support that
+decision. Pilot success depends on maintainers keeping the check enabled
+and correctly interpreting its evidence. See the [product plan](ROADMAP.md).
+
 Open a bundled example or local SCRAM JSON report; inspect the policy result,
 warnings, dependency inventory and new/resolved findings without installing
 the scanner or sending the report to a server.

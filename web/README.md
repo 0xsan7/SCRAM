@@ -75,8 +75,9 @@ mobile focus and switching reports at widths of 390 and 1440 pixels.
 - Report strings are rendered with `textContent`; advisory links accept only
   explicit HTTP(S) URLs without embedded credentials and require a click.
   Bundled synthetic identifiers never link to advisory/package pages.
-- No scan time, CLI version, enrichment coverage or complete inventory can be
-  inferred when the current report schema does not supply that evidence.
+- New reports include the scan start time (UTC), generating CLI version and
+  collection mode. The viewer and export label missing fields for older reports.
+  Advisory mode describes the requested scan. Consult warnings for partial data.
 
 See `examples/report-viewer/README.md` for input semantics and
 `docs/report-viewer-design.md` for the interface direction. Font source and
@@ -100,10 +101,8 @@ upload endpoint. The random URL is for local use, not a public share link.
 
 The `codex/scram-glass-preview` branch applies the supplied dashboard's glass
 material to this existing viewer, as requested. It adds no React, Tailwind,
-GSAP or frontend dependencies. The reference's room photograph is bundled
-locally, so appearance makes no third-party image requests. Its source is
-recorded in `assets/GLASS-ROOM-SOURCE.md`. The production branch remains
-`codex/scram-usability` until the trial is reviewed.
+GSAP or frontend dependencies. The integrated build uses an original CSS backdrop. The historical
+trial is recorded in [the design notes](../docs/report-viewer-glass-preview.md).
 
 Use **Adjust glass** to choose Clear, Frosted or Solid, or adjust blur, opacity,
 saturation, edge light and tint. Settings last only for the current page session;
@@ -113,7 +112,7 @@ surfaces. Escape closes the appearance disclosure and restores trigger focus.
 The module bounds all material values and accepts only six-digit hex tints.
 `glass.css` and `glass.mjs` are packaged both in the static output and Go binary.
 
-The reference's 30% default opacity lets the sharp room image show through;
+The reference's 30% default opacity lets the backdrop detail show through;
 blur (0–40 px) and saturation (50–200%) filter that scenery, while report text
 stays sharp. A live sample uses the same material. Opacity spans 8–100%; at
 100%, the opaque surface hides the backdrop, so blur and saturation cannot

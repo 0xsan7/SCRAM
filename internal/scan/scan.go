@@ -144,10 +144,13 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	scan := model.Scan{
-		SchemaVersion: model.SchemaVersion,
-		Repo:          filepath.Base(root),
-		Components:    []model.Component{},
-		Warnings:      []string{},
+		StartedAt:      start.UTC().Format(time.RFC3339),
+		ScannerVersion: opts.ToolVersion,
+		Mode:           "advisory",
+		SchemaVersion:  model.SchemaVersion,
+		Repo:           filepath.Base(root),
+		Components:     []model.Component{},
+		Warnings:       []string{},
 	}
 	if commit := headCommit(root); commit != "" {
 		scan.Commit = commit
@@ -237,6 +240,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	// 3. Vulnerability matching (skipped by the SBOM fast path).
 	resultDegraded := inventoryIncomplete
 	if opts.SkipVuln {
+		scan.Mode = "inventory"
 		scan.Warnings = append(scan.Warnings, "Inventory only: vulnerability matching was skipped. Finding counts do not establish vulnerability status.")
 	} else {
 		// attachVulns reports whether vulnerability data was incomplete, so

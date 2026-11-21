@@ -179,14 +179,18 @@ func AtLeast(bucket, threshold string) bool {
 	return SeverityRank[bucket] >= SeverityRank[threshold]
 }
 
-// Score is the result of one scan of one repository.
+// Scan records the evidence collected for one repository. Older reports
+// omit the collection metadata.
 type Scan struct {
-	SchemaVersion string      `json:"schema_version"`
-	Repo          string      `json:"repo"`
-	Commit        string      `json:"commit,omitempty"`
-	Components    []Component `json:"components"`
-	Summary       Summary     `json:"summary"`
-	Warnings      []string    `json:"warnings,omitempty"`
+	StartedAt      string      `json:"started_at,omitempty"`
+	ScannerVersion string      `json:"scanner_version,omitempty"`
+	Mode           string      `json:"mode,omitempty"`
+	SchemaVersion  string      `json:"schema_version"`
+	Repo           string      `json:"repo"`
+	Commit         string      `json:"commit,omitempty"`
+	Components     []Component `json:"components"`
+	Summary        Summary     `json:"summary"`
+	Warnings       []string    `json:"warnings,omitempty"`
 }
 
 // Summary is the repo-level rollup.

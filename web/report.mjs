@@ -60,6 +60,7 @@ export function parseReport(source) {
   schema(scan.schema_version, 'Scan schema');
   if (!text(scan.repo, 'Repository').trim()) fail('Repository name is missing.');
   text(scan.commit, 'Commit', true);
+  for (const field of ['started_at', 'scanner_version', 'mode']) text(scan[field], 'Scan ' + field, true);
   scan.warnings = strings(scan.warnings, 'Warnings', 500);
   doc.fail_reasons = strings(doc.fail_reasons, 'Failure reasons', 500);
   if (!Object.hasOwn(scan, 'components')) fail('The component inventory is missing.');
@@ -160,6 +161,14 @@ export function matchingComponents(doc, query = '', filter = 'all', options = {}
   return matched;
 }
 
+// Values are observations reported by the producer, including for imported files.
+export function collectionDetails(scan) {
+  const mode = scan.mode === 'inventory' ? 'Inventory only' : scan.mode === 'advisory' ? 'Advisory scan' : 'Scan mode unavailable';
+  const version = scan.scanner_version ? 'SCRAM ' + scan.scanner_version : 'Scanner version unavailable';
+  const start = scan.started_at ? 'Started ' + scan.started_at : 'Scan time unavailable';
+  return [mode, version, start].join(' · ');
+}
+
 // Plain-text export keeps the policy and its caveats, even for a filtered list.
 export function summaryText(doc, components = doc.scan.components, synthetic = false) {
   const line = value => String(value).replace(/[\u0000-\u001f\u007f]/g, ' ');
@@ -170,7 +179,7 @@ export function summaryText(doc, components = doc.scan.components, synthetic = f
     `Known findings in full report: ${doc.scan.summary.vuln_total}`,
     `New findings: ${overview.newFindings ?? 'Unknown (no baseline)'}`,
     `Resolved findings: ${overview.resolvedFindings ?? 'Unknown (no baseline)'}`,
-    'Policy is a configured decision, not a safety guarantee. Scan time is not provided.', '',
+    line(collectionDetails(doc.scan)), 'Policy is a configured decision, not a safety guarantee.', '',
     'Policy reasons:', ...(doc.fail_reasons.length ? doc.fail_reasons.map(x => `- ${line(x)}`) : ['- None provided']),
     '', 'Warnings:', ...(doc.scan.warnings.length ? doc.scan.warnings.map(x => `- ${line(x)}`) : ['- None provided; completeness is not established']), '',
     `Selected inventory: ${components.length} of ${doc.scan.components.length} dependencies`];

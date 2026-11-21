@@ -162,3 +162,9 @@ test('bucket counts must account for every component with a reported bucket', as
     assert.equal(parse(doc)[which].summary.counts_by_bucket.critical, 1);
   }
 });
+
+test('historical reports disclose missing collection metadata in exports', async () => {
+  const { summaryText } = await import('./report.mjs');
+  const doc = parse(await fixture('full-review'));
+  assert.match(summaryText(doc), /Scan mode unavailable · Scanner version unavailable · Scan time unavailable/);
+});

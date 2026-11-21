@@ -1,5 +1,10 @@
 /* User-requested glass styling trial. Report content and status colors stay intact. */
+/* Original local backdrop shared by the workspace and the material sample. */
 :root {
+  --workspace-backdrop:
+    repeating-linear-gradient(117deg, transparent 0 43px, #839bad1f 44px 46px, transparent 47px 120px),
+    radial-gradient(ellipse at 18% 16%, #5b5349, transparent 45%),
+    radial-gradient(ellipse at 84% 70%, #324a59, transparent 48%), #111820;
   --glass-blur: 22px;
   --glass-opacity: .3;
   --glass-saturation: 1.2;
@@ -19,7 +24,7 @@ body::before {
   z-index: -1;
   pointer-events: none;
   /* Detailed scenery is the input to backdrop-filter, not a pre-blurred image. */
-  background: linear-gradient(#06090db3, #06090db3), url('assets/glass-room.jpg') center 56% / cover;
+  background: var(--workspace-backdrop);
 }
 .app-header, .report-rail, main {
   background: linear-gradient(var(--glass-tint-wash), var(--glass-tint-wash)), var(--glass-material);
@@ -144,7 +149,7 @@ tr.selected td:first-child { box-shadow: inset 1px 0 #f4ba6380; }
   min-height: 94px;
   margin-top: 18px;
   border-radius: 10px;
-  background: linear-gradient(#06090d99, #06090d99), url('assets/glass-room.jpg') center 56% / cover;
+  background: var(--workspace-backdrop);
 }
 .glass-sample::before {
   content: "";

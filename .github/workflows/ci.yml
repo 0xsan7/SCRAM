@@ -28,8 +28,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: Check viewer modules
-        run: node --test web/*.test.mjs
+        run: node --test web/*.test.mjs scripts/viewer-cli.test.mjs
       - name: Build static viewer
         run: node scripts/build-viewer.mjs
 

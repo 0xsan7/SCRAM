@@ -32,6 +32,23 @@ the production-generated synthetic reports; test files are not packaged.
 `dist/viewer/` is generated output and stays ignored. These commands do not
 publish, change DNS or create GitHub Pages settings.
 
+### Regression tests
+
+Run `node --test web/*.test.mjs scripts/viewer-cli.test.mjs` with Go and Node
+installed. The CLI test builds SCRAM from the checkout and scans a temporary
+lockfile under passing and failing license policies. It checks the exit code,
+imports the actual JSON with the viewer, and verifies a known package digest
+in both emitted SBOMs. Vulnerability matching is skipped for this fixture.
+
+For the browser journey, build the binary with `go build -o scram ./cmd/scram`.
+With Playwright Core and a compatible Chromium browser installed, run
+`node --test scripts/viewer-browser.test.mjs`. Set `SCRAM_BIN` to select a
+different binary, `SCRAM_BROWSER` to select a browser executable, or
+`PLAYWRIGHT_MODULE` to select a locally installed Playwright Core module by
+absolute path or file URL. The test opens a temporary report on loopback and
+exercises import errors, drag and drop, pagination, filtered export, download,
+mobile focus and switching reports at widths of 390 and 1440 pixels.
+
 ## Behavior and limits
 
 - Load one of four synthetic scenarios, choose a local JSON file or drop one

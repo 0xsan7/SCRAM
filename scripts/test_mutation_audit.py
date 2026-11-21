@@ -10,6 +10,24 @@ from unittest import mock
 
 
 class MutationHarnessTests(unittest.TestCase):
+    def test_filtered_run_preserves_last_full_result(self):
+        script = Path(__file__).with_name("mutation_audit.py")
+        spec = importlib.util.spec_from_file_location("mutation_audit_under_test", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        for selector, expected in (("fixture", 0), ("typo", 1)):
+            with self.subTest(selector=selector), tempfile.TemporaryDirectory() as root:
+                result = Path(root, "scripts", "mutation_results.json")
+                result.parent.mkdir()
+                result.write_text("previous full audit")
+                with mock.patch.object(module, "ROOT", root), \
+                     mock.patch.object(module, "MUTANTS", [("fixture", "", "", "", [])]), \
+                     mock.patch.object(module, "check_mutant", return_value={"id": "fixture", "status": "killed", "why": "fixture"}), \
+                     mock.patch.object(sys, "argv", [str(script), "--only", selector]), \
+                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(module.main(), expected)
+                    self.assertEqual(result.read_text(), "previous full audit")
+
     def test_only_killed_mutants_pass(self):
         script = Path(__file__).with_name("mutation_audit.py")
         spec = importlib.util.spec_from_file_location("mutation_audit_under_test", script)

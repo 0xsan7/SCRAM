@@ -31,7 +31,7 @@ function strings(value, label, max = 50_000) {
 function schema(value, label) {
   if (typeof value !== 'string' || !/^2\.\d+\.\d+$/.test(value)) fail(`${label} is unsupported. Open a SCRAM schema 2.x report.`);
 }
-function summary(value, count, findings, label) {
+function summary(value, count, findings, reportedBuckets, label) {
   object(value, label);
   number(value.total_components, `${label}.total_components`, 0, MAX_COMPONENTS, true);
   if (value.total_components !== count) fail(`${label} component count does not match the inventory.`);
@@ -42,7 +42,7 @@ function summary(value, count, findings, label) {
   if (!buckets.includes(value.repo_bucket)) fail(`${label}.repo_bucket is unsupported.`);
   object(value.counts_by_bucket, `${label}.counts_by_bucket`);
   const total = buckets.reduce((sum, bucket) => sum + number(value.counts_by_bucket[bucket], `${label}.counts_by_bucket.${bucket}`, 0, MAX_COMPONENTS, true), 0);
-  if (total !== count) fail(`${label} bucket counts do not match the inventory.`);
+  if (total !== count || buckets.some(bucket => value.counts_by_bucket[bucket] < reportedBuckets[bucket])) fail(`${label} bucket counts do not match the inventory.`);
   number(value.new_high_count, `${label}.new_high_count`, 0, 50_000, true);
   number(value.new_critical_count, `${label}.new_critical_count`, 0, 50_000, true);
   strings(value.new_vuln_ids, `${label}.new_vuln_ids`);
@@ -65,6 +65,7 @@ export function parseReport(source) {
   if (!Object.hasOwn(scan, 'components')) fail('The component inventory is missing.');
   scan.components = array(scan.components, 'Components', MAX_COMPONENTS);
   let findings = 0;
+  const reportedBuckets = Object.fromEntries(buckets.map(bucket => [bucket, 0]));
   for (const component of scan.components) {
     object(component, 'Component');
     for (const field of ['name', 'purl', 'version', 'ecosystem']) text(component[field], `Component ${field}`);
@@ -72,6 +73,7 @@ export function parseReport(source) {
     if (typeof component.direct !== 'boolean') fail('Component direct/transitive classification is invalid.');
     text(component.license, 'License', true);
     if (component.bucket !== undefined && !buckets.includes(component.bucket)) fail('Component risk bucket is unsupported.');
+    if (component.bucket !== undefined) reportedBuckets[component.bucket]++;
     if (component.score !== undefined) {
       object(component.score, 'Component score');
       for (const [field, max] of Object.entries({ total: 100, severity: 40, exploitability: 25, maintenance: 20, freshness: 15 })) number(component.score[field], `Component score ${field}`, 0, max, true);
@@ -91,7 +93,7 @@ export function parseReport(source) {
       strings(vulnerability.aliases, 'Finding aliases');
     }
   }
-  summary(scan.summary, scan.components.length, findings, 'Scan summary');
+  summary(scan.summary, scan.components.length, findings, reportedBuckets, 'Scan summary');
   doc.drift = doc.drift == null ? null : object(doc.drift, 'Drift');
   if (doc.drift) {
     schema(doc.drift.schema_version, 'Drift schema');
@@ -110,7 +112,7 @@ export function parseReport(source) {
       number(change.score_delta, 'Raw score change', -100, 100, true);
       if (change.score_delta !== change.score_after - change.score_before) fail('Raw score change does not match its before/after values.');
     }
-    summary(doc.drift.summary, scan.components.length, findings, 'Drift summary');
+    summary(doc.drift.summary, scan.components.length, findings, reportedBuckets, 'Drift summary');
   }
   return doc;
 }

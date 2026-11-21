@@ -455,6 +455,23 @@ MUTANTS.extend([('AUDIT-config-path',
   ['internal/vuln'])])
 
 
+MUTANTS.extend([
+    ("WHY-direct", "internal/cli/why.go",
+     "Direct:        direct,", "Direct:        len(g.Parents[target]) == 0,", ["internal/cli"]),
+    ("WHY-unknown", "internal/cli/why.go",
+     "case len(path) <= 1:", "case len(path) <= 1 && !g.HasEdges():", ["internal/cli"]),
+    ("TREND-delta", "internal/trend/trend.go",
+     "return scores[len(scores)-1] - scores[0]", "return scores[0] - scores[len(scores)-1]", ["internal/trend"]),
+    ("INVENTORY-skip-warning", "internal/scan/scan.go",
+     "Inventory only: vulnerability matching was skipped. Finding counts do not establish vulnerability status.",
+     "Scan finished.", ["internal/cli"]),
+    ("SRI-algorithm", "internal/resolve/npm.go",
+     'key := "SHA-" + algorithm[3:]', 'key := "SHA-512"', ["internal/resolve"]),
+    ("GO-module-hash", "internal/resolve/golang.go",
+     'map[string]string{"SHA-256": h}', 'map[string]string{"SHA-256": "h1:" + h}', ["internal/resolve"]),
+])
+
+
 def run(cmd, cwd, timeout=600, env=None):
     return subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True,
                           text=True, timeout=timeout, env=env)
@@ -530,6 +547,11 @@ def main():
     ap.add_argument("--only", default=None)
     args = ap.parse_args()
 
+    muts = [m for m in MUTANTS if not args.only or args.only in m[0]]
+    if not muts:
+        print("No matching mutants to test.", file=sys.stderr)
+        return 1
+
     go_bin = os.path.expanduser("~/.local/go/bin")
     base = tempfile.mkdtemp(prefix="mutation_audit_")
     # A full worktree copy is far too slow per mutant; instead hardlink-clone
@@ -542,7 +564,6 @@ def main():
                     ignore=shutil.ignore_patterns(".git", "*.pyc", "__pycache__",
                                                   "m_*", "*.json.bak"))
 
-    muts = [m for m in MUTANTS if not args.only or args.only in m[0]]
     print(f"running {len(muts)} mutants against {len(MUTANTS)} declared\n")
     results = []
     with cf.ThreadPoolExecutor(max_workers=args.jobs) as ex:
@@ -573,8 +594,9 @@ def main():
         print("\nBROKEN (the anchor moved; the mutant no longer represents its fix):")
         for r in broken:
             print(f"  - {r['id']}: {r['why']}")
-    with open(os.path.join(ROOT, "scripts", "mutation_results.json"), "w") as fh:
-        json.dump(results, fh, indent=2)
+    if args.only is None:
+        with open(os.path.join(ROOT, "scripts", "mutation_results.json"), "w") as fh:
+            json.dump(results, fh, indent=2)
     shutil.rmtree(base, ignore_errors=True)
     return 0 if not survived and not broken and not invalid else 1
 

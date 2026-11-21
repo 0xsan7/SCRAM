@@ -260,6 +260,16 @@
     "why": "caught by internal/score"
   },
   {
+    "id": "CI-self-check-manual",
+    "status": "killed",
+    "why": "caught by scripts"
+  },
+  {
+    "id": "CI-self-check-schedule",
+    "status": "killed",
+    "why": "caught by scripts"
+  },
+  {
     "id": "CVSS-scope",
     "status": "killed",
     "why": "caught by internal/vuln"
@@ -330,6 +340,21 @@
     "why": "caught by internal/drift"
   },
   {
+    "id": "GO-module-hash",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "INVENTORY-skip-warning",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "NPM-v1-flags-claim",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
     "id": "POLICY-threshold",
     "status": "killed",
     "why": "caught by internal/policy"
@@ -340,8 +365,28 @@
     "why": "caught by internal/score"
   },
   {
+    "id": "SRI-algorithm",
+    "status": "killed",
+    "why": "caught by internal/resolve"
+  },
+  {
+    "id": "TREND-delta",
+    "status": "killed",
+    "why": "caught by internal/trend"
+  },
+  {
     "id": "WAIVER-expiry",
     "status": "killed",
     "why": "caught by internal/policy"
+  },
+  {
+    "id": "WHY-direct",
+    "status": "killed",
+    "why": "caught by internal/cli"
+  },
+  {
+    "id": "WHY-unknown",
+    "status": "killed",
+    "why": "caught by internal/cli"
   }
 ]

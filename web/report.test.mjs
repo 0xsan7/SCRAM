@@ -111,3 +111,54 @@ test('export retains warnings, policy and missing-baseline truth for filtered re
   assert.match(text, /Selected inventory: 0 of 1/);
   assert.doesNotMatch(text, /\u001b/);
 });
+
+test('the 5 MiB boundary counts UTF-8 bytes, including multibyte names', async () => {
+  const doc = await fixture('full-review');
+  doc.scan.repo = 'résumé-測試';
+  const json = JSON.stringify(doc);
+  const padded = json + ' '.repeat(MAX_BYTES - Buffer.byteLength(json));
+  assert.equal(parseReport(padded).scan.repo, doc.scan.repo);
+  assert.throws(() => parseReport(padded + ' '), /5 MiB/);
+});
+
+test('large valid inventory remains searchable and exportable at the component limit', async () => {
+  const { summaryText } = await import('./report.mjs');
+  const doc = await fixture('incomplete-no-findings');
+  delete doc.drift;
+  doc.scan.components = Array.from({ length: MAX_COMPONENTS }, (_, i) => ({
+    name: 'item-' + i, purl: 'pkg:npm/item-' + i + '@1', version: '1',
+    ecosystem: 'npm', direct: false, vulnerabilities: [], bucket: 'clean',
+  }));
+  doc.scan.summary.total_components = doc.scan.summary.counts_by_bucket.clean = MAX_COMPONENTS;
+  const parsed = parse(doc);
+  const selected = matchingComponents(parsed, 'item-9999');
+  assert.equal(selected.length, 1);
+  assert.match(summaryText(parsed, selected), /Selected inventory: 1 of 10000/);
+});
+
+test('finding limit applies across components and includes the exact maximum', async () => {
+  const doc = await fixture('incomplete-no-findings');
+  delete doc.drift;
+  const first = doc.scan.components[0];
+  const item = { id: 'F', source: 'test', cvss_v3: 1, epss: 0 };
+  first.vulnerabilities = Array(25000).fill(item);
+  const second = { ...first, name: 'second', purl: 'pkg:npm/second@1', vulnerabilities: [...first.vulnerabilities] };
+  doc.scan.components.push(second);
+  doc.scan.summary.total_components = doc.scan.summary.counts_by_bucket.clean = 2;
+  doc.scan.summary.vuln_total = 50000;
+  assert.equal(parse(doc).scan.summary.vuln_total, 50000);
+  second.vulnerabilities.push(item);
+  assert.throws(() => parse(doc), /more than 50,000 findings/);
+});
+
+test('bucket counts must account for every component with a reported bucket', async () => {
+  for (const which of ['scan', 'drift']) {
+    const doc = await fixture('incomplete-no-findings');
+    const counts = doc[which].summary.counts_by_bucket;
+    counts.clean = 0;
+    counts.critical = 1;
+    assert.throws(() => parse(doc), /bucket counts/);
+    delete doc.scan.components[0].bucket; // Optional in the Go model.
+    assert.equal(parse(doc)[which].summary.counts_by_bucket.critical, 1);
+  }
+});

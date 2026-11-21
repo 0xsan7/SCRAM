@@ -270,9 +270,7 @@ func (r npmResolver) fromPackages(lock packageLock, direct map[string]bool) []mo
 			Direct:    direct[name],
 			License:   pkg.License.String(),
 		}
-		if h := parseIntegrity(pkg.Integrity); h != "" {
-			c.Hashes = map[string]string{"SHA-512": h}
-		}
+		c.Hashes = integrityMap(pkg.Integrity)
 		out = append(out, c)
 	}
 	return out
@@ -347,35 +345,40 @@ func makeSimplePURL(ecoType, name, version string) string {
 	return makePURL(ecoType, "", name, version)
 }
 
-// parseIntegrity converts an npm "sha512-<base64>" integrity string into a
-// hex hash, which is what CycloneDX/SPDX content hashes expect.
-func parseIntegrity(integrity string) string {
-	if integrity == "" {
-		return ""
-	}
-	for _, part := range strings.Split(integrity, " ") {
-		parts := strings.SplitN(part, "-", 2)
-		if len(parts) != 2 {
+// integrityMap preserves the algorithm declared by each well-formed SRI digest.
+func integrityMap(integrity string) map[string]string {
+	var hashes map[string]string
+	for _, token := range strings.Fields(integrity) {
+		algorithm, encoded, ok := strings.Cut(token, "-")
+		if !ok {
 			continue
 		}
-		algo := strings.ToUpper(parts[0])
-		switch algo {
-		case "SHA512", "SHA384", "SHA256", "SHA1":
-			hex, err := base64ToHex(parts[1])
-			if err != nil {
-				continue
-			}
-			return hex
+		var bytes int
+		switch strings.ToLower(algorithm) {
+		case "sha1":
+			bytes = 20
+		case "sha256":
+			bytes = 32
+		case "sha384":
+			bytes = 48
+		case "sha512":
+			bytes = 64
+		default:
+			continue
+		}
+		digest, err := base64ToHex(encoded)
+		if err != nil || len(digest) != 2*bytes {
+			continue
+		}
+		if hashes == nil {
+			hashes = make(map[string]string)
+		}
+		key := "SHA-" + algorithm[3:]
+		if _, exists := hashes[key]; !exists {
+			hashes[key] = digest
 		}
 	}
-	return ""
-}
-
-func integrityMap(integrity string) map[string]string {
-	if h := parseIntegrity(integrity); h != "" {
-		return map[string]string{"SHA-512": h}
-	}
-	return nil
+	return hashes
 }
 
 // npmDirectFromPackageJSON extracts the set of directly requested package

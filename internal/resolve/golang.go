@@ -139,8 +139,8 @@ func (r goResolver) Resolve(root, path string) ([]model.Component, error) {
 			Ecosystem: model.EcoGo,
 			Direct:    direct[module],
 		}
-		if h := hashes[module]; h != "" {
-			c.Hashes = map[string]string{"SHA-256": "h1:" + h}
+		if h := hashes[module]; strings.HasPrefix(h, "h1:") {
+			c.Hashes = map[string]string{"SHA-256": h}
 		}
 		out = append(out, c)
 	}

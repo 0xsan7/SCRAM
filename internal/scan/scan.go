@@ -236,7 +236,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 
 	// 3. Vulnerability matching (skipped by the SBOM fast path).
 	resultDegraded := inventoryIncomplete
-	if !opts.SkipVuln {
+	if opts.SkipVuln {
+		scan.Warnings = append(scan.Warnings, "Inventory only: vulnerability matching was skipped. Finding counts do not establish vulnerability status.")
+	} else {
 		// attachVulns reports whether vulnerability data was incomplete, so
 		// the caller can fail closed rather than reporting a clean result it
 		// never actually verified (NFR-3 paired with NFR-6: degrade, but

@@ -60,43 +60,36 @@ are reported as having no known path rather than being given an invented one.`,
 			}
 			path := g.PathTo(target)
 
+			comp := componentByPurl(result, target)
 			if jsonOut {
-				return writeWhyJSON(cmd.OutOrStdout(), target, g, path)
+				return writeWhyJSON(cmd.OutOrStdout(), target, g, path, comp.Direct)
 			}
 
-			comp := componentByPurl(result, target)
 			fmt.Printf("%s\n", target)
-			if comp != nil {
-				fmt.Printf("  ecosystem  %s\n", comp.Ecosystem)
-				if comp.License != "" {
-					fmt.Printf("  license    %s\n", comp.License)
-				}
-				if comp.Score != nil {
-					fmt.Printf("  score      %d/%d (%s)\n", score.Presented(comp.Score.Total), model.PresentedMax, comp.Bucket)
-				}
+			fmt.Printf("  ecosystem  %s\n", comp.Ecosystem)
+			if comp.License != "" {
+				fmt.Printf("  license    %s\n", comp.License)
+			}
+			if comp.Score != nil {
+				fmt.Printf("  score      %d/%d (%s)\n", score.Presented(comp.Score.Total), model.PresentedMax, comp.Bucket)
 			}
 			fmt.Println()
 
 			// The three cases must stay distinct. Saying "direct dependency"
 			// for a component whose parentage was never recoverable would be a
 			// confident false claim: the honest answer is that we do not know.
-			ecology := comp.Ecosystem
-			known := g.HasEdges()
 			switch {
 			case comp.Direct:
 				fmt.Println("  How it got here: direct dependency, declared by this project.")
-			case known && len(path) <= 1:
-				fmt.Println("  How it got here: direct dependency (nothing depends on it).")
-			case !known:
+			case len(path) <= 1:
 				fmt.Println("  How it got here: unknown.")
-				fmt.Printf("  %s lockfiles do not record which package depends on which, so no path\n", ecology)
-				fmt.Println("  can be derived without guessing. Use the package manager to trace it:")
-				switch ecology {
+				fmt.Println("  No dependency path to this package was recovered from the scanned files.")
+				switch comp.Ecosystem {
 				case model.EcoPyPI:
 					fmt.Println("    pipdeptree -r .    # or: pip show <package>")
 				case model.EcoGo:
 					fmt.Println("    go mod why -m <module>")
-				default:
+				case model.EcoNPM:
 					fmt.Println("    npm ls <package>")
 				}
 			default:
@@ -108,7 +101,7 @@ are reported as having no known path rather than being given an invented one.`,
 			if showDependents || len(deps) > 0 {
 				fmt.Println()
 				if len(deps) == 0 {
-					fmt.Println("  Nothing else in the tree depends on it.")
+					fmt.Println("  No dependents were recorded for this package.")
 				} else {
 					fmt.Printf("  Also depends on it (%d), transitively:\n", len(deps))
 					for _, d := range deps {
@@ -203,14 +196,14 @@ type whyDocument struct {
 	Direct        bool     `json:"direct"`
 }
 
-func writeWhyJSON(out interface{ Write([]byte) (int, error) }, target string, g *graph.Graph, path []string) error {
+func writeWhyJSON(out interface{ Write([]byte) (int, error) }, target string, g *graph.Graph, path []string, direct bool) error {
 	doc := whyDocument{
 		SchemaVersion: model.SchemaVersion,
 		Target:        target,
 		Path:          path,
 		PathKnown:     len(path) > 1,
 		Dependents:    g.Dependents(target),
-		Direct:        len(g.Parents[target]) == 0,
+		Direct:        direct,
 	}
 	enc := json.NewEncoder(out)
 	enc.SetIndent("", "  ")

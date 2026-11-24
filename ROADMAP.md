@@ -1,8 +1,38 @@
 # Roadmap
 
-Ordered by what is missing, with the evidence for each. Every "not
-implemented" below is a real limitation with a test or a measurement
-behind it, not a placeholder.
+## Product direction
+
+**The decision SCRAM should earn a place in:** a maintainer reviews a pull request,
+identifies the dependency finding that changed, and explains the merge or fix
+decision to a teammate. The first audience is teams with supported lockfiles,
+GitHub Actions and an existing advisory backlog. The CLI and local viewer also
+let a reviewer work with the same report outside GitHub.
+
+### Proposed sequence
+
+Time windows below are planning estimates for one maintainer. Each milestone has an
+exit test. Pilot and performance targets are proposed measures, not observed results.
+
+| Priority and timing | Deliverable | Evidence to move on |
+| --- | --- | --- |
+| 1 · Release qualification, weeks 1–2 | Ship the integrated scanner, Action and embedded viewer through the existing candidate process. Verify upgrade from v0.2.0, downgrade instructions, release signatures, and the static deployment separately. | Fresh installs pass the unchanged PR, new finding PR and push journeys. Reviewers can download the JSON from a failed gate and open it. Firefox, Safari, keyboard and screen-reader checks have recorded results. |
+| 2 · Pilot adoption, weeks 2–4 | Walk three willing maintainers through one repository each. Start in advisory mode and review a week of PRs before enabling a required check. Offer sample policies for teams adopting an existing backlog. | Target two teams choosing to keep the check enabled. In five observed reviews, target four reviewers correctly identifying the decision, affected component and evidence gap in under two minutes. Record reasons for disabling the gate. |
+| 3 · Evidence quality, weeks 4–8 | Record checked, skipped and partially matched component counts by source. Complete OSV pagination and test retry/cancellation. Add a dated EPSS cache. Report skipped Python ranges or VCS references explicitly. | Fixture tests simulate partial responses, stale entries and interrupted runs. A reviewer can distinguish zero findings, unknown coverage and stale evidence in JSON, the PR and the export. |
+| 4 · Prioritization, weeks 8–12 | Pilot Go reachability on repositories with build information. Preserve a distinct unknown state when symbols, build tags or call paths cannot be resolved. Add verifiable build provenance to the release workflow. | Known called, uncalled and unresolvable fixtures give distinct results. A verifier checks a release artifact against the exact source and builder. |
+| 5 · Expansion, after pilot results | Choose the next ecosystem from pilot demand. RubyGems has a lockfile-first path. Maven needs resolved dependency data. Evaluate .NET using real locked restore outputs. | Each resolver passes package-manager comparison on real fixtures, a known-advisory match and a degraded-input test before it is advertised. |
+
+**How to measure adoption.** Ask participating teams for time to first review,
+how often someone changes a merge decision, and which comments they ignore.
+Collect those observations by consent. Report files can remain local. If teams
+cannot identify a decision the product improved, revisit the review experience
+before expanding ecosystem coverage.
+
+**Operational ownership.** The maintainer owns release verification, schema
+compatibility and issue triage. Pilot repository owners choose their baseline,
+severity threshold and required-check settings. Use the [release checklist](docs/release-readiness.md)
+for handoff and the [current limits](LIMITATIONS.md) when evaluating fit.
+
+## Technical backlog
 
 **mkdocs documentation site.** Decided against, on 2026-09-29, after
 the decision was first claimed to be recorded here when it was not.
@@ -89,9 +119,9 @@ interface, the registry dispatch, and the README walkthrough are what a
 new one needs, and the walkthrough is verified end to end against the
 current registry.
 
-**A moving `@v1` action tag.** Resolved. `v0.1.0` is published, and the
+**Version-pinned Action installation.** Resolved. `v0.2.0` is published, and the
 Action resolves its release from the ref it is invoked at, so
-`uses: 0xsan7/SCRAM@v0.1.0` installs exactly that build with a verified
+`uses: 0xsan7/SCRAM@v0.2.0` installs exactly that build with a verified
 checksum. What does not exist is a *moving* `@v1` tag: pinning to one is
 the correct default here precisely because the Action executes a
 downloaded binary, and a floating tag would make a review gate
@@ -106,37 +136,35 @@ a gap nobody noticed.
 
 ## Partial
 
-**`cli` coverage, 24.5%.** The weakest package by a wide margin, and the
-one that decides exit codes. Overall coverage is 67.0% with a per-package
-median of 83.3%; the number is in
-[docs/STATUS.md](docs/STATUS.md) rather than in a badge, because no
-coverage service is configured.
+**CLI and scan orchestration coverage.** The [November audit](docs/audits/2026-11-21.md)
+records a full shuffled race run with 73.1% statement coverage. Continue with
+outage, baseline, report export and installed-binary tests.
 
-**npm v1 fidelity.** Six real v1 fixtures, all resolving. What is lost is
-the dev/optional/peer distinction that v1 records but the resolver does
-not read, so a v1 project's dependency *shape* is under-reported even
-when the inventory is complete. Documented in
-[LIMITATIONS.md](LIMITATIONS.md).
+**Dependency-type fidelity.** Six real npm v1 fixtures resolve successfully.
+The earlier assertion that v1 records no dependency flags was incorrect;
+the reliability pass corrected it. The public component model currently
+exposes direct/transitive classification, not development, optional or peer
+scope. Treat those as separate facts; direct does not mean production-only.
+The current format limitations are in [LIMITATIONS.md](LIMITATIONS.md).
 
-**`why` and `trend`.** Both run against a real corpus repository. Neither
-has been audited for edge cases the way the resolvers have.
+**`why` and `trend`.** Both run against a real corpus repository. The November audit added mutation checks for directness, unknown paths and trend delta direction.
 
 ## Done, and verified
 
 Named here so the list above is read as a remaining-work list rather than
 a verdict. The evidence for each is in [docs/STATUS.md](docs/STATUS.md).
 
-Real-world corpus (86 lockfiles, every one resolving non-empty), mutation
-audit (16 mutants, all killed), fuzzing (607 promoted inputs), differential
-comparison against syft and grype
-([REPRODUCIBILITY.md](REPRODUCIBILITY.md)), benchmarks
-([BENCHMARKS.md](BENCHMARKS.md)), release automation verified by snapshot
-build, and SBOM output validated against the official CycloneDX 1.5 and
-SPDX 2.3 schemas in CI.
+The real-world corpus, mutation audit, fuzzing, differential comparison
+against syft and grype ([REPRODUCIBILITY.md](REPRODUCIBILITY.md)), benchmarks
+([BENCHMARKS.md](BENCHMARKS.md)), release snapshot build and official SBOM
+schema checks have recorded evidence. Counts are dated measurements, not a
+fixed feature of the project: the [post-release audit](docs/audits/2026-10-12.md)
+records 69/69 selected mutations killed and 23 fuzz targets. The November candidate audit records a subsequent 78/78 mutations killed and 23 completed fuzz targets.
 
 ## Unverified
 
-CI had never run until the repository became public. It has now, and the
-first run was red on `windows-latest` for a reason unrelated to the code.
-Anything still marked unverified in [docs/BLOCKED.md](docs/BLOCKED.md)
-has not run, and that list is the honest one.
+The old sections of [docs/STATUS.md](docs/STATUS.md) and
+[docs/BLOCKED.md](docs/BLOCKED.md) preserve historical observations. For the
+next release, use the explicit gates in [docs/release-readiness.md](docs/release-readiness.md).
+Local success and a Cloudflare preview build do not establish that the same
+candidate passed all hosted CI jobs or that newly published binaries work.

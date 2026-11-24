@@ -1,0 +1,85 @@
+{
+  "schema_version": "2.0.0",
+  "scan": {
+    "schema_version": "2.0.0",
+    "repo": "synthetic-viewer-demo",
+    "components": [
+      {
+        "purl": "pkg:npm/viewer-example@1.0.0",
+        "name": "viewer-example",
+        "version": "1.0.0",
+        "ecosystem": "npm",
+        "direct": true,
+        "license": "MIT",
+        "vulnerabilities": [],
+        "score": {
+          "total": 0,
+          "severity": 0,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "clean"
+      }
+    ],
+    "summary": {
+      "repo_score": 0,
+      "repo_score_max": 65,
+      "repo_bucket": "clean",
+      "total_components": 1,
+      "counts_by_bucket": {
+        "clean": 1,
+        "critical": 0,
+        "high": 0,
+        "low": 0,
+        "medium": 0
+      },
+      "vuln_total": 0,
+      "new_high_count": 0,
+      "new_critical_count": 0
+    },
+    "warnings": [
+      "Synthetic demo: vulnerability data was unavailable; this is not a clean result."
+    ]
+  },
+  "drift": {
+    "schema_version": "2.0.0",
+    "base": "synthetic-viewer-demo@",
+    "head": "synthetic-viewer-demo@",
+    "drifts": [
+      {
+        "purl": "pkg:npm/viewer-example@1.0.0",
+        "name": "viewer-example",
+        "change": "unchanged",
+        "previous_version": "1.0.0",
+        "new_version": "1.0.0",
+        "new_vulnerabilities": null,
+        "resolved_vulnerabilities": null,
+        "score_delta": 0,
+        "score_before": 0,
+        "score_after": 0,
+        "bucket": "clean"
+      }
+    ],
+    "summary": {
+      "repo_score": 0,
+      "repo_score_max": 65,
+      "repo_bucket": "clean",
+      "total_components": 1,
+      "counts_by_bucket": {
+        "clean": 1,
+        "critical": 0,
+        "high": 0,
+        "low": 0,
+        "medium": 0
+      },
+      "vuln_total": 0,
+      "new_high_count": 0,
+      "new_critical_count": 0
+    }
+  },
+  "passed": false,
+  "fail_reasons": [
+    "dependency inventory or vulnerability data incomplete; refusing to pass a scan that could not verify. Set allow_degraded_scan: true in .scram.yml to accept this explicitly."
+  ]
+}

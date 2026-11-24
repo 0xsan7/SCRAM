@@ -115,6 +115,7 @@ By default, CI gating applies only to NEW findings. Adopt it on a repo with
 	pf.BoolVar(&g.verbose, "verbose", false, "print extra detail about scan progress and warnings")
 
 	root.AddCommand(
+		newViewCmd(),
 		newScanCmd(),
 		newSBOMCmd(),
 		newDiffCmd(),

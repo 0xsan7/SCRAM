@@ -180,20 +180,20 @@ func TestNPMRequiresBoolNotMap(t *testing.T) {
 
 func TestIntegrityToHex(t *testing.T) {
 	// "sha512-<base64 of 64 bytes>"
-	h := parseIntegrity("sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==")
-	if len(h) != 128 {
-		t.Errorf("expected 128 hex chars for a sha512, got %d", len(h))
+	h := integrityMap("sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==")
+	if len(h["SHA-512"]) != 128 {
+		t.Errorf("expected 128 hex chars for a sha512, got %d", len(h["SHA-512"]))
 	}
-	if parseIntegrity("") != "" {
+	if integrityMap("") != nil {
 		t.Error("empty integrity should yield an empty hash")
 	}
-	if parseIntegrity("not-an-integrity") != "" {
+	if integrityMap("not-an-integrity") != nil {
 		t.Error("malformed integrity should yield an empty hash, not garbage")
 	}
-	// SRI can carry several space-separated entries; the first usable wins.
-	multi := parseIntegrity("sha1-abc sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==")
-	if len(multi) != 128 {
-		t.Errorf("expected the sha512 entry to win, got %d chars", len(multi))
+	// SRI can carry several space-separated entries; malformed entries are skipped.
+	multi := integrityMap("sha1-abc sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==")
+	if len(multi["SHA-512"]) != 128 {
+		t.Errorf("expected the sha512 entry to win, got %d chars", len(multi["SHA-512"]))
 	}
 }
 

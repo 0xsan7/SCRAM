@@ -93,9 +93,7 @@ func (r pnpmResolver) Resolve(root, path string) ([]model.Component, error) {
 			Purl:      makeSimplePURL("npm", p.name, p.version),
 			Direct:    p.direct || direct[p.name],
 		}
-		if h := parseIntegrity(p.integrity); h != "" {
-			c.Hashes = map[string]string{"sha512": h}
-		}
+		c.Hashes = integrityMap(p.integrity)
 		out = append(out, c)
 	}
 	return Dedupe(out), nil

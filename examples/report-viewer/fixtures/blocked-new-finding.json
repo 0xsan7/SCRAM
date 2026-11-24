@@ -1,0 +1,95 @@
+{
+  "schema_version": "2.0.0",
+  "scan": {
+    "schema_version": "2.0.0",
+    "repo": "synthetic-viewer-demo",
+    "components": [
+      {
+        "purl": "pkg:npm/viewer-example@1.0.0",
+        "name": "viewer-example",
+        "version": "1.0.0",
+        "ecosystem": "npm",
+        "direct": true,
+        "license": "MIT",
+        "vulnerabilities": [
+          {
+            "id": "DEMO-HIGH-001",
+            "source": "synthetic",
+            "cvss_v3": 8.1,
+            "epss": 0,
+            "summary": "Synthetic high-severity finding for the report viewer"
+          }
+        ],
+        "score": {
+          "total": 32,
+          "severity": 32,
+          "exploitability": 0,
+          "maintenance": 0,
+          "freshness": 0
+        },
+        "bucket": "low"
+      }
+    ],
+    "summary": {
+      "repo_score": 21,
+      "repo_score_max": 65,
+      "repo_bucket": "low",
+      "total_components": 1,
+      "counts_by_bucket": {
+        "clean": 0,
+        "critical": 0,
+        "high": 0,
+        "low": 1,
+        "medium": 0
+      },
+      "vuln_total": 1,
+      "new_high_count": 0,
+      "new_critical_count": 0
+    }
+  },
+  "drift": {
+    "schema_version": "2.0.0",
+    "base": "synthetic-viewer-demo@",
+    "head": "synthetic-viewer-demo@",
+    "drifts": [
+      {
+        "purl": "pkg:npm/viewer-example@1.0.0",
+        "name": "viewer-example",
+        "change": "unchanged",
+        "previous_version": "1.0.0",
+        "new_version": "1.0.0",
+        "new_vulnerabilities": [
+          "DEMO-HIGH-001"
+        ],
+        "resolved_vulnerabilities": null,
+        "score_delta": 32,
+        "score_before": 0,
+        "score_after": 32,
+        "bucket": "low"
+      }
+    ],
+    "summary": {
+      "repo_score": 21,
+      "repo_score_max": 65,
+      "repo_bucket": "low",
+      "total_components": 1,
+      "counts_by_bucket": {
+        "clean": 0,
+        "critical": 0,
+        "high": 0,
+        "low": 1,
+        "medium": 0
+      },
+      "vuln_total": 1,
+      "new_high_count": 1,
+      "new_critical_count": 0,
+      "new_vuln_ids": [
+        "DEMO-HIGH-001"
+      ]
+    }
+  },
+  "passed": false,
+  "fail_reasons": [
+    "DEMO-HIGH-001 affects pkg:npm/viewer-example@1.0.0 (severity high, at or above fail-on high)"
+  ]
+}

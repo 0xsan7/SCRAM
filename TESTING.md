@@ -151,7 +151,8 @@ because the bug lived one level below where the test was looking.
 `scripts/mutation_audit.py` reverts one fix at a time and requires the test
 suite to notice. A test that does not fail when its fix is reverted is not
 testing the fix, and the audit reports survivors rather than letting a green
-run imply coverage. 40 mutants, all killed.
+run imply coverage. The harness reports the current case count and results;
+use a fresh run when making a verification claim.
 
 When you add a fix, add the mutant. If a mutant survives, the honest options
 are to write the missing test or to delete the mutation — not to relax the

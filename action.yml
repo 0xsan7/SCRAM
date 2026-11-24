@@ -26,9 +26,9 @@ inputs:
     required: false
     default: 'false'
   config-path:
-    description: 'Path to the .scram.yml policy file.'
+    description: 'Explicit policy path. Leave empty to use .scram.yml when present or the built-in defaults.'
     required: false
-    default: '.scram.yml'
+    default: ''
   baseline-ref:
     description: >
       Git ref to diff against. Defaults to the PR base branch. Set to an
@@ -56,6 +56,9 @@ inputs:
     default: ${{ github.token }}
 
 outputs:
+  report-path:
+    description: 'JSON report used for the policy decision and SARIF export.'
+    value: ${{ steps.scram.outputs.report-path }}
   sbom-path:
     description: 'Directory containing the generated SBOMs.'
     value: ${{ steps.scram.outputs.sbom-path }}
@@ -186,6 +189,7 @@ runs:
       id: baseline
       shell: bash
       env:
+        CONFIG_PATH: ${{ inputs.config-path }}
         BASELINE_REF: ${{ inputs.baseline-ref }}
         EVENT_NAME: ${{ github.event_name }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -274,8 +278,9 @@ runs:
           echo "No committed baseline; scanning the base branch as the baseline"
           (
             cd "$RUNNER_TEMP/baseline"
-            "$bin" baseline update --out "$RUNNER_TEMP/base.json" \
-              --config "$RUNNER_TEMP/baseline/${{ inputs.config-path }}"
+            args=(baseline update --out "$RUNNER_TEMP/base.json")
+            [ -n "$CONFIG_PATH" ] && args+=(--config "$CONFIG_PATH")
+            "$bin" "${args[@]}"
           )
         fi
 
@@ -293,6 +298,10 @@ runs:
       id: scram
       shell: bash
       env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        SBOM_FORMATS: ${{ inputs.sbom-formats }}
+        ENABLE_EPSS: ${{ inputs.epss }}
         BASE_JSON: ${{ steps.baseline.outputs.ref }}
         OUT_DIR: ${{ github.workspace }}/scram-output
       run: |
@@ -300,13 +309,13 @@ runs:
 
         args=(
           scan .
-          --fail-on "${{ inputs.fail-on }}"
-          --config "${{ inputs.config-path }}"
-          --sbom "${{ inputs.sbom-formats }}"
+          --fail-on "$FAIL_ON"
+          --sbom "$SBOM_FORMATS"
           --out "$OUT_DIR"
           --format json
         )
-        [ "${{ inputs.epss }}" = "true" ] && args+=(--epss)
+        [ -n "$CONFIG_PATH" ] && args+=(--config "$CONFIG_PATH")
+        [ "$ENABLE_EPSS" = "true" ] && args+=(--epss)
         [ -n "$BASE_JSON" ] && [ -f "$BASE_JSON" ] && args+=(--baseline "$BASE_JSON")
 
         # The output directory must exist before the shell opens the
@@ -345,6 +354,7 @@ runs:
         # describes what this change introduced. Reading the wrong one
         # silently yields nulls and a PR comment claiming "0 new findings".
         {
+          echo "report-path=$OUT_DIR/scan.json"
           echo "sbom-path=$OUT_DIR"
           echo "repo-score=$(jq -r '.scan.summary.repo_score' "$OUT_DIR/scan.json")"
           echo "repo-bucket=$(jq -r '.scan.summary.repo_bucket' "$OUT_DIR/scan.json")"
@@ -359,35 +369,15 @@ runs:
 
     - name: Produce SARIF
       id: sarif
-      if: ${{ inputs.upload-sarif == 'true' }}
+      if: ${{ !cancelled() && inputs.upload-sarif == 'true' && steps.scram.outputs.report-path != '' }}
       shell: bash
       env:
-        BASE_JSON: ${{ steps.baseline.outputs.ref }}
+        SCAN_JSON: ${{ steps.scram.outputs.report-path }}
         OUT_DIR: ${{ github.workspace }}/scram-output
       run: |
         set -euo pipefail
-        # SARIF is written to STDOUT, not to --out: --out is the SBOM
-        # directory, and the machine formats are designed so that stdout
-        # stays a single valid document and the policy text goes to stderr.
-        # Re-running is cheap because the vulnerability cache is warm from
-        # the scan step above.
-        args=(
-          scan .
-          --format sarif
-          --config "${{ inputs.config-path }}"
-          --no-gate
-        )
-        [ "${{ inputs.epss }}" = "true" ] && args+=(--epss)
-        [ -n "$BASE_JSON" ] && [ -f "$BASE_JSON" ] && args+=(--baseline "$BASE_JSON")
-
-        # Same reason as the scan step: the redirect target's directory has
-        # to exist before the shell opens the file, not after.
-        mkdir -p "$OUT_DIR"
-
-        # The install step names the binary scram.exe on Windows. This step
-        # hardcoded the bare name, so upload-sarif would have failed on a
-        # Windows runner after the install step succeeded.
-        "$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}" "${args[@]}" > "$OUT_DIR/scan.sarif"
+        "$RUNNER_TEMP/scram${{ runner.os == 'Windows' && '.exe' || '' }}" report \
+          --from "$SCAN_JSON" --format sarif --out "$OUT_DIR/scan.sarif"
 
         # Fail loudly rather than hand GitHub a file that is not SARIF; an
         # invalid upload is silently dropped by the Security tab and looks
@@ -400,7 +390,7 @@ runs:
         echo "SARIF: $OUT_DIR/scan.sarif ($(jq '.runs[0].results | length' "$OUT_DIR/scan.sarif") result(s))"
 
     - name: Upload SARIF
-      if: ${{ inputs.upload-sarif == 'true' }}
+      if: ${{ !cancelled() && steps.sarif.outcome == 'success' }}
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: scram-output/scan.sarif

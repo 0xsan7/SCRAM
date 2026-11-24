@@ -1,5 +1,11 @@
 # HANDOFF — SCRAM v0.2.0 released 2026-10-12
 
+Development update, 2026-11-20: the scanner/viewer candidate is tracked in
+[docs/release-readiness.md](docs/release-readiness.md). The release evidence
+below applies to published v0.2.0, not to every subsequent source change.
+The candidate remains unmerged and no new release or production promotion
+is authorized by this documentation update.
+
 The authorized release is complete.
 
 - Stable release: [v0.2.0](https://github.com/0xsan7/SCRAM/releases/tag/v0.2.0), source `7a76788583ec43091e0397a39a5fbf4d1b017e25`. GitHub marks it non-prerelease and latest.

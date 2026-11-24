@@ -1,38 +1,31 @@
 # SCRAM
 
-**Supply Chain Risk Assessment & Monitoring.** A dependency scanner built
-around one question: *what did this pull request actually change?*
+**Supply Chain Risk Assessment & Monitoring** helps a maintainer decide whether to merge a dependency change. A repository can have a hundred existing advisories and still need a clear answer about the one introduced today. SCRAM compares a dependency inventory against a baseline, applies the repository’s policy and shows the package, advisory and reason behind the decision.
 
+For example, a team can allow existing findings while blocking newly observed high-severity findings. A new disclosure can affect an unchanged dependency. The reviewer can inspect its version, recorded dependency path and reported fix, or see a warning when the scan could not collect enough evidence. This workflow serves maintainers and application-security teams that review changes in GitHub pull requests.
+
+**Try a review in two minutes.** From this source checkout with Go installed, run:
+
+```sh
+go run ./cmd/scram view examples/report-viewer/fixtures/blocked-new-finding.json
 ```
- ___  ___ ___    _   __  __ 
-/ __|/ __| _ \  /_\ |  \/  |
-\__ \ (__|   / / _ \| |\/| |
-|___/\___|_|_\/_/ \_\_|  |_|
+
+Open the printed loopback URL. Read the policy reason, inspect the dependency, then select **An existing finding**. Both examples contain a finding. Only the first fails its configured new-finding gate. These examples use synthetic data. To try your own project, build this checkout and run:
+
+```sh
+go build -o scram ./cmd/scram
+./scram scan /path/to/project --format json > review.json
+./scram view review.json
 ```
 
-[`v0.2.0`](https://github.com/0xsan7/SCRAM/releases/tag/v0.2.0) · released · 5 signed binaries
+A policy failure exits with code 1 and still produces a reviewable report. Exit code 2 indicates an operational error. Advisory matching needs network access. The viewer opens local reports without uploading them.
 
-**Upgrading from v0.1.0?** JSON schema 2.0.0 reports scores out of 65.
-Read the [migration notes](docs/BREAKING-2.0.0.md) before upgrading a JSON consumer.
+**Where to start**
 
-## The three things that are hard to get at once
-
-A scanner can do any one of these. Doing all three means the score, the
-diff, and the history all come from the same resolved inventory — no second
-parse, no second database, and nowhere for them to disagree.
-
-**1. Drift, not a score.** A team with 200 pre-existing findings will switch
-off any tool that blocks every PR on day one. SCRAM scans the base branch
-and the head, and blocks only on what is *new*.
-
-**2. Blame, not a timestamp.** Knowing a package is vulnerable is half an
-answer. `scram blame` finds the commit that introduced the version you are
-actually shipping, and who wrote it.
-
-**3. Arithmetic you can check.** `scram scan --explain` prints the numbers
-that produced the score, and names the commit and date of the OpenSSF
-Scorecard behind the maintenance term — so a score nobody measured reads as
-a score nobody measured, instead of looking like a clean bill of health.
+- **Review a PR:** use the [version-pinned GitHub Action](#ci-integration). The published [v0.2.0 release](https://github.com/0xsan7/SCRAM/releases/tag/v0.2.0) contains five signed binaries. The embedded viewer and newer integration features are available from source.
+- **Explore without installing:** open the [hosted report viewer](https://scram.0xsan7.in). The hosted and embedded builds have separate deployment schedules.
+- **Evaluate fit:** check [ecosystem coverage](#ecosystems), [inventory limits](LIMITATIONS.md), the [product plan](ROADMAP.md) and [release evidence](docs/release-readiness.md). Supported ecosystems include npm (also Yarn and pnpm), PyPI, Go and Rust/Cargo.
+- **Upgrade a JSON consumer:** schema 2 reports the repository score on a 65-point scale. Read the [migration notes](docs/BREAKING-2.0.0.md).
 
 ## What that looks like on a real pull request
 
@@ -61,10 +54,7 @@ FAIL  (fail-on: high, new findings only: true)
 ```
 
 *Real output, from `./examples/lodash-drift/run.sh`: `lodash` 4.17.11 →
-4.17.21 in a git repo with a committed baseline. The `commit` line and the
-EPSS percentages are the fields that change between runs, because EPSS is
-recomputed daily upstream; everything else is reproduced byte-for-byte,
-including the FAIL and the exit code. Run the script to confirm it against
+4.17.21 in a git repo with a committed baseline. Advisories, affected ranges, EPSS values and policy results can change as upstream records evolve. Run the script to confirm it against
 whatever OSV says today.*
 
 `lodash` went **up** a version, and the commit that did it is in the output.
@@ -99,7 +89,7 @@ WARNING           shallow clone: this is the first commit in the LOCAL history, 
 
 ## Contents
 
-- [The three things that are hard to get at once](#the-three-things-that-are-hard-to-get-at-once)
+- [Product direction and adoption milestones](ROADMAP.md#product-direction)
 - [What that looks like on a real pull request](#what-that-looks-like-on-a-real-pull-request)
 - [How this compares](#how-this-compares)
 - [Why drift beats a score](#why-drift-beats-a-score)
@@ -344,7 +334,7 @@ Then change a dependency and scan again:
 The second run reports what changed against the baseline and gates on what
 is new.
 
-To reproduce the output at the top of this file exactly, run the script
+To run the scenario at the top of this file, use the script
 that generates it. It builds the project, the git repository, the
 baseline, and the bump — every step, nothing transcribed:
 
@@ -542,6 +532,23 @@ The minimum is `uses` and nothing else:
 ```yaml
       - uses: 0xsan7/SCRAM@v0.2.0
 ```
+
+In the integrated source Action, `report-path` points to the JSON used for
+the policy decision. SARIF is rendered from that same file, including after a
+policy failure. To retain a review, give the SCRAM step `id: review` and add
+this step once you adopt a release that includes the output:
+
+```yaml
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.review.outputs.report-path != '' }}
+        with:
+          name: scram-review
+          path: ${{ steps.review.outputs.report-path }}
+          retention-days: 7
+```
+
+The artifact contains the repository’s dependency inventory. Use the retention
+and repository visibility appropriate to that inventory.
 
 **No token is required.** A composite action cannot read the `secrets`
 context at all — the runner rejects the whole manifest if one tries — so

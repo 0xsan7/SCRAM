@@ -122,9 +122,7 @@ func (r yarnResolver) Resolve(root, path string) ([]model.Component, error) {
 			Purl:      makeSimplePURL("npm", e.name, e.version),
 			Direct:    e.direct || direct[e.name],
 		}
-		if h := parseIntegrity(e.integrity); h != "" {
-			c.Hashes = map[string]string{"sha512": h}
-		}
+		c.Hashes = integrityMap(e.integrity)
 		out = append(out, c)
 	}
 	return Dedupe(out), nil

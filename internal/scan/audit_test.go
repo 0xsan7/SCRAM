@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,7 +127,7 @@ func TestAuditIgnorePathsExcludesProjectsBeforeParsing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Degraded || len(result.Scan.Warnings) > 0 {
+	if result.Degraded || strings.Contains(strings.Join(result.Scan.Warnings, "\n"), "legacy") {
 		t.Fatalf("ignored project was still parsed: %v", result.Scan.Warnings)
 	}
 }

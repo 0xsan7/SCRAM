@@ -176,13 +176,19 @@ func FuzzNpmV1Warning(f *testing.F) {
 // FuzzParseIntegrity covers SRI hash parsing, which is pure string handling
 // on attacker-controlled data.
 func FuzzParseIntegrity(f *testing.F) {
+	f.Add("sha1-2jmj7l5rSw0yVb/vlWAYkK/YBwk=")
 	f.Add("sha512-abc123==")
 	f.Add("sha1-deadbeef")
 	f.Add("")
 	f.Add("not-a-hash")
 	f.Add("sha512-")
 	f.Fuzz(func(t *testing.T, s string) {
-		_ = parseIntegrity(s)
+		for algorithm, digest := range integrityMap(s) {
+			size := map[string]int{"SHA-1": 40, "SHA-256": 64, "SHA-384": 96, "SHA-512": 128}[algorithm]
+			if size == 0 || len(digest) != size {
+				t.Fatalf("invalid %s digest length %d", algorithm, len(digest))
+			}
+		}
 	})
 }
 

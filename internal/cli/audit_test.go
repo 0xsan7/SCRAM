@@ -197,3 +197,17 @@ func TestAuditExplicitMissingBaselineFails(t *testing.T) {
 		t.Fatal("explicitly requested baseline was silently ignored")
 	}
 }
+
+func TestInventoryOnlyReportDisclosesSkippedMatching(t *testing.T) {
+	out, err := runCLI(t, "scan", auditCLIRepo(t), "--sbom-only", "--format", "json", "--no-scorecard", "--no-trend")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc report.JSONDocument
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if !doc.Passed || !strings.Contains(strings.Join(doc.Scan.Warnings, "\n"), "vulnerability matching was skipped") {
+		t.Fatalf("inventory-only policy outcome or coverage warning missing: %s", out)
+	}
+}

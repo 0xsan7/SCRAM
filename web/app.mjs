@@ -133,7 +133,7 @@ function renderComponents() {
       state.findingPage = 0;
       renderComponents();
       document.querySelector('#components tr.selected .row-select')?.focus({ preventScroll: true });
-      if (matchMedia('(max-width: 1240px)').matches) { $('detail-title').focus(); $('inspector').scrollIntoView({ block: 'start' }); }
+      if (matchMedia('(max-width: 950px)').matches) { $('detail-title').focus(); $('inspector').scrollIntoView({ block: 'start' }); }
     }, 'row-select');
     choose.setAttribute('aria-pressed', String(component === state.selected));
     choose.setAttribute('aria-label', `Inspect ${component.name} version ${component.version || 'not provided'}`);
@@ -278,10 +278,6 @@ $('drop-zone').addEventListener('drop', event => {
   if (files?.length !== 1) { openReport(() => { throw new Error('Choose one JSON report at a time.'); }, { kind: 'local', name: '' }); return; }
   $('report-file').value = ''; openFile(files[0]);
 });
-$('copy-command').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText($('scan-command').textContent); $('copy-status').textContent = 'Scan command copied.'; }
-  catch { $('copy-status').textContent = 'Select and copy the command above.'; }
-});
 $('export-summary').addEventListener('click', () => {
   if (!state.doc) return;
   $('export-text').textContent = summaryText(state.doc, filteredComponents(), state.synthetic);
@@ -302,6 +298,15 @@ $('download-summary').addEventListener('click', () => {
 });
 for (const [id, delta] of [['previous', -1], ['next', 1]]) $(id).addEventListener('click', () => { state.page += delta; renderComponents(); });
 for (const [id, delta] of [['drift-previous', -1], ['drift-next', 1]]) $(id).addEventListener('click', () => { state.driftPage += delta; renderDrift(); });
-if (new URL(location.href).searchParams.get('local') === '1') {
-  openReport(async () => { const response = await fetch('report.json'); if (!response.ok) throw new Error('No local report is available at this address. Choose a file or an example.'); return response.text(); }, { kind: 'local', name: 'Report opened by SCRAM' });
-} else openExample('full-review');
+// The report endpoint exists only inside a randomized loopback CLI session.
+const local = location.hostname === '127.0.0.1' && /^\/[a-f0-9]{32}\/viewer(?:\.html)?$/.test(location.pathname);
+if (local && new URLSearchParams(location.search).get('local') === '1') {
+  openReport(async () => {
+    const response = await fetch('report.json');
+    if (!response.ok) throw new Error('This local session has no report. Choose a file or try a sample.');
+    return response.text();
+  }, { kind: 'local', name: 'Report opened by SCRAM' });
+} else if (location.hash === '#example') {
+  document.querySelector('.sample-picker').open = true;
+  openExample('blocked-new-finding');
+}

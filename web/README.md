@@ -1,8 +1,8 @@
-# SCRAM report viewer
+# SCRAM website and report viewer
 
-Static, browser-local report inspection. No frontend dependencies, accounts,
-upload service or live scans. The dark interface follows the approved
-portfolio direction and uses its self-hosted fonts.
+The landing page explains SCRAM, links to an example report, and walks visitors
+through installing the CLI, generating JSON and opening it privately. The
+reader is a separate static page. Imported files are processed in the browser.
 
 ## Check and preview
 
@@ -13,8 +13,7 @@ scram view
 scram view report.json
 ```
 
-Open the printed local URL. The optional file is loaded automatically; without
-one, explore the synthetic examples. Ctrl+C stops the server. The viewer needs
+Open the printed local URL. An optional file opens in the reader automatically. With no file, SCRAM serves the landing page. Ctrl+C stops the server. The viewer needs
 no Node or Python runtime. This command is new in this branch and is not yet
 part of the existing v0.2.0 release. From this checkout, use `go run ./cmd/scram view`.
 
@@ -97,30 +96,16 @@ only, checks the Host/Origin, disables caching and frames, and embeds only viewe
 assets plus synthetic examples. It never exposes the working directory or an
 upload endpoint. The random URL is for local use, not a public share link.
 
-## Glass styling trial
+## Public and loopback routes
 
-The `codex/scram-glass-preview` branch applies the supplied dashboard's glass
-material to this existing viewer, as requested. It adds no React, Tailwind,
-GSAP or frontend dependencies. The integrated build uses an original CSS backdrop. The historical
-trial is recorded in [the design notes](../docs/report-viewer-glass-preview.md).
+The public build contains the homepage, report reader, a 404 page and static
+assets, including four synthetic JSON reports. It has no public scan, report or
+upload API. Cloudflare Pages uses the packaged `_headers` rules for a
+same-origin content security policy, framing restrictions and no-referrer
+navigation. The top-level 404 page prevents unknown paths from silently
+falling back to the homepage. [Cloudflare Pages routing](https://developers.cloudflare.com/pages/configuration/serving-pages/) · [Custom headers](https://developers.cloudflare.com/pages/configuration/headers/)
 
-Use **Adjust glass** to choose Clear, Frosted or Solid, or adjust blur, opacity,
-saturation, edge light and tint. Settings last only for the current page session;
-they are never read from reports or saved to local storage. Solid mode removes
-blur/transparency, and browser accessibility preferences can enforce solid
-surfaces. Escape closes the appearance disclosure and restores trigger focus.
-The module bounds all material values and accepts only six-digit hex tints.
-`glass.css` and `glass.mjs` are packaged both in the static output and Go binary.
-
-The reference's 30% default opacity lets the backdrop detail show through;
-blur (0–40 px) and saturation (50–200%) filter that scenery, while report text
-stays sharp. A live sample uses the same material. Opacity spans 8–100%; at
-100%, the opaque surface hides the backdrop, so blur and saturation cannot
-show through. Solid intentionally removes blur as an accessibility fallback.
-
-This is a visual adaptation of the user's supplied component, not a copy of its
-finance demo or its React implementation. Report policy, inventory, warnings,
-filters, imports and export retain the existing behavior. The trial direction
-is recorded in `docs/report-viewer-glass-preview.md`.
-
-See `docs/report-viewer-hosting.md` for the public demo configuration.
+The embedded server accepts GET and HEAD on loopback under a random session
+prefix. It serves `report.json` inside that session only if the user opened a
+specific file with `scram view report.json`. It rejects directory listings.
+See [hosting configuration](../docs/report-viewer-hosting.md) for production and preview branches.

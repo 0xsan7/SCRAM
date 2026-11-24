@@ -19,10 +19,14 @@ func TestHandlerServesEmbeddedAssetsAndProtectsLocalReport(t *testing.T) {
 		status                            int
 		contains                          string
 	}{
-		{"GET", "/session/", host, "", 200, "Dependency report"},
+		{"GET", "/session/", host, "", 200, "Review dependency changes"},
 		{"GET", "/session/app.mjs", host, "", 200, "parseReport"},
-		{"GET", "/session/glass.css", host, "", 200, "--glass-blur"},
-		{"GET", "/session/glass.mjs", host, "", 200, "normalizeGlass"},
+		{"GET", "/session/viewer.html", host, "", 200, "Open a report"},
+		{"GET", "/session/site.mjs", host, "", 200, "clipboard"},
+		{"GET", "/session/glass.mjs", host, "", 404, ""},
+		{"GET", "/session/assets/", host, "", 404, ""},
+		{"GET", "/session/fixtures/", host, "", 404, ""},
+		{"POST", "/session/viewer.html", host, "", 405, ""},
 		{"GET", "/session/assets/fonts/sora-latin.woff2", host, "", 200, ""},
 		{"GET", "/session/assets/glass-room.jpg", host, "", 404, ""},
 		{"GET", "/session/fixtures/blocked-new-finding.json", host, "", 200, "DEMO-HIGH-001"},

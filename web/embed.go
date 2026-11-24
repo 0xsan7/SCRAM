@@ -5,5 +5,5 @@ import "embed"
 
 // Files contains only browser assets, never source tests or local reports.
 //
-//go:embed index.html styles.css app.mjs report.mjs glass.css glass.mjs assets
+//go:embed index.html viewer.html styles.css site.mjs app.mjs report.mjs assets/favicon.svg assets/fonts
 var Files embed.FS

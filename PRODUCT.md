@@ -49,10 +49,10 @@ the scanner or sending the report to a server.
 
 ## Brand Commitments
 
-The user selected a dark interface matching the portfolio. Keep the SCRAM
-name and an evidence-focused voice. Use existing portfolio font assets with
-their license notices where available. Detailed composition is an
-implementation choice within this approved direction.
+The guided website opens with the product purpose, a sample verdict, and links
+to open a report or install the CLI. The report reader uses the same warm paper
+and forest palette. Preserve the SCRAM name, local file handling, accurate
+policy language, and self-hosted fonts with notices.
 
 ## Evidence on Hand
 

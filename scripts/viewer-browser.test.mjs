@@ -107,6 +107,7 @@ test('embedded viewer import, inspect, export and recovery', { timeout: 90000 },
         const download = await downloaded;
         assert.equal(download.suggestedFilename(), 'scram-review.txt');
         assert.equal(await readFile(await download.path(), 'utf8'), summary);
+        await page.getByText('Try a sample report', { exact: true }).click();
         await $('[data-example="blocked-new-finding"]').click();
         await page.waitForFunction(
           () => document.querySelector('#policy-title').textContent === 'Policy failed',

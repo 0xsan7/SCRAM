@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en" id="top">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Inspect SCRAM dependency reports in your browser.">
+  <title>SCRAM — Report viewer</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="shell masthead">
+      <a class="brand" href="./"><img src="assets/favicon.svg" alt="" width="32" height="32">SCRAM</a>
+      <nav aria-label="Main navigation">
+        <a href="./#guide">How to use</a>
+        <a href="./#about">About</a>
+        <a href="viewer.html" class="nav-action">Report viewer</a>
+      </nav>
+    </div>
+  </header>
+  <main class="shell reader" id="main" tabindex="-1">
+    <div class="reader-title">
+      <div><h1>Report viewer</h1><p id="report-context">Choose a SCRAM JSON report or try a sample.</p></div>
+      <button id="export-summary" class="button secondary" type="button" disabled>Export summary</button>
+    </div>
+
+    <section class="report-picker" aria-label="Choose a report">
+      <div id="drop-zone" class="file-zone">
+        <label for="report-file">Open a report</label>
+        <input id="report-file" type="file" accept=".json,application/json" aria-describedby="file-help">
+        <p id="file-help" class="help">Choose or drop SCRAM JSON up to 5 MiB. Your file stays in this browser.</p>
+      </div>
+      <details class="sample-picker">
+        <summary>Try a sample report</summary>
+        <p class="help">These examples use synthetic data.</p>
+        <div class="examples">
+          <button type="button" data-example="full-review" aria-pressed="false">Full review</button>
+          <button type="button" data-example="blocked-new-finding" aria-pressed="false">New finding</button>
+          <button type="button" data-example="passed-with-existing-finding" aria-pressed="false">Existing finding</button>
+          <button type="button" data-example="incomplete-no-findings" aria-pressed="false">Missing evidence</button>
+        </div>
+      </details>
+    </section>
+    <p id="action-status" class="help" role="status"></p>
+    <details id="export-panel" class="export-panel" hidden>
+      <summary>Review summary</summary>
+      <p class="help">Includes the filtered inventory, policy reasons and scan warnings.</p>
+      <pre id="export-text" tabindex="0"></pre>
+      <div class="button-row"><button id="copy-summary" type="button">Copy summary</button><button id="download-summary" type="button">Download text</button></div>
+    </details>
+    <p id="loading" class="help" role="status" hidden>Opening report…</p>
+    <section id="error" class="error-message" role="alert" tabindex="-1" hidden>
+      <h2>Couldn’t open this report</h2><p id="error-detail"></p><p>Choose another JSON file or try a sample.</p>
+    </section>
+    <div id="welcome" class="reader-empty">
+      <h2>Have a project but no report?</h2>
+      <p><a href="./#guide">Install SCRAM and run a scan</a> to generate a JSON report for this viewer.</p>
+    </div>
+      <div id="report" hidden>
+        <div class="report-meta"><p id="provenance"></p><span id="schema-label" hidden></span></div>
+        <section id="policy" class="policy" aria-labelledby="policy-title">
+          <div class="policy-heading"><svg class="policy-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path id="policy-symbol" d="M12 7v6m0 3h.01"/></svg><div><h2 id="policy-title"></h2><p id="policy-explanation"></p></div></div>
+          <ul id="reasons" class="evidence-list"></ul>
+          <div id="warnings" class="warnings" hidden><h3>Scan warnings</h3><ul id="warning-list" class="evidence-list"></ul></div>
+        </section>
+
+        <dl class="summary" aria-label="Report summary">
+          <div><dt>Dependencies</dt><dd id="component-count"></dd></div>
+          <div><dt>Known findings</dt><dd id="finding-count"></dd></div>
+          <div><dt>New findings</dt><dd id="new-count"></dd></div>
+          <div><dt>Resolved findings</dt><dd id="resolved-count"></dd></div>
+          <div><dt>Reported risk score</dt><dd id="repo-score"></dd></div>
+        </dl>
+
+        <div class="workbench">
+          <section class="inventory" aria-labelledby="inventory-title">
+            <div class="section-heading"><h2 id="inventory-title" tabindex="-1">Dependency inventory</h2><span id="inventory-total" class="help"></span></div>
+            <div class="inventory-controls"><label class="search-control" for="search"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="search" type="search" aria-label="Search dependencies" placeholder="Search dependencies or finding IDs" autocomplete="off"></label><label class="filter-control" for="filter"><span class="sr-only">Filter dependencies</span><select id="filter"><option value="all">All dependencies</option><option value="findings">With findings</option><option value="new">With new findings</option><option value="direct">Direct dependencies</option></select></label></div>
+            <div class="refine-controls"><label for="ecosystem">Ecosystem<select id="ecosystem"><option value="all">All ecosystems</option></select></label><label for="minimum">Advisory severity<select id="minimum"><option value="0">Any severity</option><option value="7">High and critical</option><option value="9">Critical only</option></select></label><label for="sort">Sort by<select id="sort"><option value="severity">Highest CVSS first</option><option value="name">Dependency name</option><option value="reported">Report order</option></select></label><button id="reset-filters" type="button">Reset</button></div>
+            <div class="table-wrap"><table><caption class="sr-only">Choose a dependency to inspect its findings and score breakdown.</caption><thead><tr><th scope="col">Dependency</th><th scope="col">Ecosystem</th><th scope="col">Findings</th></tr></thead><tbody id="components"></tbody></table></div>
+            <div id="no-components" class="empty-state" hidden><h3>No dependencies match</h3><p id="no-components-detail"></p><button id="clear-filters" class="text-button" type="button">Clear filters</button></div>
+            <div class="pagination"><span id="page-status" class="help" aria-live="polite"></span><div><button id="previous" type="button" aria-label="Previous dependency page">Previous</button><button id="next" type="button" aria-label="Next dependency page">Next</button></div></div>
+            <p class="inventory-note">Direct and transitive describe dependency relationships. They do not distinguish production and development packages.</p>
+          </section>
+
+          <section id="inspector" class="inspector" aria-labelledby="detail-title" aria-live="polite"><div class="section-heading"><h2>Dependency details</h2><a class="back-to-inventory" href="#inventory-title">Back to inventory</a></div><div id="detail"></div></section>
+        </div>
+
+        <section class="drift-section" aria-labelledby="drift-title"><div class="section-heading"><h2 id="drift-title">Changes against the baseline</h2><span id="drift-count" class="help"></span></div><p id="drift-context" class="help"></p><div id="drift-list"></div><div class="pagination" id="drift-pagination" hidden><span id="drift-page-status" class="help" aria-live="polite"></span><div><button id="drift-previous" type="button">Previous changes</button><button id="drift-next" type="button">Next changes</button></div></div></section>
+        <footer class="report-footer"><p>A passing policy can still include existing findings.</p><p id="report-footer-detail"></p></footer>
+      </div>
+    <noscript><p class="error-message">Enable JavaScript to open a report in your browser.</p></noscript>
+  </main>
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <div class="footer-note">
+        <img src="assets/favicon.svg" alt="" width="38" height="38">
+        <div><strong>Small tool. Careful reviews.</strong><p>Open source and built for maintainers.</p></div>
+      </div>
+      <nav aria-label="Footer navigation">
+        <a href="https://github.com/0xsan7/SCRAM">GitHub</a>
+        <a href="https://github.com/0xsan7/SCRAM/issues">Feedback</a>
+        <a href="#top">Back to top ↑</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,617 +1,104 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-18T23:26:35.206807+00:00",
-  "title": "Design System: SCRAM Report Viewer \u2014 Glass Trial",
+  "generatedAt": "2026-11-24T20:37:59.274804+00:00",
+  "title": "SCRAM guided site",
   "extensions": {
     "colorMeta": {
-      "page": {
+      "paper": {
         "role": "neutral",
-        "displayName": "Page",
-        "tonalRamp": [
-          "oklch(15% 0.00458 264.43)",
-          "oklch(26% 0.00458 264.43)",
-          "oklch(38% 0.00458 264.43)",
-          "oklch(49% 0.00458 264.43)",
-          "oklch(61% 0.00458 264.43)",
-          "oklch(72% 0.00458 264.43)",
-          "oklch(84% 0.00458 264.43)",
-          "oklch(95% 0.00458 264.43)"
-        ]
+        "displayName": "Paper",
+        "value": "#f8f7ef"
       },
-      "rail": {
+      "white": {
         "role": "neutral",
-        "displayName": "Rail",
-        "tonalRamp": [
-          "oklch(15% 0.00448 264.45)",
-          "oklch(26% 0.00448 264.45)",
-          "oklch(38% 0.00448 264.45)",
-          "oklch(49% 0.00448 264.45)",
-          "oklch(61% 0.00448 264.45)",
-          "oklch(72% 0.00448 264.45)",
-          "oklch(84% 0.00448 264.45)",
-          "oklch(95% 0.00448 264.45)"
-        ]
+        "displayName": "White",
+        "value": "#fffef8"
       },
-      "surface": {
+      "ink": {
         "role": "neutral",
-        "displayName": "Surface",
-        "tonalRamp": [
-          "oklch(15% 0.00515 248.10)",
-          "oklch(26% 0.00515 248.10)",
-          "oklch(38% 0.00515 248.10)",
-          "oklch(49% 0.00515 248.10)",
-          "oklch(61% 0.00515 248.10)",
-          "oklch(72% 0.00515 248.10)",
-          "oklch(84% 0.00515 248.10)",
-          "oklch(95% 0.00515 248.10)"
-        ]
-      },
-      "hover": {
-        "role": "neutral",
-        "displayName": "Hover",
-        "tonalRamp": [
-          "oklch(15% 0.00893 255.60)",
-          "oklch(26% 0.00893 255.60)",
-          "oklch(38% 0.00893 255.60)",
-          "oklch(49% 0.00893 255.60)",
-          "oklch(61% 0.00893 255.60)",
-          "oklch(72% 0.00893 255.60)",
-          "oklch(84% 0.00893 255.60)",
-          "oklch(95% 0.00893 255.60)"
-        ]
-      },
-      "line": {
-        "role": "neutral",
-        "displayName": "Line",
-        "tonalRamp": [
-          "oklch(15% 0.01221 258.37)",
-          "oklch(26% 0.01221 258.37)",
-          "oklch(38% 0.01221 258.37)",
-          "oklch(49% 0.01221 258.37)",
-          "oklch(61% 0.01221 258.37)",
-          "oklch(72% 0.01221 258.37)",
-          "oklch(84% 0.01221 258.37)",
-          "oklch(95% 0.01221 258.37)"
-        ]
-      },
-      "text": {
-        "role": "neutral",
-        "displayName": "Text",
-        "tonalRamp": [
-          "oklch(15% 0.00344 247.86)",
-          "oklch(26% 0.00344 247.86)",
-          "oklch(38% 0.00344 247.86)",
-          "oklch(49% 0.00344 247.86)",
-          "oklch(61% 0.00344 247.86)",
-          "oklch(72% 0.00344 247.86)",
-          "oklch(84% 0.00344 247.86)",
-          "oklch(95% 0.00344 247.86)"
-        ]
+        "displayName": "Ink",
+        "value": "#192417"
       },
       "muted": {
         "role": "neutral",
         "displayName": "Muted",
-        "tonalRamp": [
-          "oklch(15% 0.01642 257.21)",
-          "oklch(26% 0.01642 257.21)",
-          "oklch(38% 0.01642 257.21)",
-          "oklch(49% 0.01642 257.21)",
-          "oklch(61% 0.01642 257.21)",
-          "oklch(72% 0.01642 257.21)",
-          "oklch(84% 0.01642 257.21)",
-          "oklch(95% 0.01642 257.21)"
-        ]
+        "value": "#505b4b"
       },
-      "accent": {
-        "role": "primary",
-        "displayName": "Accent",
-        "tonalRamp": [
-          "oklch(15% 0.12395 75.67)",
-          "oklch(26% 0.12395 75.67)",
-          "oklch(38% 0.12395 75.67)",
-          "oklch(49% 0.12395 75.67)",
-          "oklch(61% 0.12395 75.67)",
-          "oklch(72% 0.12395 75.67)",
-          "oklch(84% 0.12395 75.67)",
-          "oklch(95% 0.12395 75.67)"
-        ]
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "value": "#d5d9cb"
+      },
+      "forest": {
+        "role": "accent",
+        "displayName": "Forest",
+        "value": "#233b28"
+      },
+      "lime": {
+        "role": "accent",
+        "displayName": "Lime",
+        "value": "#dff0a4"
+      },
+      "wash": {
+        "role": "neutral",
+        "displayName": "Wash",
+        "value": "#ecefe0"
       },
       "red": {
-        "role": "secondary",
+        "role": "accent",
         "displayName": "Red",
-        "tonalRamp": [
-          "oklch(15% 0.11740 20.00)",
-          "oklch(26% 0.11740 20.00)",
-          "oklch(38% 0.11740 20.00)",
-          "oklch(49% 0.11740 20.00)",
-          "oklch(61% 0.11740 20.00)",
-          "oklch(72% 0.11740 20.00)",
-          "oklch(84% 0.11740 20.00)",
-          "oklch(95% 0.11740 20.00)"
-        ]
+        "value": "#8b342b"
       },
-      "green": {
-        "role": "secondary",
-        "displayName": "Green",
-        "tonalRamp": [
-          "oklch(15% 0.09181 161.08)",
-          "oklch(26% 0.09181 161.08)",
-          "oklch(38% 0.09181 161.08)",
-          "oklch(49% 0.09181 161.08)",
-          "oklch(61% 0.09181 161.08)",
-          "oklch(72% 0.09181 161.08)",
-          "oklch(84% 0.09181 161.08)",
-          "oklch(95% 0.09181 161.08)"
-        ]
+      "rust-wash": {
+        "role": "accent",
+        "displayName": "Rust Wash",
+        "value": "#f9e8df"
       },
-      "warning": {
-        "role": "secondary",
-        "displayName": "Warning",
-        "tonalRamp": [
-          "oklch(15% 0.10257 78.13)",
-          "oklch(26% 0.10257 78.13)",
-          "oklch(38% 0.10257 78.13)",
-          "oklch(49% 0.10257 78.13)",
-          "oklch(61% 0.10257 78.13)",
-          "oklch(72% 0.10257 78.13)",
-          "oklch(84% 0.10257 78.13)",
-          "oklch(95% 0.10257 78.13)"
-        ]
+      "amber": {
+        "role": "accent",
+        "displayName": "Amber",
+        "value": "#714a13"
       },
-      "row-line": {
-        "role": "neutral",
-        "displayName": "Row Line",
-        "tonalRamp": [
-          "oklch(15% 0.01028 260.70)",
-          "oklch(26% 0.01028 260.70)",
-          "oklch(38% 0.01028 260.70)",
-          "oklch(49% 0.01028 260.70)",
-          "oklch(61% 0.01028 260.70)",
-          "oklch(72% 0.01028 260.70)",
-          "oklch(84% 0.01028 260.70)",
-          "oklch(95% 0.01028 260.70)"
-        ]
-      },
-      "selected-row": {
-        "role": "neutral",
-        "displayName": "Selected Row",
-        "tonalRamp": [
-          "oklch(15% 0.00409 128.67)",
-          "oklch(26% 0.00409 128.67)",
-          "oklch(38% 0.00409 128.67)",
-          "oklch(49% 0.00409 128.67)",
-          "oklch(61% 0.00409 128.67)",
-          "oklch(72% 0.00409 128.67)",
-          "oklch(84% 0.00409 128.67)",
-          "oklch(95% 0.00409 128.67)"
-        ]
-      },
-      "selected-example": {
-        "role": "neutral",
-        "displayName": "Selected Example",
-        "tonalRamp": [
-          "oklch(15% 0.00742 106.94)",
-          "oklch(26% 0.00742 106.94)",
-          "oklch(38% 0.00742 106.94)",
-          "oklch(49% 0.00742 106.94)",
-          "oklch(61% 0.00742 106.94)",
-          "oklch(72% 0.00742 106.94)",
-          "oklch(84% 0.00742 106.94)",
-          "oklch(95% 0.00742 106.94)"
-        ]
-      },
-      "selected-example-line": {
-        "role": "neutral",
-        "displayName": "Selected Example Line",
-        "tonalRamp": [
-          "oklch(15% 0.02654 83.09)",
-          "oklch(26% 0.02654 83.09)",
-          "oklch(38% 0.02654 83.09)",
-          "oklch(49% 0.02654 83.09)",
-          "oklch(61% 0.02654 83.09)",
-          "oklch(72% 0.02654 83.09)",
-          "oklch(84% 0.02654 83.09)",
-          "oklch(95% 0.02654 83.09)"
-        ]
-      },
-      "file-button": {
-        "role": "neutral",
-        "displayName": "File Button",
-        "tonalRamp": [
-          "oklch(15% 0.00581 264.53)",
-          "oklch(26% 0.00581 264.53)",
-          "oklch(38% 0.00581 264.53)",
-          "oklch(49% 0.00581 264.53)",
-          "oklch(61% 0.00581 264.53)",
-          "oklch(72% 0.00581 264.53)",
-          "oklch(84% 0.00581 264.53)",
-          "oklch(95% 0.00581 264.53)"
-        ]
-      },
-      "file-button-text": {
-        "role": "neutral",
-        "displayName": "File Button Text",
-        "tonalRamp": [
-          "oklch(15% 0.00439 264.46)",
-          "oklch(26% 0.00439 264.46)",
-          "oklch(38% 0.00439 264.46)",
-          "oklch(49% 0.00439 264.46)",
-          "oklch(61% 0.00439 264.46)",
-          "oklch(72% 0.00439 264.46)",
-          "oklch(84% 0.00439 264.46)",
-          "oklch(95% 0.00439 264.46)"
-        ]
-      },
-      "glass-ground": {
-        "role": "neutral",
-        "displayName": "Glass Ground"
-      },
-      "glass-tint": {
-        "role": "neutral",
-        "displayName": "Glass Tint"
-      },
-      "glass-secondary": {
-        "role": "neutral",
-        "displayName": "Glass Secondary"
-      },
-      "glass-inner": {
-        "role": "neutral",
-        "displayName": "Glass Inner"
-      },
-      "glass-field": {
-        "role": "neutral",
-        "displayName": "Glass Field"
-      },
-      "glass-tag": {
-        "role": "neutral",
-        "displayName": "Glass Tag"
-      },
-      "glass-line": {
-        "role": "neutral",
-        "displayName": "Glass Line"
-      },
-      "glass-field-line": {
-        "role": "neutral",
-        "displayName": "Glass Field Line"
-      },
-      "glass-strong-line": {
-        "role": "neutral",
-        "displayName": "Glass Strong Line"
-      },
-      "glass-action": {
-        "role": "neutral",
-        "displayName": "Glass Action"
-      },
-      "glass-action-hover": {
-        "role": "neutral",
-        "displayName": "Glass Action Hover"
-      },
-      "glass-action-line": {
-        "role": "neutral",
-        "displayName": "Glass Action Line"
-      },
-      "glass-selected": {
-        "role": "neutral",
-        "displayName": "Glass Selected"
-      },
-      "glass-selected-line": {
-        "role": "neutral",
-        "displayName": "Glass Selected Line"
-      },
-      "glass-row-selected": {
-        "role": "neutral",
-        "displayName": "Glass Row Selected"
-      },
-      "glass-solid": {
-        "role": "neutral",
-        "displayName": "Glass Solid"
-      },
-      "glass-settings-panel": {
-        "role": "neutral",
-        "displayName": "Glass Settings Panel"
-      },
-      "glass-material-base": {
-        "role": "neutral",
-        "displayName": "Glass Material Base"
-      },
-      "glass-scenery-shade": {
-        "role": "neutral",
-        "displayName": "Glass Scenery Shade"
+      "amber-wash": {
+        "role": "accent",
+        "displayName": "Amber Wash",
+        "value": "#fff2d2"
       }
     },
     "typographyMeta": {
       "display": {
-        "displayName": "Report title",
-        "purpose": "Trial Sora title clamp(27px,2.6vw,36px), 27px narrow."
-      },
-      "policy": {
-        "displayName": "Policy outcome",
-        "purpose": "Sora outcome heading; narrow override is 21px."
-      },
-      "title": {
-        "displayName": "Section title",
-        "purpose": "Trial Sora section headings at 17px, 16px narrow."
+        "family": "Sora"
       },
       "body": {
-        "displayName": "Global base",
-        "purpose": "Manrope 16px base; regular report and control text uses 14\u201315px."
+        "family": "Manrope"
       },
-      "help": {
-        "displayName": "Explanatory text",
-        "purpose": "Secondary report explanations and metadata at 12\u201313px."
-      },
-      "detail": {
-        "displayName": "Compact evidence",
-        "purpose": "Regular finding prose and report evidence at 14px."
-      },
-      "number": {
-        "displayName": "Summary facts",
-        "purpose": "Tabular 28px summary figures, 26px narrow; unknown values remain words."
-      },
-      "identifier": {
-        "displayName": "Identifiers and commands",
-        "purpose": "Native monospace; PURLs use 13px / 12px narrow and finding IDs use 13px."
+      "code": {
+        "family": "ui-monospace"
       }
     },
-    "shadows": [
-      {
-        "name": "glass-outer",
-        "value": "inset 0 1px 0 var(--glass-highlight), inset 0 0 0 1px var(--glass-rule), 0 22px 52px -30px #000b",
-        "purpose": "Floating header, rail and workspace only."
-      },
-      {
-        "name": "glass-settings",
-        "value": "0 22px 46px -20px #000b",
-        "purpose": "Opaque native appearance disclosure panel."
-      },
-      {
-        "name": "selected-row-marker",
-        "value": "inset 1px 0 #f4ba6380",
-        "purpose": "Amber selection marker; not elevation."
-      }
-    ],
-    "motion": [
-      {
-        "name": "control-color-transition",
-        "value": "background-color .14s ease-out, border-color .14s ease-out, color .14s ease-out",
-        "purpose": "Applied only when prefers-reduced-motion is no-preference; report changes have no entrance motion."
-      }
-    ],
-    "breakpoints": [
-      {
-        "name": "stack-inspector",
-        "value": "max-width: 1240px"
-      },
-      {
-        "name": "stack-report-chooser",
-        "value": "max-width: 720px"
-      }
-    ],
-    "focus": {
-      "value": "outline: 2px solid var(--accent); outline-offset: 4px",
-      "purpose": "Global keyboard focus; search input locally uses a 1px outline offset."
-    },
-    "provenance": {
-      "sources": [
-        "PRODUCT.md",
-        "docs/report-viewer-design.md",
-        "web/index.html",
-        "web/styles.css",
-        "web/app.mjs",
-        "web/glass.css",
-        "web/glass.mjs",
-        "docs/report-viewer-glass-preview.md"
-      ],
-      "mode": "Operate; grounded dependency registry",
-      "approvalBoundary": "User explicitly chose glass styling for this trial on codex/scram-glass-preview. Detailed implementation is recorded, not claimed separately approved. Production codex/scram-usability is unchanged. No approved image comp.",
-      "tonalRampNote": "Preview-only OKLCH ramps synthesized from each extracted color at eight stepped lightness values. They are not implemented CSS tokens or approved palette additions.",
-      "componentNote": "Self-contained source-derived samples use fallback values when project custom properties are unavailable. Package data is illustrative. Samples do not execute the viewer application.",
-      "readabilityUpdate": "Approved readability/usability extension, retaining the dependency registry world. Final CSS overrides define effective sizes. Native how-to details, file drop zone, filter refinements and export disclosure are implemented. Four verified synthetic examples; optional CLI report serving stays on loopback.",
-      "correctedReference": "User explicitly requested matching the supplied 21st adjustable-glass-dashboard behavior after rejecting the first trial. Scenery, independent opacity/tint wash and a live material sample now reflect the reference; production remains unchanged."
-    },
-    "layout": {
-      "frame": "max-width:1680px; width:calc(100% - 48px); mobile width:calc(100% - 24px)",
-      "header": "72px height; margin:24px auto 18px; mobile height:65px",
-      "rail": "252px; 235px at max-width:1240px; stacked at max-width:720px",
-      "workspacePadding": "30px; 26px at max-width:1240px; 24px 18px mobile",
-      "frameGap": "18px",
-      "workbench": "minmax(0,1.2fr) minmax(320px,1fr); stacks at max-width:1240px",
-      "narrowGrids": "Two columns for examples, summary facts and refinements"
-    },
-    "appearance": {
-      "scope": "Trial branch codex/scram-glass-preview only; production codex/scram-usability unchanged.",
-      "defaults": {
-        "blur": "22px",
-        "opacity": 0.3,
-        "saturation": 1.2,
-        "edge": 0.6,
-        "tint": "#eadbc7"
-      },
-      "variables": {
-        "material": "color-mix(in srgb, #17191d calc(var(--glass-opacity) * 100%), transparent)",
-        "tintWash": "color-mix(in srgb, var(--glass-tint) 12%, transparent)",
-        "filter": "blur(var(--glass-blur)) saturate(var(--glass-saturation))",
-        "rule": "color-mix(in srgb, var(--glass-tint) calc(var(--glass-edge) * 28%), transparent)",
-        "highlight": "color-mix(in srgb, #e8f3fb calc(var(--glass-edge) * 40%), transparent)"
-      },
-      "presets": {
-        "clear": {
-          "blur": 8,
-          "opacity": 0.12,
-          "saturation": 1.1,
-          "edge": 0.8,
-          "tint": "#eadbc7"
-        },
-        "frosted": {
-          "blur": 22,
-          "opacity": 0.3,
-          "saturation": 1.2,
-          "edge": 0.6,
-          "tint": "#eadbc7"
-        },
-        "solid": {
-          "blur": 0,
-          "opacity": 1,
-          "saturation": 1,
-          "edge": 0.35,
-          "tint": "#eadbc7"
-        }
-      },
-      "controls": "Native details; four bounded ranges and one hex color input; three presets, reset and close. Session-only, report data unchanged.",
-      "fallbacks": "Solid preset, unsupported backdrop-filter and reduced transparency use #18212b without blur/transparency. Forced colors uses Canvas/CanvasText and removes gradient/shadows; preference modes disable appearance controls.",
-      "ranges": {
-        "blur": [
-          0,
-          40
-        ],
-        "opacity": [
-          0.08,
-          1
-        ],
-        "saturation": [
-          0.5,
-          2
-        ],
-        "edge": [
-          0,
-          1
-        ],
-        "tint": "Six-digit hex color"
-      },
-      "scenery": {
-        "asset": "web/assets/glass-room.jpg",
-        "position": "fixed; inset:0",
-        "background": "linear-gradient(#06090db3, #06090db3), url('assets/glass-room.jpg') center 56% / cover",
-        "purpose": "Local room image from the supplied reference provides real scenery behind backdrop-filter; no pre-blurring."
-      },
-      "liveSample": {
-        "minimumHeight": "94px",
-        "radius": "10px",
-        "background": "linear-gradient(#06090d99, #06090d99), url('assets/glass-room.jpg') center 56% / cover",
-        "material": "Same tint wash, material, filter and edge variables as the outer surfaces. Solid mode is opaque and unblurred."
-      },
-      "solidDifference": "Solid intentionally remains opacity 1 / blur 0, rather than the supplied reference\u2019s 86% preset, for a true opaque accessibility fallback."
+    "breakpoints": {
+      "stackReader": 950,
+      "stackLanding": 760,
+      "compact": 355
     }
   },
-  "components": [
-    {
-      "name": "Ordinary action",
-      "kind": "button",
-      "refersTo": "button-default",
-      "description": "The outlined action used for pagination and recovery; disabled and keyboard-focus treatments are retained.",
-      "html": "<button type=\"button\" class=\"ds-button\">Next</button>",
-      "css": ".ds-button{font-family:var(--body,Manrope,system-ui,sans-serif);font-size:14px;line-height:1.65;border:1px solid var(--line,#2b2f35);background:var(--surface,#121416);color:var(--text,#eceef0);border-radius:7px;padding:8px 12px;min-height:40px;cursor:pointer}.ds-button:hover{background:var(--hover,#1b1e22);border-color:#5a616c}.ds-button:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}.ds-button:disabled{cursor:default;opacity:.42}.ds-button:disabled:hover{background:var(--surface,#121416);border-color:var(--line,#2b2f35)}@media(prefers-reduced-motion:no-preference){.ds-button{transition:background-color .14s ease-out,border-color .14s ease-out,color .14s ease-out}}.ds-button{font-size:16px}.ds-button{background:#ffffff08;border-color:#b0c4d533;border-radius:9px}.ds-button:hover{background:#ffffff12}"
-    },
-    {
-      "name": "Native report file action",
-      "kind": "input",
-      "refersTo": "file-button",
-      "description": "Native report picker inside the implemented file-drop boundary; local import remains on the computer.",
-      "html": "<div class=\"ds-drop-zone\"><label class=\"ds-file-label\" for=\"ds-report-file\">Open a local report</label><input class=\"ds-file\" id=\"ds-report-file\" type=\"file\" accept=\".json,application/json\"><p class=\"ds-drop-help\">Drop a JSON file here or choose it above.</p></div>",
-      "css": ".ds-file-label{display:block;font-family:var(--body,Manrope,system-ui,sans-serif);font-size:12px;font-weight:700;color:var(--text,#eceef0);margin-bottom:8px}.ds-file{width:100%;font-family:var(--body,Manrope,system-ui,sans-serif);font-size:11px;color:var(--muted,#a5acb6);overflow:hidden}.ds-file::file-selector-button{background:#e5e7eb;color:#111214;border:0;border-radius:6px;font:600 12px var(--body,Manrope,system-ui,sans-serif);padding:11px 12px;margin-right:8px;margin-bottom:8px;cursor:pointer}.ds-file::file-selector-button:hover{background:#fff}.ds-file:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}.ds-file-label{font-size:14px}.ds-file{font-size:12px}.ds-file::file-selector-button{font-size:14px;padding:10px}.ds-drop-zone{padding:16px 13px;border:1px dashed #626971;border-radius:12px;background:var(--surface,#121416)}.ds-drop-help{font:12px/1.7 var(--body,Manrope,system-ui,sans-serif);color:var(--muted,#a5acb6);margin:8px 0 0}.ds-drop-zone.ds-drag-active{border-color:var(--accent,#f4ba63);background:#24211b}@media(max-width:720px){.ds-drop-zone{padding:14px}}.ds-drop-zone{background:#0a10182e;border-color:#b0c4d54a}.ds-drop-zone.ds-drag-active{background:#423929}"
-    },
-    {
-      "name": "Selected example choice",
-      "kind": "button",
-      "refersTo": "example-selected",
-      "description": "Report selection is distinct from the report\u2019s failed-policy status.",
-      "html": "<button class=\"ds-example\" type=\"button\" aria-pressed=\"true\"><span class=\"ds-dot\" aria-hidden=\"true\"></span><span><strong>A new finding</strong><small>Policy failed</small></span><svg viewBox=\"0 0 20 20\" aria-hidden=\"true\"><path d=\"m8 5 5 5-5 5\"/></svg></button>",
-      "css": ".ds-example{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid transparent;background:transparent;padding:11px 8px;width:100%;border-radius:8px;font-family:var(--body,Manrope,system-ui,sans-serif);color:var(--text,#eceef0);cursor:pointer}.ds-example:hover{background:var(--hover,#1b1e22);border-color:#5a616c}.ds-example[aria-pressed=true]{background:#20201c;border-color:#4b4334}.ds-example strong{display:block;font-size:12px;font-weight:600}.ds-example[aria-pressed=true] strong{color:var(--accent,#f4ba63)}.ds-example small{display:block;font-size:11px;color:var(--muted,#a5acb6);margin-top:3px}.ds-dot{width:6px;height:6px;border-radius:50%;background:var(--red,#ff9d9d);flex-shrink:0}.ds-example svg{width:16px;height:16px;margin-left:auto;color:var(--muted,#a5acb6);fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.ds-example:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}@media(max-width:720px){.ds-example{padding:9px 7px;gap:6px;align-items:flex-start;border-color:var(--line,#2b2f35);min-height:73px}.ds-example strong,.ds-example small{font-size:11px;line-height:1.5}.ds-example small{margin-top:4px}.ds-dot{margin-top:6px}.ds-example svg{display:none}}.ds-example{min-height:62px}.ds-example strong{font-size:14px}.ds-example small{font-size:13px;margin-top:4px}@media(max-width:720px){.ds-example{min-height:76px}.ds-example strong{font-size:14px}.ds-example small{font-size:12px}}.ds-example{border-radius:10px;min-height:66px;padding:12px 10px}.ds-example[aria-pressed=true]{background:#f4ba6314;border-color:#f4ba634d}.ds-example:hover{background:#ffffff0a}.ds-example small{color:#bbc6d1}"
-    },
-    {
-      "name": "Inventory search",
-      "kind": "input",
-      "refersTo": "search",
-      "description": "A surface-colored search control with an amber focus-within border.",
-      "html": "<label class=\"ds-search\" for=\"ds-search\"><svg viewBox=\"0 0 20 20\" aria-hidden=\"true\"><circle cx=\"8.5\" cy=\"8.5\" r=\"5.5\"/><path d=\"m13 13 4 4\"/></svg><input id=\"ds-search\" type=\"search\" aria-label=\"Search dependencies or finding IDs\" placeholder=\"Search dependencies or finding IDs\"></label>",
-      "css": ".ds-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line,#2b2f35);border-radius:7px;padding-left:11px;min-width:0;background:var(--surface,#121416)}.ds-search svg{width:17px;height:17px;color:var(--muted,#a5acb6);fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}.ds-search input{border:0;background:none;color:var(--text,#eceef0);width:100%;min-width:0;padding:10px 7px 10px 0;font-family:var(--body,Manrope,system-ui,sans-serif);font-size:11px;caret-color:var(--accent,#f4ba63)}.ds-search input::placeholder{color:var(--muted,#a5acb6)}.ds-search:focus-within{border-color:var(--accent,#f4ba63)}.ds-search input:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;outline-offset:1px}@media(max-width:720px){.ds-search input{font-size:12px;padding:12px 8px 12px 0}}.ds-search input{font-size:16px;min-height:46px}.ds-search{background:#0a101847;border-color:#b0c4d52e;border-radius:10px}.ds-search input::placeholder{color:#bbc6d1}"
-    },
-    {
-      "name": "Dependency filter",
-      "kind": "input",
-      "description": "Native select uses the same outlined surface as search.",
-      "html": "<select class=\"ds-filter\" aria-label=\"Filter dependencies\"><option>All dependencies</option><option>With findings</option><option>With new findings</option><option>Direct dependencies</option></select>",
-      "css": ".ds-filter{border:1px solid var(--line,#2b2f35);border-radius:7px;padding:10px 23px 10px 10px;background:var(--surface,#121416);color:var(--text,#eceef0);max-width:170px;font-family:var(--body,Manrope,system-ui,sans-serif);font-size:11px;min-height:40px;cursor:pointer}.ds-filter:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}@media(max-width:720px){.ds-filter{width:100%;max-width:none;min-height:42px}}.ds-filter{font-size:14px;min-height:46px;max-width:210px}@media(max-width:720px){.ds-filter{width:100%;max-width:none;font-size:16px;margin-top:10px}}.ds-filter{background:#0a101847;border-color:#b0c4d52e;border-radius:10px}.ds-filter option{background:#18212b;color:#eceef0}"
-    },
-    {
-      "name": "Severity tag",
-      "kind": "chip",
-      "refersTo": "severity-tag",
-      "description": "A noninteractive finding label; the status remains explicit in text.",
-      "html": "<span class=\"ds-severity\">New \u00b7 high \u00b7 CVSS 8.2</span>",
-      "css": ".ds-severity{display:inline-block;border:1px solid var(--line,#2b2f35);border-radius:4px;padding:2px 6px;font-family:var(--body,Manrope,system-ui,sans-serif);font-size:11px;color:var(--red,#ff9d9d);white-space:nowrap}.ds-severity{font-size:12px}@media(max-width:720px){.ds-severity{white-space:normal}}.ds-severity{background:#0a101826;border-color:#b0c4d526}"
-    },
-    {
-      "name": "Policy evidence panel",
-      "kind": "card",
-      "refersTo": "policy",
-      "description": "A semantic failed-policy panel with its reason visible below the outcome.",
-      "html": "<section class=\"ds-policy\"><div class=\"ds-policy-heading\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v6m0 3h.01\"/></svg><div><h2>Policy failed</h2><p>The configured gate did not pass. Review its reasons and the evidence below.</p></div></div><ul class=\"ds-evidence\"><li>New findings were reported against the baseline.</li></ul></section>",
-      "css": ".ds-policy{padding:23px 25px;background:var(--surface,#121416);border:1px solid var(--line,#2b2f35);border-radius:var(--radius,12px);font-family:var(--body,Manrope,system-ui,sans-serif);}.ds-policy-heading{display:flex;align-items:flex-start;gap:13px}.ds-policy-heading svg{color:var(--red,#ff9d9d);width:25px;height:25px;margin-top:1px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}.ds-policy h2{font-family:var(--display,Sora,system-ui,sans-serif);font-weight:500;line-height:1.3;letter-spacing:-.02em;font-size:20px;color:var(--red,#ff9d9d);margin:0}.ds-policy p{color:var(--muted,#a5acb6);margin:7px 0 0;max-width:75ch;font-size:12px;line-height:1.65}.ds-evidence{padding-left:19px;margin:15px 0 0 38px;color:#d2d6dc;font-size:12px;line-height:1.65;overflow-wrap:anywhere;max-width:90ch}@media(max-width:720px){.ds-policy{padding:20px 17px}.ds-policy h2{font-size:18px}.ds-policy-heading{gap:10px}.ds-policy p,.ds-evidence{font-size:11px}.ds-policy-heading svg{width:22px;height:22px}.ds-evidence{margin-left:8px}}.ds-policy{padding:24px}.ds-policy h2{font-size:23px}.ds-policy p,.ds-evidence{font-size:15px}@media(max-width:720px){.ds-policy{padding:20px 17px}.ds-policy h2{font-size:21px}.ds-policy p,.ds-evidence{font-size:14px}}.ds-policy{background:#0a10182e;border-color:#b0c4d526;border-radius:16px;box-shadow:none}.ds-policy p{color:#bbc6d1}@media(max-width:720px){.ds-policy{padding:20px 16px}}@media(forced-colors:active){.ds-policy{background:Canvas;color:CanvasText;box-shadow:none;border:1px solid CanvasText;backdrop-filter:none;-webkit-backdrop-filter:none}}"
-    },
-    {
-      "name": "Component inspector",
-      "kind": "card",
-      "refersTo": "inspector",
-      "description": "The adjacent detail surface retains package identity before its evidence sections.",
-      "html": "<section class=\"ds-inspector\"><div class=\"ds-heading\"><h2>Component inspector</h2><a href=\"#inventory-title\">Back to inventory</a></div><h3 class=\"ds-detail-title\">example-package</h3><p class=\"ds-purl\">pkg:npm/example-package@1.2.0</p><dl class=\"ds-facts\"><div><dt>Version</dt><dd>1.2.0</dd></div><div><dt>Relationship</dt><dd>Direct</dd></div><div><dt>License</dt><dd>Not provided</dd></div></dl></section>",
-      "css": ".ds-inspector{padding:22px;background:var(--surface,#121416);color:var(--text,#eceef0);border:1px solid var(--line,#2b2f35);border-radius:var(--radius,12px);font-family:var(--body,Manrope,system-ui,sans-serif);}.ds-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:23px}.ds-heading h2{font:500 15px/1.3 var(--display,Sora,system-ui,sans-serif);letter-spacing:-.02em;margin:0}.ds-heading span{font-size:11px;color:var(--muted,#a5acb6)}.ds-detail-title{font:500 19px/1.3 var(--display,Sora,system-ui,sans-serif);overflow-wrap:anywhere;margin:0 0 8px}.ds-purl{color:var(--muted,#a5acb6);font:11px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;margin:0}.ds-facts{display:flex;flex-wrap:wrap;gap:10px 20px;padding:17px 0;border-bottom:1px solid var(--line,#2b2f35);margin:0 0 22px}.ds-facts div{font-size:11px}.ds-facts dt{color:var(--muted,#a5acb6);margin-bottom:3px}.ds-facts dd{margin:0}@media(max-width:720px){.ds-inspector{padding:19px 17px}.ds-heading h2{font-size:14px}}.ds-inspector{padding:24px}.ds-heading h2{font-size:18px}.ds-heading a{font-size:12px;color:var(--muted,#a5acb6)}.ds-heading a:hover{color:var(--accent,#f4ba63)}.ds-heading a:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px}.ds-detail-title{font-size:23px}.ds-purl,.ds-facts div{font-size:13px}.ds-facts{gap:14px 24px}@media(max-width:720px){.ds-inspector{padding:22px 17px}.ds-heading h2{font-size:17px}.ds-purl{font-size:12px}.ds-facts div{font-size:14px}}.ds-inspector{background:#0a10182e;border-color:#b0c4d526;border-radius:16px;box-shadow:none}.ds-heading h2{font-size:17px}.ds-heading{align-items:start}.ds-purl,.ds-facts dt{color:#bbc6d1}.ds-facts{border-color:#b0c4d526;padding-bottom:20px}@media(max-width:720px){.ds-inspector{padding:21px 16px}.ds-heading{flex-wrap:wrap}.ds-heading h2{font-size:16px}.ds-detail-title{font-size:21px}}@media(forced-colors:active){.ds-inspector{background:Canvas;color:CanvasText;box-shadow:none;border:1px solid CanvasText;backdrop-filter:none;-webkit-backdrop-filter:none}}"
-    },
-    {
-      "name": "Selected inventory row",
-      "kind": "custom",
-      "refersTo": "inventory-row-selected",
-      "description": "The warm row, amber name and inset marker connect inventory selection to the inspector.",
-      "html": "<table class=\"ds-table\"><tbody><tr class=\"ds-selected\"><td><button class=\"ds-row-select\" type=\"button\" aria-pressed=\"true\">example-package</button><div class=\"ds-meta\">1.2.0 \u00b7 Direct</div></td><td class=\"ds-ecosystem\">npm</td><td>1<span class=\"ds-row-severity\">High advisory</span></td></tr></tbody></table>",
-      "css": ".ds-table{border-collapse:collapse;width:100%;text-align:left;font-family:var(--body,Manrope,system-ui,sans-serif);color:var(--text,#eceef0);font-variant-numeric:tabular-nums}.ds-table td{padding:15px 12px;border-bottom:1px solid #23262b;vertical-align:top;font-size:11px}.ds-selected{background:#1b1c1a}.ds-selected td:first-child{box-shadow:inset 1px 0 var(--accent,#f4ba63)}.ds-row-select{display:block;text-align:left;padding:0;border:0;background:transparent;min-height:26px;color:var(--accent,#f4ba63);font-family:var(--body,Manrope,system-ui,sans-serif);font-size:12px;font-weight:650;max-width:100%;overflow-wrap:anywhere;cursor:pointer}.ds-row-select:hover{background:transparent;color:var(--accent,#f4ba63)}.ds-row-select:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}.ds-meta{font-size:11px;color:var(--muted,#a5acb6);margin-top:3px;overflow-wrap:anywhere}.ds-ecosystem{color:#c1c9d5;white-space:nowrap}.ds-row-severity{display:block;font-size:11px;margin-top:4px;color:var(--red,#ff9d9d)}@media(max-width:720px){.ds-table td{padding:14px 9px}.ds-row-select{font-size:11px}}.ds-table td{font-size:14px;padding:17px 12px}.ds-row-select{font-size:15px;min-height:32px}.ds-meta,.ds-ecosystem{font-size:13px}.ds-row-severity{font-size:12px}@media(max-width:720px){.ds-table td{padding:15px 7px;font-size:13px}.ds-row-select{font-size:14px}.ds-meta,.ds-ecosystem{font-size:12px}}.ds-selected{background:#f4ba6312}.ds-table td{border-color:#b0c4d526}.ds-selected td:first-child{box-shadow:inset 1px 0 #f4ba6380}.ds-meta{color:#bbc6d1}"
-    },
-    {
-      "name": "Application header navigation",
-      "kind": "nav",
-      "description": "Floating glass header navigation. The project\u2019s fixed local room photograph supplies the backdrop; this isolated specimen preserves the material without loading remote imagery.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Application\"><a class=\"ds-brand\" href=\"./\"><svg viewBox=\"0 0 28 28\" aria-hidden=\"true\"><path d=\"M14 2 24 6v8c0 6-10 12-10 12S4 20 4 14V6Z\"/><path d=\"m9 14 3 3 7-7\"/></svg><span>SCRAM</span><span class=\"ds-divider\"></span><span class=\"ds-app-name\">Report viewer</span></a><a class=\"ds-source\" href=\"https://github.com/0xsan7/SCRAM\" target=\"_blank\" rel=\"noopener noreferrer\">Source code</a></nav>",
-      "css": ".ds-nav{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:1px solid var(--line,#2b2f35);background:var(--page,#0b0c0e);color:var(--text,#eceef0);font-family:var(--body,Manrope,system-ui,sans-serif);}.ds-nav a{text-decoration:none}.ds-nav a:hover{color:var(--accent,#f4ba63)}.ds-nav a:focus-visible{outline:2px solid var(--accent,#f4ba63);outline-offset:4px;}.ds-brand{display:flex;align-items:center;gap:12px;font-family:var(--display,Sora,system-ui,sans-serif);font-size:18px;font-weight:600;letter-spacing:-.03em;color:inherit}.ds-brand svg{width:28px;height:28px;color:var(--accent,#f4ba63)}.ds-nav svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}.ds-divider{width:1px;height:22px;background:var(--line,#2b2f35);margin:0 5px}.ds-app-name{font-family:var(--body,Manrope,system-ui,sans-serif);font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted,#a5acb6)}.ds-source{font-size:12px;color:var(--muted,#a5acb6)}.ds-source svg{width:16px;height:16px;vertical-align:middle;margin-left:8px}@media(max-width:720px){.ds-nav{height:65px;padding:0 20px}.ds-brand{font-size:16px;gap:9px}.ds-divider{margin:0 2px}.ds-app-name{font-size:11px}.ds-source{font-size:0}.ds-source svg{width:20px;height:20px}}.ds-app-name,.ds-source{font-size:14px}.ds-source{white-space:nowrap}@media(max-width:720px){.ds-nav{padding:0 18px}.ds-app-name,.ds-source{font-size:12px}}.ds-nav{background:linear-gradient(var(--glass-tint-wash,color-mix(in srgb,var(--glass-tint,#eadbc7) 12%,transparent)),var(--glass-tint-wash,color-mix(in srgb,var(--glass-tint,#eadbc7) 12%,transparent))),var(--glass-material,color-mix(in srgb,#17191d 30%,transparent));backdrop-filter:blur(var(--glass-blur,22px)) saturate(var(--glass-saturation,1.2));-webkit-backdrop-filter:blur(var(--glass-blur,22px)) saturate(var(--glass-saturation,1.2));box-shadow:inset 0 1px 0 var(--glass-highlight,#e8f3fb3d),inset 0 0 0 1px var(--glass-rule,#eadbc72b),0 22px 52px -30px #000b;border:0;border-radius:20px;height:72px;padding:0 26px}.ds-brand{font-size:19px}.ds-brand svg{width:30px;height:30px}.ds-app-name,.ds-source{color:#bbc6d1}@media(max-width:720px){.ds-nav{height:65px;padding:0 16px;border-radius:16px}.ds-brand{font-size:17px;gap:8px}.ds-brand svg{width:26px;height:26px}.ds-app-name,.ds-divider{display:none}}@supports not (backdrop-filter:blur(1px)){.ds-nav{background:#18212b}}@media(prefers-reduced-transparency:reduce){.ds-nav{background:#18212b;backdrop-filter:none;-webkit-backdrop-filter:none}}@media(forced-colors:active){.ds-nav{background:Canvas;color:CanvasText;box-shadow:none;border:1px solid CanvasText;backdrop-filter:none;-webkit-backdrop-filter:none}}"
-    }
-  ],
+  "components": [],
   "narrative": {
-    "northStar": "Frosted dependency registry",
-    "overview": "This document describes the styling trial on `codex/scram-glass-preview` only. Production remains on `codex/scram-usability` and is unchanged. The user explicitly chose to apply the supplied adjustable-glass styling to the existing viewer; this is authorization for the trial, not approval to replace production. There is no approved image comp.\n\nThe existing dependency registry now sits inside a floating frosted header, rail and workspace over the reference room photograph (`web/assets/glass-room.jpg`). Fixed viewport scenery and a dark shade supply visible detail for the actual backdrop blur; the photograph is not pre-blurred. Inner evidence panels stay quiet and unblurred. Sora, Manrope, amber selection and explicit policy/severity semantics retain their established roles. `web/glass.css`, loaded after `web/styles.css`, owns this trial's overrides; `web/glass.mjs` controls session-only material settings. The corrected trial follows the supplied 21st adjustable-glass-dashboard reference. It adds the local reference room image while retaining native HTML/CSS/JavaScript, without a framework migration or new dependency.",
+    "northStar": "A guided dependency review",
+    "overview": "Warm paper, forest ink and one sample verdict lead to the public static reader or the local CLI guide.",
     "keyCharacteristics": [
-      "Translucent dark outer surfaces, illuminated edges and quiet inner evidence panels.",
-      "Amber selection and focus, with explicit status words alongside status colors.",
-      "Readable tabular report facts and wrapping identifiers.",
-      "A report chooser, inventory and inspector that stack as space narrows.",
-      "Immediate report-state changes, optional short control transitions and adjustable session-only glass."
+      "Native file selection and disclosures",
+      "Explicit policy language and provenance",
+      "Locally served assets"
     ],
-    "rules": [
-      {
-        "name": "The Status Has Words Rule",
-        "body": "Preserve the visible policy, severity and example labels when using status color; a dot or color alone does not carry the result.",
-        "section": "colors"
-      },
-      {
-        "name": "The Identifier Rule",
-        "body": "Reserve monospace for actual identifiers, versions where represented as code, and commands; retain Manrope for human explanations.",
-        "section": "typography"
-      },
-      {
-        "name": "The Ruled Surface Rule",
-        "body": "Keep inner evidence legible with quiet translucent fills and fine rules; reserve backdrop blur and ambient lift for the outer workspace surfaces.",
-        "section": "elevation"
-      }
-    ],
+    "rules": [],
     "dos": [
-      "**Do** use this branch\u2019s frosted outer frame, quiet inner evidence, fine rules and existing Sora/Manrope pairing.",
-      "**Do** keep provenance, policy explanations and missing-evidence warnings visible before interpreting scores.",
-      "**Do** pair semantic colors with explicit words and preserve the amber keyboard focus outline.",
-      "**Do** preserve identifier wrapping, responsive stacking and local table overflow.",
-      "**Do** keep selected report and selected dependency states distinguishable from policy outcomes."
+      "Keep navigation and task labels short.",
+      "Make policy warnings and missing evidence visible."
     ],
     "donts": [
-      "**Don't** turn a passed policy or zero known findings into a visual claim of repository safety.",
-      "**Don't** replace unknown baseline values with zeros or successful status decoration.",
-      "**Don't** treat this styling trial as production approval or claim an approved image comp.",
-      "**Don't** add decorative graph data, artificial live activity or entrance motion to this saved-report registry."
+      "Use color as the only status signal.",
+      "Request a report from a server for a browser file import."
     ]
   }
 }

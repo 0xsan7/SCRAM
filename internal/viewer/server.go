@@ -79,7 +79,8 @@ func handler(host, prefix string, report []byte) http.Handler {
 			http.Error(w, "Read-only viewer", http.StatusMethodNotAllowed)
 			return
 		}
-		if !strings.HasPrefix(r.URL.Path, prefix) {
+		if !strings.HasPrefix(r.URL.Path, prefix) ||
+			(r.URL.Path != prefix && strings.HasSuffix(r.URL.Path, "/")) {
 			http.NotFound(w, r)
 			return
 		}
@@ -103,7 +104,7 @@ func Serve(ctx context.Context, report []byte, output io.Writer) error {
 	address := listener.Addr().String()
 	url := "http://" + address + prefix
 	if report != nil {
-		url += "?local=1"
+		url += "viewer.html?local=1"
 	}
 	server := &http.Server{Handler: handler(address, prefix, report), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second}
 	done := make(chan struct{})

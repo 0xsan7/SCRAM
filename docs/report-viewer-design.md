@@ -1,3 +1,5 @@
+> Historical design notes for the original report viewer. See [the current design](../DESIGN.md) for the guided site.
+
 # Report viewer direction
 
 Mode: Operate. The approved functional brief is

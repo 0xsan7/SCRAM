@@ -52,13 +52,13 @@ button:disabled { cursor: default; opacity: .55; }
 .skip-link:focus { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 8px 12px; background: var(--white); }
 .shell { width: min(1170px, calc(100% - 72px)); margin-inline: auto; }
 .site-header { border-bottom: 1px solid var(--line); }
-.masthead, .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.masthead { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .masthead { min-height: 78px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font: 750 1.25rem var(--display); letter-spacing: -.04em; }
-.masthead nav, .footer-inner nav { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(12px, 3vw, 32px); }
-.masthead a, .footer-inner a { color: var(--ink); text-decoration: none; }
-.masthead nav a, .footer-inner nav a { font-weight: 700; font-size: .92rem; }
-.masthead nav a:hover, .footer-inner nav a:hover { text-decoration: underline; }
+.masthead nav { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(12px, 3vw, 32px); }
+.masthead a { color: var(--ink); text-decoration: none; }
+.masthead nav a { font-weight: 700; font-size: .92rem; }
+.masthead nav a:hover { text-decoration: underline; }
 .nav-action { border: 1px solid var(--line); border-radius: 8px; padding: 8px 13px; background: var(--white); }
 .button-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .button, button, select, input[type="search"], input[type="file"]::file-selector-button {
@@ -92,12 +92,6 @@ summary { cursor: pointer; font-weight: 750; }
 .privacy { background: var(--wash); border-radius: 14px; padding: 24px; }
 .privacy h3 { font-size: 1.17rem; margin-top: 10px; }
 .privacy p { margin-top: 9px; font-size: .94rem; }
-.site-footer { border-top: 1px solid var(--line); background: var(--wash); }
-.footer-inner { padding-block: 27px; }
-.footer-note { display: flex; align-items: center; gap: 12px; }
-.footer-note strong { font-family: var(--display); font-size: .91rem; }
-.footer-note p { color: var(--muted); font-size: .82rem; }
-
 /* Report reading surfaces */
 .reader { padding-block: 42px 72px; }
 .reader-title, .report-meta, .section-heading, .pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px 14px; }
@@ -199,7 +193,6 @@ tr.selected { background: var(--wash); }
   .brand img { width: 27px; height: 27px; }
   .guide-layout, .about, .report-picker { grid-template-columns: minmax(0, 1fr); }
   .guide-layout, .about { gap: 23px; }
-  .footer-inner { flex-wrap: wrap; }
   .reader { padding-top: 25px; }
   .report-picker { gap: 9px; }
   .summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }

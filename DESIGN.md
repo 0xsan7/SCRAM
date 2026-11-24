@@ -52,3 +52,13 @@ JavaScript. Visitors choose a sample; the stage never auto-advances. A short
 hero entrance respects reduced-motion preferences. The website
 requests sample files only when a visitor chooses one. Page scripts, assets
 and fonts are served locally by the site.
+
+## Footer
+
+The supplied Shutter Glyph Footer demo uses near-black `#111110` with bone
+`#efe9dc`. The shared footer pairs that palette, compact monospace navigation
+and an oversized SCRAM wordmark. The shutter takes the third position. It
+follows a pointer with motion enabled and rotates a quarter turn on activation
+by pointer or keyboard. The visible link labels settle back to their original
+text and their accessible names stay fixed. The footer links to the reader,
+project feedback, privacy information and the license.

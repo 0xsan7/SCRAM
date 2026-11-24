@@ -53,7 +53,7 @@ func TestTheTwoGoPathsFindTheSameVulnerabilities(t *testing.T) {
 		// production one. A test that hand-builds its own query would pass
 		// even while the shipped code used the wrong key.
 		c := vuln.NewClient(nil)
-		if err := c.QueryOSV(ctx, comps); err != nil {
+		if _, err := c.QueryOSV(ctx, comps); err != nil {
 			t.Fatalf("QueryOSV(%s): %v", filename, err)
 		}
 		out := map[string][]string{}

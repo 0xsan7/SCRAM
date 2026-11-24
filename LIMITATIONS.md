@@ -134,6 +134,15 @@ recognise falls back to no maintenance score rather than a guess.
 arrive through OSV, which is where they are published. G2's "optional NVD/GHSA
 enrichment" is not implemented.
 
+**OSV matching coverage applies to resolved components.** The optional
+`scan.osv_coverage` counters partition this inventory into `checked`, `partial`
+and `unchecked`. Checked includes a completed query with no findings. Successful
+pages remain available after an upstream failure. A repeated token or the
+20-page limit leaves the affected query partial and the scan degraded.
+These counts cover query results. Use the inventory and enrichment warnings
+to evaluate resolver gaps, advisory details and EPSS separately. Historical
+reports can omit the field, and inventory-only scans skip it.
+
 **EPSS is best-effort and may be absent.** FIRST.org's API is queried per CVE.
 It rate-limits, and a failure is recorded as a warning with the scan marked
 degraded, rather than silently scoring a component as if it had no EPSS.

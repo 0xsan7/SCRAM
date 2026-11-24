@@ -338,9 +338,11 @@ func attachVulns(ctx context.Context, cfg *policy.Config, opts Options, scan *mo
 		scan.Warnings = append(scan.Warnings, msg)
 	}
 
-	if err := client.QueryOSV(ctx, scan.Components); err != nil {
+	coverage, err := client.QueryOSV(ctx, scan.Components)
+	if err != nil {
 		return true, err
 	}
+	scan.OSVCoverage = &coverage
 	return degraded, nil
 }
 

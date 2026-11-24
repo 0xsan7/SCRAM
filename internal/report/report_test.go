@@ -308,7 +308,7 @@ func TestTableEmptyResult(t *testing.T) {
 	if err := Write(&buf, s, nil, FormatTable); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "No known vulnerabilities") {
+	if !strings.Contains(buf.String(), "No findings reported") {
 		t.Errorf("expected an explicit no-findings message:\n%s", buf.String())
 	}
 }

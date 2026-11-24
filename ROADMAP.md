@@ -8,18 +8,20 @@ decision to a teammate. The first audience is teams with supported lockfiles,
 GitHub Actions and an existing advisory backlog. The CLI and local viewer also
 let a reviewer work with the same report outside GitHub.
 
-### Proposed sequence
+### Implementation and release order
 
-Time windows below are planning estimates for one maintainer. Each milestone has an
-exit test. Pilot and performance targets are proposed measures, not observed results.
+The first audience is maintainers of GitHub repositories with npm, Python, Go
+or Cargo dependencies and an existing advisory backlog. Their first job is to
+tell a teammate why a dependency PR should merge, wait for a fix, or be rerun
+because evidence is missing. The pilot is the test of demand.
 
-| Priority and timing | Deliverable | Evidence to move on |
+| Priority | What ships | Acceptance evidence |
 | --- | --- | --- |
-| 1 · Release qualification, weeks 1–2 | Ship the integrated scanner, Action and embedded viewer through the existing candidate process. Verify upgrade from v0.2.0, downgrade instructions, release signatures, and the static deployment separately. | Fresh installs pass the unchanged PR, new finding PR and push journeys. Reviewers can download the JSON from a failed gate and open it. Firefox, Safari, keyboard and screen-reader checks have recorded results. |
-| 2 · Pilot adoption, weeks 2–4 | Walk three willing maintainers through one repository each. Start in advisory mode and review a week of PRs before enabling a required check. Offer sample policies for teams adopting an existing backlog. | Target two teams choosing to keep the check enabled. In five observed reviews, target four reviewers correctly identifying the decision, affected component and evidence gap in under two minutes. Record reasons for disabling the gate. |
-| 3 · Evidence quality, weeks 4–8 | Record checked, skipped and partially matched component counts by source. Complete OSV pagination and test retry/cancellation. Add a dated EPSS cache. Report skipped Python ranges or VCS references explicitly. | Fixture tests simulate partial responses, stale entries and interrupted runs. A reviewer can distinguish zero findings, unknown coverage and stale evidence in JSON, the PR and the export. |
-| 4 · Prioritization, weeks 8–12 | Pilot Go reachability on repositories with build information. Preserve a distinct unknown state when symbols, build tags or call paths cannot be resolved. Add verifiable build provenance to the release workflow. | Known called, uncalled and unresolvable fixtures give distinct results. A verifier checks a release artifact against the exact source and builder. |
-| 5 · Expansion, after pilot results | Choose the next ecosystem from pilot demand. RubyGems has a lockfile-first path. Maven needs resolved dependency data. Evaluate .NET using real locked restore outputs. | Each resolver passes package-manager comparison on real fixtures, a known-advisory match and a degraded-input test before it is advertised. |
+| 0 · Make the review trustworthy | OSV continuation through the last page, retention of successful batches, and checked/partial/unchecked counts in terminal, JSON, PR comments and viewer. Advisory mode preserves a failed verdict while keeping the pilot check nonblocking for policy decisions. | Implementation in this revision. Fixtures cover successful and failed continuation, later batches, cancellation, degraded policy, old reports and the Action’s exit codes and comment. |
+| 1 · Qualify a release candidate | Validate a fresh install, v0.2.0 upgrade, version-pinned Action, artifact access and signature verification. Run passing, blocking, advisory and operational-failure jobs on GitHub. Cover same-repository and fork PRs with the documented permission model. Verify the packaged viewer independently of the hosted deployment. | Record exact artifact digests and run links in the release checklist. A reviewer can retrieve the failed gate’s report and open it locally. Record Firefox, Safari and keyboard results. Keep the published stable version available for rollback. |
+| 2 · Run a one-week pilot | Invite three maintainers, one repo each. Start with a version-pinned advisory check, then review false positives, coverage warnings and ignored comments with each team before proposing a required check. | Target two maintainers choosing to keep the check enabled. Target four of five observed reviews correctly explaining the verdict, affected component and any evidence gap in under two minutes. If either target is missed, fix the recurring problem before widening scope. |
+| 3 · Close evidence gaps from the pilot | Record resolution skips, starting with skipped Python ranges and VCS references. Show affected scopes and incomplete inventory separately from OSV matching. Track advisory-detail and EPSS freshness, add a dated EPSS cache, and evaluate retry latency on real repositories. | Fixture tests distinguish skipped inputs, incomplete matching, missing metadata and stale enrichment. Reviewers can identify which evidence to refresh before merging. |
+| 4 · Improve prioritization and distribution | Pilot Go reachability with distinct called, uncalled and unknown outcomes. Add build provenance verification to releases. Consider RubyGems, resolved Maven input or .NET only after pilot demand identifies the next ecosystem. | Validate reachability against fixtures and real projects, verify an artifact’s source and builder, and compare a new inventory with its native package manager before enabling the resolver. |
 
 **How to measure adoption.** Ask participating teams for time to first review,
 how often someone changes a merge decision, and which comments they ignore.

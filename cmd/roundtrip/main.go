@@ -83,7 +83,7 @@ func run(root string, probes []probe) error {
 		}
 		// The PRODUCTION client, so the lookup key is the production one.
 		c := vuln.NewClient(nil)
-		if err := c.QueryOSV(ctx, comps); err != nil {
+		if _, err := c.QueryOSV(ctx, comps); err != nil {
 			fmt.Printf("%-8s ERROR query: %v\n", p.ecosystem, err)
 			continue
 		}

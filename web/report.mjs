@@ -65,6 +65,12 @@ export function parseReport(source) {
   doc.fail_reasons = strings(doc.fail_reasons, 'Failure reasons', 500);
   if (!Object.hasOwn(scan, 'components')) fail('The component inventory is missing.');
   scan.components = array(scan.components, 'Components', MAX_COMPONENTS);
+  if (scan.osv_coverage !== undefined) {
+    const coverage = object(scan.osv_coverage, 'OSV coverage');
+    const total = ['checked', 'partial', 'unchecked'].reduce((sum, key) =>
+      sum + number(coverage[key], 'OSV coverage ' + key, 0, scan.components.length, true), 0);
+    if (total !== scan.components.length) fail('OSV coverage counts do not match the resolved inventory.');
+  }
   let findings = 0;
   const reportedBuckets = Object.fromEntries(buckets.map(bucket => [bucket, 0]));
   for (const component of scan.components) {
@@ -169,6 +175,13 @@ export function collectionDetails(scan) {
   return [mode, version, start].join(' · ');
 }
 
+export function coverageDetails(scan) {
+  if (scan.mode === 'inventory') return 'OSV matching skipped (inventory only)';
+  const coverage = scan.osv_coverage;
+  if (!coverage) return 'OSV matching coverage unavailable';
+  return `OSV matching on resolved inventory: ${coverage.checked} checked, ${coverage.partial} partial, ${coverage.unchecked} unchecked`;
+}
+
 // Plain-text export keeps the policy and its caveats, even for a filtered list.
 export function summaryText(doc, components = doc.scan.components, synthetic = false) {
   const line = value => String(value).replace(/[\u0000-\u001f\u007f]/g, ' ');
@@ -179,7 +192,7 @@ export function summaryText(doc, components = doc.scan.components, synthetic = f
     `Known findings in full report: ${doc.scan.summary.vuln_total}`,
     `New findings: ${overview.newFindings ?? 'Unknown (no baseline)'}`,
     `Resolved findings: ${overview.resolvedFindings ?? 'Unknown (no baseline)'}`,
-    line(collectionDetails(doc.scan)), 'Policy is a configured decision, not a safety guarantee.', '',
+    line(collectionDetails(doc.scan)), coverageDetails(doc.scan), 'Policy is a configured decision, not a safety guarantee.', '',
     'Policy reasons:', ...(doc.fail_reasons.length ? doc.fail_reasons.map(x => `- ${line(x)}`) : ['- None provided']),
     '', 'Warnings:', ...(doc.scan.warnings.length ? doc.scan.warnings.map(x => `- ${line(x)}`) : ['- None provided; completeness is not established']), '',
     `Selected inventory: ${components.length} of ${doc.scan.components.length} dependencies`];

@@ -182,15 +182,24 @@ func AtLeast(bucket, threshold string) bool {
 // Scan records the evidence collected for one repository. Older reports
 // omit the collection metadata.
 type Scan struct {
-	StartedAt      string      `json:"started_at,omitempty"`
-	ScannerVersion string      `json:"scanner_version,omitempty"`
-	Mode           string      `json:"mode,omitempty"`
-	SchemaVersion  string      `json:"schema_version"`
-	Repo           string      `json:"repo"`
-	Commit         string      `json:"commit,omitempty"`
-	Components     []Component `json:"components"`
-	Summary        Summary     `json:"summary"`
-	Warnings       []string    `json:"warnings,omitempty"`
+	OSVCoverage    *OSVCoverage `json:"osv_coverage,omitempty"`
+	StartedAt      string       `json:"started_at,omitempty"`
+	ScannerVersion string       `json:"scanner_version,omitempty"`
+	Mode           string       `json:"mode,omitempty"`
+	SchemaVersion  string       `json:"schema_version"`
+	Repo           string       `json:"repo"`
+	Commit         string       `json:"commit,omitempty"`
+	Components     []Component  `json:"components"`
+	Summary        Summary      `json:"summary"`
+	Warnings       []string     `json:"warnings,omitempty"`
+}
+
+// OSVCoverage counts resolved components by the outcome of package matching.
+// Advisory details and EPSS are tracked separately through scan warnings.
+type OSVCoverage struct {
+	Checked   int `json:"checked"`   // All result pages received, including empty results.
+	Partial   int `json:"partial"`   // A result page arrived but pagination did not finish.
+	Unchecked int `json:"unchecked"` // No result page received or query was skipped.
 }
 
 // Summary is the repo-level rollup.

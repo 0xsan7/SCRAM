@@ -182,6 +182,10 @@ func writeTable(w io.Writer, scan model.Scan, diff *model.DiffResult, tr *Trend)
 	}
 	fmt.Fprintf(&b, "  components  %d\n", scan.Summary.TotalComponents)
 	fmt.Fprintf(&b, "  findings    %d vulnerability record(s)\n", scan.Summary.VulnTotal)
+	if coverage := scan.OSVCoverage; coverage != nil {
+		fmt.Fprintf(&b, "  OSV matching on resolved inventory: %d checked, %d partial, %d unchecked\n",
+			coverage.Checked, coverage.Partial, coverage.Unchecked)
+	}
 
 	bucket := scan.Summary.RepoBucket
 	fmt.Fprintf(&b, "  repo score  %d/%d  %s\n", scan.Summary.RepoScore, model.PresentedMax,
@@ -225,7 +229,7 @@ func writeTable(w io.Writer, scan model.Scan, diff *model.DiffResult, tr *Trend)
 	})
 
 	if len(flagged) == 0 {
-		fmt.Fprintf(&b, "%s\n", paint(colorGreen, "  No known vulnerabilities found."))
+		fmt.Fprintln(&b, "  No findings reported. Check matching coverage and warnings.")
 	}
 
 	for _, c := range flagged {

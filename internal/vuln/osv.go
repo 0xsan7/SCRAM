@@ -69,7 +69,8 @@ type osvBatchRequest struct {
 type osvQuery struct {
 	Package osvPackage `json:"package"`
 	// Version is optional; when set OSV returns only vulns affecting it.
-	Version string `json:"version,omitempty"`
+	Version   string `json:"version,omitempty"`
+	PageToken string `json:"page_token,omitempty"`
 }
 
 type osvPackage struct {
@@ -79,7 +80,7 @@ type osvPackage struct {
 
 // osvBatchResponse is a list positionally aligned with the request queries.
 type osvBatchResponse struct {
-	Results []osvResult `json:"results"`
+	Results []*osvResult `json:"results"`
 }
 
 type osvResult struct {
@@ -131,24 +132,24 @@ type osvRef struct {
 // call. The API rejects larger batches.
 const OSVBatch = 1000
 
-// QueryOSV batch-queries OSV for every component and attaches the results.
-//
-// It mutates the components in place so callers keep working with one slice.
-// FR-201 requires a single batched call per scan, not N sequential requests.
-func (c *Client) QueryOSV(ctx context.Context, comps []model.Component) error {
-	if c.Offline {
-		return fmt.Errorf("--offline set but vulnerability data is not cached for this scan; refusing to report a clean result (NFR-6)")
+// QueryOSV attaches the available findings and counts matching coverage for
+// this inventory. Incomplete matching warns even when other packages succeed.
+func (c *Client) QueryOSV(ctx context.Context, comps []model.Component) (model.OSVCoverage, error) {
+	coverage := model.OSVCoverage{Unchecked: len(comps)}
+	if err := ctx.Err(); err != nil {
+		return coverage, err
 	}
-	if len(comps) == 0 {
-		return nil
+	if c.Offline {
+		return coverage, fmt.Errorf("--offline set but vulnerability data is not cached for this scan; refusing to report a clean result (NFR-6)")
 	}
 
-	// Only ask about components whose ecosystem OSV actually indexes.
-	queryable := make([]int, 0, len(comps))
-	req := osvBatchRequest{Queries: []osvQuery{}}
+	// Keep each query associated with its component when the batch shrinks.
+	var queryable []int
+	req := osvBatchRequest{}
 	for i, comp := range comps {
+		comps[i].Vulnerabilities = nil
 		eco, ok := OSVEcosystem(comp.Ecosystem)
-		if !ok {
+		if !ok || strings.TrimSpace(comp.Name) == "" || strings.TrimSpace(comp.Version) == "" {
 			continue
 		}
 		queryable = append(queryable, i)
@@ -157,23 +158,17 @@ func (c *Client) QueryOSV(ctx context.Context, comps []model.Component) error {
 			Version: comp.Version,
 		})
 	}
-	if len(req.Queries) == 0 {
-		c.warn("no components matched an OSV-supported ecosystem; skipping OSV")
-		return nil
+
+	if len(queryable) < len(comps) {
+		c.warn("OSV skipped %d component(s) without a supported ecosystem, package name or resolved version", len(comps)-len(queryable))
 	}
 
-	results, err := c.batchQuery(ctx, req)
-	if err != nil {
-		// Upstream outage degrades, never hard-fails (NFR-3).
-		c.warn("OSV query failed, vulnerability data incomplete: %v", err)
-		return nil
-	}
-
-	for qi, compIdx := range queryable {
-		if qi >= len(results) {
-			break
+	for start := 0; start < len(queryable); start += OSVBatch {
+		end := min(start+OSVBatch, len(queryable))
+		c.matchPages(ctx, comps, queryable[start:end], req.Queries[start:end], &coverage)
+		if err := ctx.Err(); err != nil {
+			return coverage, err
 		}
-		comps[compIdx].Vulnerabilities = normalizeOSV(results[qi].Vulns)
 	}
 
 	// querybatch returns ids only; fetch the full records. Without this step
@@ -184,6 +179,9 @@ func (c *Client) QueryOSV(ctx context.Context, comps []model.Component) error {
 			"their severity is unknown and they are scored as 0", failed)
 	}
 
+	if err := ctx.Err(); err != nil {
+		return coverage, err
+	}
 	if c.UseEPSS {
 		if err := c.enrichEPSS(ctx, comps); err != nil {
 			c.warn("EPSS enrichment incomplete; unavailable scores contribute 0: %v", err)
@@ -197,56 +195,89 @@ func (c *Client) QueryOSV(ctx context.Context, comps []model.Component) error {
 	// no aliases and nothing can be linked.
 	DedupeComponents(comps)
 
-	return nil
+	return coverage, ctx.Err()
 }
 
-func (c *Client) batchQuery(ctx context.Context, req osvBatchRequest) ([]osvResult, error) {
-	var out []osvResult
-	// OSV caps querybatch payloads, so long dependency lists are chunked.
-	for start := 0; start < len(req.Queries); start += OSVBatch {
-		end := start + OSVBatch
-		if end > len(req.Queries) {
-			end = len(req.Queries)
-		}
-		chunk := osvBatchRequest{Queries: req.Queries[start:end]}
+// Bound the number of continuation requests per chunk even if the upstream
+// keeps returning different tokens. The policy sees a partial match.
+const maxOSVPages = 20
 
-		body, err := json.Marshal(chunk)
+func (c *Client) matchPages(ctx context.Context, comps []model.Component, pending []int, queries []osvQuery, coverage *model.OSVCoverage) {
+	for page := 0; len(pending) > 0 && page < maxOSVPages; page++ {
+		chunk := osvBatchRequest{Queries: queries}
+		results, err := c.batchQuery(ctx, chunk)
 		if err != nil {
-			return nil, err
+			c.warn("OSV query failed, vulnerability data incomplete: %v", err)
+			return
 		}
 
-		url := OSVBaseURL + "/v1/querybatch"
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-		if err != nil {
-			return nil, err
+		nextPending := pending[:0]
+		nextQueries := queries[:0]
+		for i, compIdx := range pending {
+			result := results[i]
+			comps[compIdx].Vulnerabilities = append(comps[compIdx].Vulnerabilities, normalizeOSV(result.Vulns)...)
+			query := queries[i]
+			if query.PageToken == "" {
+				coverage.Unchecked--
+				coverage.Partial++
+			}
+			if result.NextPageToken == "" {
+				coverage.Partial--
+				coverage.Checked++
+				continue
+			}
+			if result.NextPageToken == query.PageToken {
+				c.warn("OSV returned a repeated continuation token; vulnerability data incomplete")
+				continue
+			}
+			query.PageToken = result.NextPageToken
+			nextPending = append(nextPending, compIdx)
+			nextQueries = append(nextQueries, query)
 		}
-		httpReq.Header.Set("Content-Type", "application/json")
+		pending, queries = nextPending, nextQueries
+	}
+	if len(pending) > 0 {
+		c.warn("OSV pagination reached the %d-page limit; vulnerability data incomplete for %d component(s)", maxOSVPages, len(pending))
+	}
+}
 
-		resp, err := c.HTTP.Do(httpReq)
-		if err != nil {
-			return nil, err
+func (c *Client) batchQuery(ctx context.Context, chunk osvBatchRequest) ([]*osvResult, error) {
+	body, err := json.Marshal(chunk)
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, OSVBaseURL+"/v1/querybatch", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTP.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OSV API returned %s", resp.Status)
+	}
+	var batch osvBatchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&batch); err != nil {
+		return nil, err
+	}
+	if len(batch.Results) != len(chunk.Queries) {
+		return nil, fmt.Errorf("OSV batch returned %d results for %d queries", len(batch.Results), len(chunk.Queries))
+	}
+	for _, result := range batch.Results {
+		if result == nil {
+			return nil, fmt.Errorf("OSV batch returned a null result")
 		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return nil, fmt.Errorf("OSV API returned %s", resp.Status)
-		}
-		var batch osvBatchResponse
-		decErr := json.NewDecoder(resp.Body).Decode(&batch)
-		resp.Body.Close()
-		if decErr != nil {
-			return nil, decErr
-		}
-		if len(batch.Results) != len(chunk.Queries) {
-			return nil, fmt.Errorf("OSV batch returned %d results for %d queries", len(batch.Results), len(chunk.Queries))
-		}
-		for _, result := range batch.Results {
-			if result.NextPageToken != "" {
-				return nil, fmt.Errorf("OSV batch requires additional pages; vulnerability data incomplete")
+		for _, advisory := range result.Vulns {
+			if strings.TrimSpace(advisory.ID) == "" {
+				return nil, fmt.Errorf("OSV batch returned a finding without an advisory ID")
 			}
 		}
-		out = append(out, batch.Results...)
 	}
-	return out, nil
+	return batch.Results, nil
 }
 
 // OSVEcosystem maps our ecosystem names onto OSV's, which are capitalized

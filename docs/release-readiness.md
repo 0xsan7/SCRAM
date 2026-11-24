@@ -48,10 +48,10 @@ Cloudflare's viewer build is narrower than the full GitHub CI matrix.
 | Installed user journey | Open | From a fresh released-candidate binary: scan a real repository, create JSON, open `scram view report.json`, inspect and export; exercise exit codes and stop the local server. |
 | Browser journeys | Chromium covered in the November audit. Safari and Firefox open. | Valid/invalid file import, drag/drop, oversize files, report switching, filters, pagination, inspector and copy/download behavior across the supported browsers. |
 | Completeness and resilience | Open | Exercise missing/partial OSV data, pagination, cache expiry/corruption, cancellation, Python ranges and skipped VCS/unpinned requirements; surface incomplete coverage explicitly. |
-| Report provenance | Partial | Scan start, CLI version and scan mode are carried through JSON, the viewer and export. Source age and checked/skipped counts remain open. |
+| Report provenance | Partial | Scan start, CLI version and scan mode are carried through JSON, the viewer and export. The follow-up implementation adds checked, partial and unchecked OSV counts for the resolved inventory. Source age and resolver exclusions still need structured evidence. |
 | Accessibility and performance | Open | Keyboard, screen reader, zoom, reduced transparency/forced colors, narrow layouts, and latency/memory near documented report limits. |
 | Public assets | Trial photograph replaced | The release source uses an original CSS backdrop. Check the built package and retain the bundled font notices. |
-| Published artifacts and Action | Open | Verify exact binaries, embedded assets, checksums/signatures, SBOMs, upgrade behavior and Action push/unchanged-PR/new-finding-PR behavior on the candidate release. |
+| Published artifacts and Action | Open | Verify exact binaries, embedded assets, checksums/signatures, SBOMs, upgrade behavior and Action push, unchanged PR, blocking PR, advisory PR and operational failure on the candidate release. Include a fork PR with read-only permissions. |
 
 ## Scope after this release
 

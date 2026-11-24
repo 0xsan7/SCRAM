@@ -1,4 +1,4 @@
-import { collectionDetails, MAX_BYTES, parseReport, reportOverview, matchingComponents, safeAdvisoryURL, severity, highestCVSS, summaryText } from './report.mjs';
+import { collectionDetails, coverageDetails, MAX_BYTES, parseReport, reportOverview, matchingComponents, safeAdvisoryURL, severity, highestCVSS, summaryText } from './report.mjs';
 
 const $ = id => document.getElementById(id);
 const format = new Intl.NumberFormat('en');
@@ -100,6 +100,7 @@ function renderReport() {
   setList('reasons', doc.fail_reasons.length ? doc.fail_reasons : doc.passed ? [] : ['No failure reason was included in this report.']);
   setList('warning-list', doc.scan.warnings);
   $('warnings').hidden = !overview.warningCount;
+  $('matching-coverage').textContent = coverageDetails(doc.scan);
   $('component-count').textContent = format.format(doc.scan.components.length);
   $('finding-count').textContent = format.format(doc.scan.summary.vuln_total);
   for (const [id, value] of [['new-count', overview.newFindings], ['resolved-count', overview.resolvedFindings]]) {

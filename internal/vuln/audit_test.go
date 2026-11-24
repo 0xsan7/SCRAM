@@ -14,7 +14,7 @@ import (
 )
 
 func TestAuditTruncatedBatchIsDegraded(t *testing.T) {
-	for _, body := range []string{`{"results":[]}`, `{"results":[{},{}]}`, `{"results":[{"next_page_token":"more"}]}`} {
+	for _, body := range []string{`{"results":[]}`, `{"results":[{},{}]}`, `{"results":[null]}`, `{"results":[{"vulns":[{}]}]}`, `{"results":[{"next_page_token":"more"}]}`} {
 		t.Run(body, func(t *testing.T) {
 			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, body) }))
 			defer s.Close()
@@ -24,7 +24,7 @@ func TestAuditTruncatedBatchIsDegraded(t *testing.T) {
 			c := NewClient(NewMemoryCache())
 			warned := false
 			c.Warn = func(string) { warned = true }
-			err := c.QueryOSV(context.Background(), []model.Component{{Name: "a", Version: "1", Ecosystem: "npm"}})
+			_, err := c.QueryOSV(context.Background(), []model.Component{{Name: "a", Version: "1", Ecosystem: "npm"}})
 			if err == nil && !warned {
 				t.Fatal("misaligned batch accepted as a complete clean scan")
 			}

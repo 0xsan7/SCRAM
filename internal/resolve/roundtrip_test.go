@@ -134,7 +134,7 @@ func TestKnownVulnerableRoundtripOffline(t *testing.T) {
 			c := vuln.NewClient(nil)
 			c.UseEPSS = false
 			comps := []model.Component{comp}
-			if err := c.QueryOSV(context.Background(), comps); err != nil {
+			if _, err := c.QueryOSV(context.Background(), comps); err != nil {
 				t.Fatalf("QueryOSV: %v", err)
 			}
 

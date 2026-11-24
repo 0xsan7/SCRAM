@@ -550,6 +550,23 @@ this step once you adopt a release that includes the output:
 The artifact contains the repository’s dependency inventory. Use the retention
 and repository visibility appropriate to that inventory.
 
+### Start in advisory mode
+
+For a release that includes the `enforce` input, set `enforce: 'false'` for
+the first week. Start with a read-only workflow and `comment-on-pr: 'false'`
+if your team reviews workflow artifacts or accepts fork PRs. The scanner still
+evaluates policy, exposes its decision as `policy-passed`, and writes the same
+JSON report. Setup and scanner errors still fail the check. Preview releases
+should be pinned to their exact tag. The published v0.2.0 Action predates
+this input.
+
+Use the report to review newly observed findings, along with the OSV matching
+counts for the resolved inventory. **Checked** means OSV returned every result
+page for that package and version. **Partial** means an earlier page was
+retained. **Unchecked** means no result page was received or no query was
+sent. Review warnings for inventory gaps and enrichment failures. When the
+team is ready for enforcement, remove the input or set it to `'true'`.
+
 **No token is required.** A composite action cannot read the `secrets`
 context at all — the runner rejects the whole manifest if one tries — so
 the token arrives through a `github-token` input that defaults to

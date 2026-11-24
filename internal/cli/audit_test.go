@@ -211,3 +211,46 @@ func TestInventoryOnlyReportDisclosesSkippedMatching(t *testing.T) {
 		t.Fatalf("inventory-only policy outcome or coverage warning missing: %s", out)
 	}
 }
+
+func TestOSVPartialReportKeepsFindingsAndFailsPolicy(t *testing.T) {
+	root := auditCLIRepo(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/querybatch" {
+			var req struct {
+				Queries []struct {
+					PageToken string `json:"page_token"`
+				} `json:"queries"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Queries) != 1 {
+				t.Errorf("unexpected request: %+v (%v)", req, err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if req.Queries[0].PageToken != "" {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			_, _ = w.Write([]byte(`{"results":[{"vulns":[{"id":"TEST-PAGE"}],"next_page_token":"more"}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":"TEST-PAGE","summary":"fixture advisory"}`))
+	}))
+	defer server.Close()
+	old := vuln.OSVBaseURL
+	vuln.OSVBaseURL = server.URL
+	defer func() { vuln.OSVBaseURL = old }()
+
+	out, err := runCLI(t, "scan", root, "--format", "json", "--no-cache", "--no-scorecard", "--no-trend")
+	if !errors.Is(err, ErrPolicyFailed) {
+		t.Fatalf("partial advisory data should fail policy: %v", err)
+	}
+	var doc report.JSONDocument
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Passed || len(doc.FailReasons) == 0 || doc.Scan.Summary.VulnTotal != 1 ||
+		doc.Scan.OSVCoverage == nil || doc.Scan.OSVCoverage.Partial != 1 || doc.Scan.OSVCoverage.Unchecked != 0 ||
+		doc.Scan.Components[0].Vulnerabilities[0].ID != "TEST-PAGE" {
+		t.Fatalf("lost partial coverage or findings: %s", out)
+	}
+}

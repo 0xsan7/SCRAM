@@ -9,6 +9,10 @@ branding:
   color: purple
 
 inputs:
+  enforce:
+    description: 'Fail the check on a policy violation. Use false to observe policy decisions without blocking a pull request. Scanner errors still fail the check.'
+    required: false
+    default: 'true'
   fail-on:
     description: 'Severity threshold (clean, low, medium, high, critical).'
     required: false
@@ -56,6 +60,9 @@ inputs:
     default: ${{ github.token }}
 
 outputs:
+  policy-passed:
+    description: 'Policy verdict, true or false. Empty if the scanner did not produce a verdict.'
+    value: ${{ steps.scram.outputs.policy-passed }}
   report-path:
     description: 'JSON report used for the policy decision and SARIF export.'
     value: ${{ steps.scram.outputs.report-path }}
@@ -300,12 +307,18 @@ runs:
       env:
         CONFIG_PATH: ${{ inputs.config-path }}
         FAIL_ON: ${{ inputs.fail-on }}
+        ENFORCE: ${{ inputs.enforce }}
         SBOM_FORMATS: ${{ inputs.sbom-formats }}
         ENABLE_EPSS: ${{ inputs.epss }}
         BASE_JSON: ${{ steps.baseline.outputs.ref }}
         OUT_DIR: ${{ github.workspace }}/scram-output
       run: |
         set -euo pipefail
+
+        case "$ENFORCE" in
+          true|false) ;;
+          *) echo "::error::enforce must be true or false"; exit 2 ;;
+        esac
 
         args=(
           scan .
@@ -349,11 +362,19 @@ runs:
           exit "$exit_code"
         fi
 
+        policy_passed=$(jq -er '.passed | if type == "boolean" then tostring else error("missing policy verdict") end' "$OUT_DIR/scan.json") || exit 2
+        if { [ "$exit_code" -eq 0 ] && [ "$policy_passed" != "true" ]; } ||
+           { [ "$exit_code" -eq 1 ] && [ "$policy_passed" != "false" ]; }; then
+          echo "::error::SCRAM exit status and report verdict disagree"
+          exit 2
+        fi
+
         # Drift-derived counts live under .drift.summary, not .scan.summary:
         # the scan summary describes the current state, the drift summary
         # describes what this change introduced. Reading the wrong one
         # silently yields nulls and a PR comment claiming "0 new findings".
         {
+          echo "policy-passed=$policy_passed"
           echo "report-path=$OUT_DIR/scan.json"
           echo "sbom-path=$OUT_DIR"
           echo "repo-score=$(jq -r '.scan.summary.repo_score' "$OUT_DIR/scan.json")"
@@ -363,8 +384,11 @@ runs:
         } >> "$GITHUB_OUTPUT"
 
         if [ "$exit_code" -eq 1 ]; then
-          echo "::error::SCRAM policy check failed"
-          exit 1
+          if [ "$ENFORCE" = "true" ]; then
+            echo "::error::SCRAM policy check failed"
+            exit 1
+          fi
+          echo "::warning::SCRAM policy check failed in advisory mode. Review the scan report."
         fi
 
     - name: Produce SARIF
@@ -412,7 +436,8 @@ runs:
         # for anyone, on any event. The token arrives via the
         # github-token input instead.
         GH_TOKEN: ${{ inputs.github-token }}
-        SCAN_JSON: ${{ github.workspace }}/scram-output/scan.json
+        SCAN_JSON: ${{ steps.scram.outputs.report-path }}
+        ENFORCE: ${{ inputs.enforce }}
         COMMENT_MARKER: '<!-- scram-report -->'
       run: |
         set -euo pipefail
@@ -422,34 +447,37 @@ runs:
           echo "$COMMENT_MARKER"
           echo "## SCRAM supply chain report"
           echo
-          jq -r '
+          jq -r --arg enforce "$ENFORCE" '
             "| | |",
             "|---|---|",
+            "| Policy | \(if .passed then "Passed" else "Failed" end) |",
+            "| Enforcement | \(if $enforce == "false" then "Advisory" else "Blocking" end) |",
             "| Repo score | \(.scan.summary.repo_score)/65 (\(.scan.summary.repo_bucket)) |",
             "| Components | \(.scan.summary.total_components) |",
-            "| New vulnerabilities | \((.drift.summary.new_vuln_ids // []) | length) |",
-            "| New high | \(.drift.summary.new_high_count // 0) |",
-            "| New critical | \(.drift.summary.new_critical_count // 0) |"
+            "| OSV matching on resolved inventory | \(if .scan.osv_coverage then .scan.osv_coverage | "\(.checked) checked, \(.partial) partial, \(.unchecked) unchecked" else "Coverage unavailable" end) |",
+            "| Scan warnings | \((.scan.warnings // []) | length) |",
+            "| New vulnerabilities | \(if .drift then ((.drift.summary.new_vuln_ids // []) | length) else "Unknown (no baseline)" end) |",
+            "| New high | \(if .drift then .drift.summary.new_high_count else "Unknown" end) |",
+            "| New critical | \(if .drift then .drift.summary.new_critical_count else "Unknown" end) |"
           ' "$SCAN_JSON"
 
-          new_ids=$(jq -r '(.drift.summary.new_vuln_ids // []) | length' "$SCAN_JSON")
-          if [ "$new_ids" -gt 0 ]; then
+          new_components=$(jq -r '[.drift.drifts[]? | select(.new_vulnerabilities | length > 0)] | length' "$SCAN_JSON")
+          if [ "$new_components" -gt 0 ]; then
             echo
             echo "### New findings"
             echo
             echo "| Component | New findings |"
             echo "|---|---|"
-            # One row per component that has at least one of the new ids.
-            jq -r --argjson new "$(jq -c '.drift.summary.new_vuln_ids // []' "$SCAN_JSON")" '
-              .scan.components[]
-              | select(.vulnerabilities | length > 0)
-              | . as $c
-              | [$c.vulnerabilities[]
-                 | select(.id as $i | $new | index($i))
-                 | .id] as $hit
-              | select($hit | length > 0)
-              | "| `\($c.purl)` | \($hit | join(", ")) |"
-            ' "$SCAN_JSON" | head -25
+            jq -r '
+              def cell: gsub("[\r\n|`<>]"; " ");
+              [.drift.drifts[]? | select(.new_vulnerabilities | length > 0)]
+              | .[:25][]
+              | "| `\(.purl | cell)` | \(.new_vulnerabilities | map(cell) | join(", ")) |"
+            ' "$SCAN_JSON"
+            if [ "$new_components" -gt 25 ]; then
+              echo
+              echo "Showing 25 of $new_components affected components. See the scan report for the rest."
+            fi
           fi
 
           echo

@@ -168,3 +168,17 @@ test('historical reports disclose missing collection metadata in exports', async
   const doc = parse(await fixture('full-review'));
   assert.match(summaryText(doc), /Scan mode unavailable · Scanner version unavailable · Scan time unavailable/);
 });
+
+test('OSV matching coverage survives review and export without implying full resolution', async () => {
+  const { coverageDetails, summaryText } = await import('./report.mjs');
+  const doc = await fixture('incomplete-no-findings');
+  assert.match(coverageDetails(parse(doc).scan), /unavailable/);
+  doc.scan.osv_coverage = { checked: 0, partial: 1, unchecked: 0 };
+  const parsed = parse(doc);
+  assert.equal(reportOverview(parsed).status, 'blocked');
+  assert.match(summaryText(parsed), /resolved inventory: 0 checked, 1 partial, 0 unchecked/);
+  doc.scan.osv_coverage = { checked: 1, partial: 1, unchecked: 0 };
+  assert.throws(() => parse(doc), /coverage counts do not match/);
+  doc.scan.osv_coverage = { checked: 0, partial: -1, unchecked: 2 };
+  assert.throws(() => parse(doc), /OSV coverage partial/);
+});

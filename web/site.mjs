@@ -18,3 +18,16 @@ for (const button of document.querySelectorAll('[data-copy]')) {
     }
   });
 }
+
+const switcher = document.querySelector('.sample-switcher');
+const scenarios = [...switcher.querySelectorAll('button[data-scenario]')];
+switcher.hidden = false;
+for (const button of scenarios) {
+  button.addEventListener('click', () => {
+    for (const choice of scenarios) {
+      const active = choice === button;
+      choice.setAttribute('aria-pressed', String(active));
+      document.getElementById(choice.dataset.scenario).hidden = !active;
+    }
+  });
+}

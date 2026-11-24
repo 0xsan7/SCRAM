@@ -9,4 +9,14 @@ from the user's portfolio at commit
 - Manrope: `fonts/manrope-latin.woff2`, `fonts/manrope-OFL.txt`
 
 `favicon.svg` and interface SVG strokes are original geometric UI marks.
-There are no generated raster illustrations or remote runtime font requests.
+The site serves its assets locally.
+
+## Landscape photography
+
+The Cairn Agents Landing component by Kedhareswer Naidu (MIT) supplied the
+visual reference and the following Unsplash photo URLs. The site's markup and
+styles are adapted for SCRAM. The original photos were cropped and compressed
+as local WebP files under the [Unsplash License](https://unsplash.com/license).
+
+- [Dawn landscape](https://images.unsplash.com/photo-1500534314209-a25ddb2bd429) → `landscape-dawn.webp`
+- [Night landscape](https://images.unsplash.com/photo-1519681393784-d120267933ba) → `landscape-night.webp`

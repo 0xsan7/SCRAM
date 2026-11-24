@@ -114,6 +114,13 @@ test('embedded viewer import, inspect, export and recovery', { timeout: 90000 },
         );
         assert(await $('#export-panel').isHidden());
         assert.equal(await $('#export-text').textContent(), '');
+        await page.getByRole('link', { name: 'SCRAM', exact: true }).click();
+        await page.getByRole('link', { name: 'Explore a sample' }).click();
+        await page.getByRole('button', { name: 'Existing finding', exact: true }).click();
+        await page.getByRole('link', { name: 'Open this sample' }).click();
+        await page.waitForFunction(
+          () => document.querySelector('#policy-title').textContent === 'Policy passed',
+        );
         assert.deepEqual(errors, []);
         t.diagnostic(browser.version() + ' at width ' + width);
         await page.close();

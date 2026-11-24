@@ -19,9 +19,12 @@ func TestHandlerServesEmbeddedAssetsAndProtectsLocalReport(t *testing.T) {
 		status                            int
 		contains                          string
 	}{
-		{"GET", "/session/", host, "", 200, "Review dependency changes"},
+		{"GET", "/session/", host, "", 200, "See what changed."},
 		{"GET", "/session/app.mjs", host, "", 200, "parseReport"},
 		{"GET", "/session/viewer.html", host, "", 200, "Open a report"},
+		{"GET", "/session/landing.css", host, "", 200, ".hero-figure"},
+		{"HEAD", "/session/assets/landscape-dawn.webp", host, "", 200, ""},
+		{"HEAD", "/session/assets/landscape-night.webp", host, "", 200, ""},
 		{"GET", "/session/site.mjs", host, "", 200, "clipboard"},
 		{"GET", "/session/glass.mjs", host, "", 404, ""},
 		{"GET", "/session/assets/", host, "", 404, ""},

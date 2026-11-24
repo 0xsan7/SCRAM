@@ -69,30 +69,6 @@ button:disabled { cursor: default; opacity: .55; }
 .button:hover, button:not(:disabled):hover, input[type="file"]::file-selector-button:hover { background: var(--wash); border-color: #a3af98; }
 .button.primary { background: var(--forest); color: white; border-color: var(--forest); }
 .button.primary:hover { background: #345437; }
-.hero { display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: clamp(30px, 6vw, 85px); padding-block: clamp(68px, 8vw, 114px); }
-.hero h1 { font-size: clamp(2.55rem, 4.5vw, 4.25rem); font-weight: 720; text-wrap: initial; }
-.hero h1 em { display: block; color: #3d633f; font-style: normal; }
-.hero-copy > p { font-size: clamp(1.04rem, 1.5vw, 1.22rem); color: var(--muted); margin-top: 22px; max-width: 40ch; }
-.hero .button-row { margin-top: 30px; }
-.hero .button { padding: 13px 18px; }
-.hero-copy > .hero-note { font-size: .9rem; margin-top: 16px; }
-.hero-figure {
-  padding: clamp(20px, 3.5vw, 46px);
-  border-radius: 16px;
-  background: var(--lime);
-  min-width: 0;
-}
-.sample-sheet { background: var(--forest); color: var(--white); padding: clamp(18px, 2.4vw, 29px); border-radius: 12px; box-shadow: 0 13px 28px #253d242e; }
-.sheet-top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; color: #e0e9d9; font-size: .85rem; border-bottom: 1px solid #566e58; padding-bottom: 15px; font-weight: 700; }
-.sample-file { font-family: var(--mono); font-size: .75rem; font-weight: 400; }
-.sheet-result { display: flex; align-items: center; gap: 12px; padding-block: 20px; }
-.sheet-result strong { font: 650 clamp(1.18rem, 2.1vw, 1.7rem)/1.2 var(--display); }
-.sheet-result p { margin-top: 4px; color: #e0e9d9; font-size: .87rem; }
-.result-icon { display: grid; flex: 0 0 32px; height: 32px; place-items: center; border-radius: 50%; background: #ffd7bf; color: #582e27; font: 800 1.05rem var(--display); }
-.sample-sheet dl > div { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 1px 12px; padding: 10px 0; border-top: 1px solid #566e58; }
-.sample-sheet dt { color: #e0e9d9; font-size: .83rem; }
-.sample-sheet dd { margin: 0; font-size: .83rem; font-weight: 730; overflow-wrap: anywhere; }
-.hero-figure figcaption { font-size: .76rem; color: #344627; font-weight: 700; margin-top: 17px; }
 .guide { background: var(--white); border-block: 1px solid var(--line); }
 .guide-layout { display: grid; grid-template-columns: minmax(0, .75fr) minmax(0, 1.3fr); gap: clamp(24px, 7vw, 100px); padding-block: clamp(56px, 7.5vw, 102px); }
 .section-intro h2, .about h2 { font-size: clamp(2rem, 3.7vw, 3.35rem); }
@@ -221,10 +197,7 @@ tr.selected { background: var(--wash); }
   .nav-action { padding-inline: 7px; }
   .brand { font-size: 1.06rem; gap: 5px; }
   .brand img { width: 27px; height: 27px; }
-  .hero, .guide-layout, .about, .report-picker { grid-template-columns: minmax(0, 1fr); }
-  .hero { gap: 25px; padding-block: 47px; }
-  .hero-copy > p { margin-top: 15px; }
-  .hero .button-row { margin-top: 20px; }
+  .guide-layout, .about, .report-picker { grid-template-columns: minmax(0, 1fr); }
   .guide-layout, .about { gap: 23px; }
   .footer-inner { flex-wrap: wrap; }
   .reader { padding-top: 25px; }

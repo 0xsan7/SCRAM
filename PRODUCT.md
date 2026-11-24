@@ -49,9 +49,10 @@ the scanner or sending the report to a server.
 
 ## Brand Commitments
 
-The guided website opens with the product purpose, a sample verdict, and links
-to open a report or install the CLI. The report reader uses the same warm paper
-and forest palette. Preserve the SCRAM name, local file handling, accurate
+The guided website opens with the product purpose, an interactive set of
+synthetic verdicts and links to open a report or install the CLI. The landing
+uses landscape photography and a centered serif headline. The reader keeps
+a subdued paper and forest palette. Preserve the SCRAM name, local file handling, accurate
 policy language, and self-hosted fonts with notices.
 
 ## Evidence on Hand

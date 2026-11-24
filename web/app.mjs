@@ -306,7 +306,15 @@ if (local && new URLSearchParams(location.search).get('local') === '1') {
     if (!response.ok) throw new Error('This local session has no report. Choose a file or try a sample.');
     return response.text();
   }, { kind: 'local', name: 'Report opened by SCRAM' });
-} else if (location.hash === '#example') {
-  document.querySelector('.sample-picker').open = true;
-  openExample('blocked-new-finding');
+} else {
+  const examples = new Map([
+    ['#example', 'blocked-new-finding'],
+    ['#existing', 'passed-with-existing-finding'],
+    ['#incomplete', 'incomplete-no-findings'],
+  ]);
+  const example = examples.get(location.hash);
+  if (example) {
+    document.querySelector('.sample-picker').open = true;
+    openExample(example);
+  }
 }

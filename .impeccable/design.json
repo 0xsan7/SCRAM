@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-11-24T20:37:59.274804+00:00",
-  "title": "SCRAM guided site",
+  "title": "SCRAM landscape landing and report reader",
   "extensions": {
     "colorMeta": {
       "paper": {
@@ -74,18 +74,29 @@
       },
       "code": {
         "family": "ui-monospace"
+      },
+      "landingHeadline": {
+        "family": "Iowan Old Style, Palatino, Georgia"
       }
     },
     "breakpoints": {
       "stackReader": 950,
       "stackLanding": 760,
       "compact": 355
+    },
+    "appearance": {
+      "landing": {
+        "paper": "#f7f7f4",
+        "ink": "#171e21",
+        "muted": "#4b575d",
+        "primary": "#25343b"
+      }
     }
   },
   "components": [],
   "narrative": {
     "northStar": "A guided dependency review",
-    "overview": "Warm paper, forest ink and one sample verdict lead to the public static reader or the local CLI guide.",
+    "overview": "A landscape-led landing page uses a centered serif hero and selectable sample verdicts. The report reader preserves its paper-and-forest palette.",
     "keyCharacteristics": [
       "Native file selection and disclosures",
       "Explicit policy language and provenance",

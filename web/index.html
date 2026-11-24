@@ -7,9 +7,10 @@
   <title>SCRAM — Dependency review</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="landing.css">
   <script type="module" src="site.mjs"></script>
 </head>
-<body>
+<body class="landing">
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="shell masthead">
@@ -22,27 +23,40 @@
     </div>
   </header>
   <main id="main" tabindex="-1">
-    <section class="shell hero" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <h1 id="hero-title">Review dependency changes <em>with evidence.</em></h1>
-        <p>SCRAM compares your dependencies with a saved baseline and explains why a pull request passed or failed its dependency checks.</p>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="shell hero-copy">
+        <h1 id="hero-title">See what changed.<br>Know why it matters.</h1>
+        <p>SCRAM compares your dependencies against a saved baseline and shows which findings are new, what needs attention, and why a policy check passed or failed.</p>
         <div class="button-row">
-          <a class="button primary" href="viewer.html#example">Try an example <span aria-hidden="true">↗</span></a>
-          <a class="button secondary" href="viewer.html">Open my report</a>
+          <a class="button primary" href="#sample">Explore a sample <span aria-hidden="true">↓</span></a>
+          <a class="button secondary" href="viewer.html">Open a report</a>
         </div>
-        <p class="hero-note"><a href="#guide">Need a report? Get started here.</a></p>
       </div>
-      <figure class="hero-figure">
-        <div class="sample-sheet">
-          <div class="sheet-top"><span>Sample review</span><span class="sample-file">report.json</span></div>
-          <div class="sheet-result"><span class="result-icon" aria-hidden="true">!</span><div><strong>Policy failed</strong><p>One new high-severity finding</p></div></div>
-          <dl>
-            <div><dt>Dependency</dt><dd><code>viewer-example</code></dd></div>
-            <div><dt>Advisory</dt><dd><code>DEMO-HIGH-001</code></dd></div>
-            <div><dt>What changed</dt><dd>New finding, same version</dd></div>
-          </dl>
+
+      <figure class="shell hero-figure" id="sample" aria-label="Sample dependency reviews">
+        <img class="vista" src="assets/landscape-dawn.webp" alt="" width="1680" height="900" fetchpriority="high">
+        <div class="sample-stack">
+          <div class="sample-switcher" role="group" aria-label="Sample scenarios" hidden>
+            <button type="button" data-scenario="new-finding" aria-pressed="true">New finding</button>
+            <button type="button" data-scenario="existing-finding" aria-pressed="false">Existing finding</button>
+            <button type="button" data-scenario="missing-evidence" aria-pressed="false">Missing evidence</button>
+          </div>
+          <div class="sample-trail" aria-live="polite">
+            <section class="sample-story" id="new-finding" aria-label="New finding">
+              <div class="trail-event"><span class="trail-dot high"></span><div><strong>New high-severity advisory</strong><p>DEMO-HIGH-001 affects <code>viewer-example</code>.</p></div></div>
+              <div class="trail-result"><h2>Policy failed</h2><p>The package version stayed the same. A saved baseline shows this advisory is new.</p><a href="viewer.html#example">Open this sample <span aria-hidden="true">↗</span></a></div>
+            </section>
+            <section class="sample-story" id="existing-finding" aria-label="Existing finding" hidden>
+              <div class="trail-event"><span class="trail-dot checked"></span><div><strong>Finding already in the baseline</strong><p>No new advisories appeared in this comparison.</p></div></div>
+              <div class="trail-result"><h2>Policy passed</h2><p>The configured gate checks new findings. The existing advisory still needs attention.</p><a href="viewer.html#existing">Open this sample <span aria-hidden="true">↗</span></a></div>
+            </section>
+            <section class="sample-story" id="missing-evidence" aria-label="Missing evidence" hidden>
+              <div class="trail-event"><span class="trail-dot unknown"></span><div><strong>Advisory data unavailable</strong><p>The report contains zero confirmed findings.</p></div></div>
+              <div class="trail-result"><h2>Scan incomplete</h2><p>SCRAM refused to pass because it couldn’t collect enough evidence.</p><a href="viewer.html#incomplete">Open this sample <span aria-hidden="true">↗</span></a></div>
+            </section>
+          </div>
         </div>
-        <figcaption>Synthetic example · no live scan</figcaption>
+        <figcaption>Synthetic reports · no live scan</figcaption>
       </figure>
     </section>
 
@@ -87,6 +101,15 @@
         <img src="assets/favicon.svg" alt="" width="38" height="38">
         <h3>Your report stays here.</h3>
         <p>The viewer reads files in your browser. It needs no account and sends no report to a server.</p>
+      </div>
+    </section>
+
+    <section class="shell closing" aria-labelledby="closing-title">
+      <img class="vista" src="assets/landscape-night.webp" alt="" width="1440" height="720" loading="lazy">
+      <div class="closing-content">
+        <h2 id="closing-title">Have a report ready?</h2>
+        <p>Open your scan results and review the policy, warnings, and dependency changes in your browser.</p>
+        <a class="button" href="viewer.html">Open the report viewer <span aria-hidden="true">↗</span></a>
       </div>
     </section>
   </main>

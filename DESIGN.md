@@ -57,8 +57,9 @@ and fonts are served locally by the site.
 
 The supplied Shutter Glyph Footer demo uses near-black `#111110` with bone
 `#efe9dc`. The shared footer pairs that palette, compact monospace navigation
-and an oversized SCRAM wordmark. The shutter sits inside the R’s bowl, where it
-follows a pointer with motion enabled and rotates a quarter turn on activation
-by pointer or keyboard. The visible link labels settle back to their original
+and an oversized SCRAM wordmark. The shutter sits inside the R’s bowl. With motion
+enabled, the entire R leans toward the pointer and settles back when it leaves.
+Activation by pointer or keyboard nudges the letter and turns the blades a
+quarter turn. The visible link labels settle back to their original
 text and their accessible names stay fixed. The footer links to the reader,
 project feedback, privacy information and the license.

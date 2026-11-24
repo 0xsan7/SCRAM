@@ -1,6 +1,7 @@
 const footer = document.querySelector('.shutter-footer');
 const shutter = footer.querySelector('.footer-shutter');
-const blades = shutter.parentElement.querySelector('.shutter-blades');
+const letter = shutter.previousElementSibling;
+const blades = letter.querySelector('.shutter-blades');
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
 function setPivot(x, y) {
@@ -15,26 +16,46 @@ function setPivot(x, y) {
 }
 
 let turns = 0;
+let nudge;
 shutter.hidden = false;
 shutter.addEventListener('click', () => {
   turns = (turns + 1) % 4;
   setPivot(77, 77);
   blades.setAttribute('transform', `rotate(${turns * 90} 50 50)`);
+  if (motion.matches) return;
+  nudge?.cancel();
+  nudge = letter.animate([
+    { transform: 'none' },
+    { transform: 'translateY(-5%) rotate(-6deg)' },
+    { transform: 'translateY(1%) rotate(2deg)' },
+    { transform: 'none' },
+  ], { duration: 420, easing: 'ease-out' });
 });
 shutter.addEventListener('pointermove', event => {
   if (motion.matches || event.pointerType === 'touch') return;
-  const matrix = blades.getScreenCTM();
-  if (!matrix) return;
   const cell = shutter.getBoundingClientRect();
-  const opening = blades.ownerSVGElement.getBoundingClientRect();
-  const px = opening.left + (event.clientX - cell.left) / cell.width * opening.width;
-  const py = opening.top + (event.clientY - cell.top) / cell.height * opening.height;
-  const { x, y } = new DOMPoint(px, py).matrixTransform(matrix.inverse());
+  const horizontal = (event.clientX - cell.left) / cell.width;
+  const vertical = (event.clientY - cell.top) / cell.height;
+  letter.style.translate = `${(horizontal - .5) * 8}% ${(vertical - .5) * 8}%`;
+  letter.style.rotate = `${(horizontal - .5) * 15}deg`;
+
+  // Map the pointer into the inset, then undo the blades’ quarter turn.
+  let x = horizontal * 100;
+  let y = vertical * 100;
+  for (let i = 0; i < turns; i++) [x, y] = [y, 100 - x];
   const inset = value => Math.round(Math.min(89, Math.max(14, value)));
   setPivot(inset(x), inset(y));
 });
-shutter.addEventListener('pointerleave', () => setPivot(77, 77));
-motion.addEventListener('change', () => setPivot(77, 77));
+function resetLetter() {
+  letter.style.removeProperty('translate');
+  letter.style.removeProperty('rotate');
+  setPivot(77, 77);
+}
+shutter.addEventListener('pointerleave', resetLetter);
+motion.addEventListener('change', () => {
+  nudge?.cancel();
+  resetLetter();
+});
 
 const noise = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
 for (const link of footer.querySelectorAll('.footer-link')) {

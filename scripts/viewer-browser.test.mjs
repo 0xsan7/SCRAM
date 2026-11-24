@@ -126,9 +126,22 @@ test('embedded viewer import, inspect, export and recovery', { timeout: 90000 },
         const letterR = footer.locator('.shutter-cell > svg > use');
         assert.equal(await letterR.getAttribute('href'), 'assets/footer-glyphs.svg#r');
         assert(await letterR.evaluate(glyph => glyph.getBBox().height) > 0);
+        const movingR = footer.locator('.shutter-cell > svg');
+        await shutter.hover({ position: { x: 6, y: 6 } });
+        assert.notEqual(await movingR.evaluate(glyph => glyph.style.rotate), '');
+        await page.mouse.move(1, 1);
+        assert.equal(await movingR.evaluate(glyph => glyph.style.rotate), '');
         await shutter.focus();
         await page.keyboard.press('Enter');
-        assert.equal(await footer.locator('.shutter-blades').getAttribute('transform'), 'rotate(90 50 50)');
+        assert(await movingR.evaluate(glyph =>
+          glyph.getAnimations().some(animation => animation.effect.getTiming().duration === 420),
+        ));
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await shutter.hover({ position: { x: 6, y: 6 } });
+        assert.equal(await movingR.evaluate(glyph => glyph.style.rotate), '');
+        await shutter.focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await footer.locator('.shutter-blades').getAttribute('transform'), 'rotate(180 50 50)');
         assert.equal(await footer.getByRole('link', { name: 'Report privacy' }).getAttribute('href'), './#report-privacy');
         assert.deepEqual(errors, []);
         t.diagnostic(browser.version() + ' at width ' + width);

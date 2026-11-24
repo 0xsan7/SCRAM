@@ -7,7 +7,7 @@
       "paper": {
         "role": "neutral",
         "displayName": "Paper",
-        "value": "#f5f5f5"
+        "value": "#f5efff"
       },
       "white": {
         "role": "neutral",
@@ -17,52 +17,52 @@
       "ink": {
         "role": "neutral",
         "displayName": "Ink",
-        "value": "#111"
+        "value": "#211433"
       },
       "muted": {
         "role": "neutral",
         "displayName": "Muted",
-        "value": "#505050"
+        "value": "#574669"
       },
       "line": {
         "role": "neutral",
         "displayName": "Line",
-        "value": "#d5d5d5"
+        "value": "#ddcfee"
       },
       "action": {
-        "role": "neutral",
+        "role": "accent",
         "displayName": "Action",
-        "value": "#171717"
+        "value": "#593099"
       },
       "selection": {
         "role": "neutral",
         "displayName": "Selection",
-        "value": "#dedede"
+        "value": "#e3d5fb"
       },
       "wash": {
         "role": "neutral",
         "displayName": "Wash",
-        "value": "#ededed"
+        "value": "#ece2fa"
       },
       "failed-ink": {
         "role": "neutral",
         "displayName": "Failed Ink",
-        "value": "#1d1d1d"
+        "value": "#351751"
       },
       "failed-surface": {
         "role": "neutral",
         "displayName": "Failed Surface",
-        "value": "#ebebeb"
+        "value": "#eadcf9"
       },
       "warning-ink": {
         "role": "neutral",
         "displayName": "Warning Ink",
-        "value": "#414141"
+        "value": "#442368"
       },
       "warning-surface": {
         "role": "neutral",
         "displayName": "Warning Surface",
-        "value": "#f4f4f4"
+        "value": "#f2e6ff"
       }
     },
     "typographyMeta": {
@@ -85,14 +85,14 @@
       "compact": 355
     },
     "appearance": {
-      "palette": "monochrome",
-      "glassReveal": "hero brand mark"
+      "palette": "lavender and plum",
+      "glassReveal": "hero brand mark, WebGL2"
     }
   },
   "components": [],
   "narrative": {
     "northStar": "A guided dependency review",
-    "overview": "A monochrome landscape landing page leads to a private report reader. An angular white S on black anchors the visual identity.",
+    "overview": "A lavender landscape landing page leads to a private report reader. The angular violet S appears in the hero and browser tab.",
     "keyCharacteristics": [
       "Native file selection and disclosures",
       "Explicit policy language and provenance",

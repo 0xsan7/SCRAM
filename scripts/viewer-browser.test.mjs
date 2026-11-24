@@ -38,7 +38,11 @@ test('embedded viewer import, inspect, export and recovery', { timeout: 90000 },
       if (url) break;
     }
     assert.ok(url, 'viewer exited before printing its session URL');
-    const browser = await chromium.launch({ executablePath: process.env.SCRAM_BROWSER, headless: true });
+    const browser = await chromium.launch({
+      executablePath: process.env.SCRAM_BROWSER,
+      headless: true,
+      args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+    });
     try {
       for (const width of [1440, 390]) {
         const page = await browser.newPage({ viewport: { width, height: 900 }, acceptDownloads: true });
@@ -117,11 +121,13 @@ test('embedded viewer import, inspect, export and recovery', { timeout: 90000 },
         await page.getByRole('link', { name: 'SCRAM', exact: true }).click();
         const reveal = page.getByRole('button', { name: 'Replay the SCRAM logo reveal' });
         await reveal.click();
-        assert(await page.locator('.brand-reveal img').evaluate(logo =>
-          logo.getAnimations().some(animation => animation.animationName === 'mark-settle'),
-        ));
+        const glassCanvas = page.locator('.brand-reveal canvas');
+        await glassCanvas.waitFor();
+        assert(await glassCanvas.evaluate(canvas => canvas.width > 0 && canvas.getContext('webgl2') !== null));
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await reveal.waitFor({ state: 'hidden' });
+        await glassCanvas.waitFor({ state: 'hidden' });
+        assert(await page.locator('.brand-reveal img').isVisible());
         await page.emulateMedia({ reducedMotion: 'no-preference' });
         await page.getByRole('link', { name: 'Explore a sample' }).click();
         await page.getByRole('button', { name: 'Existing finding', exact: true }).click();

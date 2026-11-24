@@ -7,20 +7,21 @@ final report link. The guide remains a three-step sequence with real commands.
 The separate reader prioritizes policy and warnings, then inventory,
 dependency details and drift.
 
-## Monochrome palette
+## Purple palette
 
-The site uses `#111` for primary text, `#505050` for secondary text, and
-`#f5f5f5` and white for reading surfaces. The footer uses white on `#111`.
-Landing photography is displayed in grayscale. Report outcomes retain
-explicit labels, icons, and warnings.
+Lavender `#f5efff` backgrounds and plum `#211433` text carry the landing
+and reader. Violet `#593099` marks primary actions. Landscape photography
+is muted and shaded in purple. The dark plum footer keeps its large,
+kinetic wordmark. Report outcomes retain explicit labels, icons and warnings.
 
 ## Brand mark
 
-The original angular SCRAM S is white on a graphite tile. Its SVG serves as
-the navigation mark, favicon, and hero logo. The supplied Liquid Glass
-reference informed the hero's short glass peel. A local CSS highlight and
-rim glide away to expose the mark. The tile can replay on click or keyboard
-activation. Reduced motion shows the static mark. No graphics runtime is needed.
+The angular violet SCRAM S is visible in the hero and browser tab. Navigation
+uses a text wordmark. The hero runs the supplied Liquid Glass reference’s
+WebGL2 refraction shader and spring timeline with SCRAM’s mark and colors.
+The droplet spreads into a glass tile, bends the mark through the rim and
+dissolves back to the static SVG. The local SVG also serves browsers with
+reduced motion or without WebGL2.
 
 ## Type and layout
 
@@ -42,7 +43,7 @@ and fonts are served locally by the site.
 
 ## Footer
 
-The shared footer uses white on black, compact monospace navigation and
+The shared footer uses light lavender on dark plum, compact monospace navigation and
 the oversized Shutter Glyph wordmark from the supplied reference. The shutter sits inside the R’s bowl. With motion
 enabled, the entire R leans toward the pointer and settles back when it leaves.
 Activation by pointer or keyboard nudges the letter and turns the blades a

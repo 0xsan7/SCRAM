@@ -1,6 +1,6 @@
 .shutter-footer {
-  --footer-ground: #111;
-  --footer-ink: #fff;
+  --footer-ground: #201136;
+  --footer-ink: #f5eaff;
   color: var(--footer-ink);
   background: var(--footer-ground);
   font: 500 clamp(.74rem, 1.13vw, .875rem)/1.45 var(--mono);
@@ -17,7 +17,7 @@
 .footer-link svg { display: block; flex: none; }
 .footer-cta { display: flex; justify-content: space-between; margin-top: 10px; border-bottom: 1px solid currentColor; padding-bottom: 3px; }
 .footer-link:hover .footer-link-label, .footer-link:focus-visible .footer-link-label { text-decoration: underline; text-underline-offset: 4px; }
-.footer-credit { color: #ccc; }
+.footer-credit { color: #dac8ee; }
 .footer-mark { display: grid; grid-template-columns: 80fr 90fr 100fr 96fr 112fr; align-items: center; gap: 2.5%; margin-top: clamp(36px, 5vw, 70px); }
 .footer-mark > svg, .shutter-cell > svg { display: block; width: 100%; height: auto; overflow: visible; fill: currentColor; }
 .glyph-top { clip-path: inset(-5% -10% 49.5% -10%); }

@@ -50,9 +50,9 @@ the scanner or sending the report to a server.
 ## Brand Commitments
 
 The guided website opens with the product purpose, an interactive set of
-synthetic verdicts and links to open a report or install the CLI. The landing uses grayscale landscape photography, an angular SCRAM mark
+synthetic verdicts and links to open a report or install the CLI. The landing uses muted landscape photography, an angular SCRAM mark
 with a glass reveal, and a centered serif headline. The reader shares the
-black-and-white palette. Preserve the SCRAM name, local file handling, accurate
+purple and lavender palette. Preserve the SCRAM name, local file handling, accurate
 policy language, and self-hosted fonts with notices.
 
 ## Evidence on Hand

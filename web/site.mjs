@@ -33,21 +33,8 @@ for (const button of scenarios) {
 }
 
 const brandReveal = document.querySelector('.brand-reveal');
-const replay = brandReveal.querySelector('button');
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-
-function revealBrand() {
-  if (reducedMotion.matches) return;
-  brandReveal.classList.remove('is-revealing');
-  // Flush style so a second click restarts the CSS animation.
-  void brandReveal.offsetWidth;
-  brandReveal.classList.add('is-revealing');
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  import('./glass-reveal.mjs')
+    .then(({ setupGlassReveal }) => setupGlassReveal(brandReveal))
+    .catch(() => {}); // The local SVG remains usable if the renderer fails.
 }
-
-replay.hidden = reducedMotion.matches;
-replay.addEventListener('click', revealBrand);
-reducedMotion.addEventListener('change', () => {
-  replay.hidden = reducedMotion.matches;
-  brandReveal.classList.remove('is-revealing');
-});
-revealBrand();

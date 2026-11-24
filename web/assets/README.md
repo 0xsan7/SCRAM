@@ -9,7 +9,9 @@ from the user's portfolio at commit
 - Manrope: `fonts/manrope-latin.woff2`, `fonts/manrope-OFL.txt`
 
 `favicon.svg` is the original angular SCRAM monogram. It is also the source
-for the navigation and hero logo. The glass reveal is defined in landing CSS.
+for the hero logo. The WebGL2 reveal adapts the supplied Liquid Glass Logo
+Reveal reference and its upstream [glass-icon-reveal](https://github.com/zanwei/glass-icon-reveal).
+The upstream MIT notice is included in `glass-icon-reveal-LICENSE.txt`.
 The site serves its assets locally.
 
 ## Landscape photography

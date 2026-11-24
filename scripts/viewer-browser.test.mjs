@@ -115,6 +115,14 @@ test('embedded viewer import, inspect, export and recovery', { timeout: 90000 },
         assert(await $('#export-panel').isHidden());
         assert.equal(await $('#export-text').textContent(), '');
         await page.getByRole('link', { name: 'SCRAM', exact: true }).click();
+        const reveal = page.getByRole('button', { name: 'Replay the SCRAM logo reveal' });
+        await reveal.click();
+        assert(await page.locator('.brand-reveal img').evaluate(logo =>
+          logo.getAnimations().some(animation => animation.animationName === 'mark-settle'),
+        ));
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await reveal.waitFor({ state: 'hidden' });
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
         await page.getByRole('link', { name: 'Explore a sample' }).click();
         await page.getByRole('button', { name: 'Existing finding', exact: true }).click();
         await page.getByRole('link', { name: 'Open this sample' }).click();

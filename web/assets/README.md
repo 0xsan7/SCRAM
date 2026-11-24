@@ -8,7 +8,8 @@ from the user's portfolio at commit
 - Sora: `fonts/sora-latin.woff2`, `fonts/sora-OFL.txt`
 - Manrope: `fonts/manrope-latin.woff2`, `fonts/manrope-OFL.txt`
 
-`favicon.svg` and interface SVG strokes are original geometric UI marks.
+`favicon.svg` is the original angular SCRAM monogram. It is also the source
+for the navigation and hero logo. The glass reveal is defined in landing CSS.
 The site serves its assets locally.
 
 ## Landscape photography

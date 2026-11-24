@@ -7,62 +7,62 @@
       "paper": {
         "role": "neutral",
         "displayName": "Paper",
-        "value": "#f8f7ef"
+        "value": "#f5f5f5"
       },
       "white": {
         "role": "neutral",
         "displayName": "White",
-        "value": "#fffef8"
+        "value": "#fff"
       },
       "ink": {
         "role": "neutral",
         "displayName": "Ink",
-        "value": "#192417"
+        "value": "#111"
       },
       "muted": {
         "role": "neutral",
         "displayName": "Muted",
-        "value": "#505b4b"
+        "value": "#505050"
       },
       "line": {
         "role": "neutral",
         "displayName": "Line",
-        "value": "#d5d9cb"
+        "value": "#d5d5d5"
       },
-      "forest": {
-        "role": "accent",
-        "displayName": "Forest",
-        "value": "#233b28"
+      "action": {
+        "role": "neutral",
+        "displayName": "Action",
+        "value": "#171717"
       },
-      "lime": {
-        "role": "accent",
-        "displayName": "Lime",
-        "value": "#dff0a4"
+      "selection": {
+        "role": "neutral",
+        "displayName": "Selection",
+        "value": "#dedede"
       },
       "wash": {
         "role": "neutral",
         "displayName": "Wash",
-        "value": "#ecefe0"
+        "value": "#ededed"
       },
-      "red": {
-        "role": "accent",
-        "displayName": "Red",
-        "value": "#8b342b"
+      "failed-ink": {
+        "role": "neutral",
+        "displayName": "Failed Ink",
+        "value": "#1d1d1d"
       },
-      "rust-wash": {
-        "role": "accent",
-        "displayName": "Rust Wash",
-        "value": "#f9e8df"
+      "failed-surface": {
+        "role": "neutral",
+        "displayName": "Failed Surface",
+        "value": "#ebebeb"
       },
-      "amber": {
-        "role": "accent",
-        "displayName": "Amber",
-        "value": "#714a13"
+      "warning-ink": {
+        "role": "neutral",
+        "displayName": "Warning Ink",
+        "value": "#414141"
       },
-      "amber-wash": {
-        "role": "accent",
-        "displayName": "Amber Wash",
-        "value": "#fff2d2"
+      "warning-surface": {
+        "role": "neutral",
+        "displayName": "Warning Surface",
+        "value": "#f4f4f4"
       }
     },
     "typographyMeta": {
@@ -85,18 +85,14 @@
       "compact": 355
     },
     "appearance": {
-      "landing": {
-        "paper": "#f7f7f4",
-        "ink": "#171e21",
-        "muted": "#4b575d",
-        "primary": "#25343b"
-      }
+      "palette": "monochrome",
+      "glassReveal": "hero brand mark"
     }
   },
   "components": [],
   "narrative": {
     "northStar": "A guided dependency review",
-    "overview": "A landscape-led landing page uses a centered serif hero and selectable sample verdicts. The report reader preserves its paper-and-forest palette.",
+    "overview": "A monochrome landscape landing page leads to a private report reader. An angular white S on black anchors the visual identity.",
     "keyCharacteristics": [
       "Native file selection and disclosures",
       "Explicit policy language and provenance",

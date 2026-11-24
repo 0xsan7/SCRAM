@@ -19,7 +19,7 @@
 .footer-link:hover .footer-link-label, .footer-link:focus-visible .footer-link-label { text-decoration: underline; text-underline-offset: 4px; }
 .footer-credit { color: #d0c8b9; }
 .footer-mark { display: grid; grid-template-columns: 80fr 90fr 100fr 96fr 112fr; align-items: center; gap: 2.5%; margin-top: clamp(36px, 5vw, 70px); }
-.footer-mark svg { display: block; width: 100%; height: auto; overflow: visible; fill: currentColor; }
+.footer-mark > svg, .shutter-cell > svg { display: block; width: 100%; height: auto; overflow: visible; fill: currentColor; }
 .glyph-top { clip-path: inset(-5% -10% 49.5% -10%); }
 .glyph-bottom { clip-path: inset(50% -10% -5% -10%); }
 .shutter-cell { position: relative; }

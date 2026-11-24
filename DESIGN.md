@@ -57,7 +57,7 @@ and fonts are served locally by the site.
 
 The supplied Shutter Glyph Footer demo uses near-black `#111110` with bone
 `#efe9dc`. The shared footer pairs that palette, compact monospace navigation
-and an oversized SCRAM wordmark. The shutter takes the third position. It
+and an oversized SCRAM wordmark. The shutter sits inside the R’s bowl, where it
 follows a pointer with motion enabled and rotates a quarter turn on activation
 by pointer or keyboard. The visible link labels settle back to their original
 text and their accessible names stay fixed. The footer links to the reader,

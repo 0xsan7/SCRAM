@@ -144,11 +144,14 @@
       </svg>
       <div class="shutter-cell">
         <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-          <g>
-            <polygon points="0 0 21 0 77 77 0 21"/>
-            <polygon points="77 0 100 0 100 21 77 77"/>
-            <polygon points="0 77 77 77 21 100 0 100"/>
-          </g>
+          <use href="assets/footer-glyphs.svg#r"/>
+          <svg x="33" y="20" width="23" height="23" viewBox="0 0 100 100">
+            <g class="shutter-blades">
+              <polygon points="0 0 21 0 77 77 0 21"/>
+              <polygon points="77 0 100 0 100 21 77 77"/>
+              <polygon points="0 77 77 77 21 100 0 100"/>
+            </g>
+          </svg>
         </svg>
         <button class="footer-shutter" type="button" aria-label="Rotate the SCRAM shutter" hidden></button>
       </div>

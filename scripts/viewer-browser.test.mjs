@@ -123,9 +123,12 @@ test('embedded viewer import, inspect, export and recovery', { timeout: 90000 },
         );
         const footer = page.locator('.shutter-footer');
         const shutter = footer.getByRole('button', { name: 'Rotate the SCRAM shutter' });
+        const letterR = footer.locator('.shutter-cell > svg > use');
+        assert.equal(await letterR.getAttribute('href'), 'assets/footer-glyphs.svg#r');
+        assert(await letterR.evaluate(glyph => glyph.getBBox().height) > 0);
         await shutter.focus();
         await page.keyboard.press('Enter');
-        assert.equal(await footer.locator('.shutter-cell g').getAttribute('transform'), 'rotate(90 50 50)');
+        assert.equal(await footer.locator('.shutter-blades').getAttribute('transform'), 'rotate(90 50 50)');
         assert.equal(await footer.getByRole('link', { name: 'Report privacy' }).getAttribute('href'), './#report-privacy');
         assert.deepEqual(errors, []);
         t.diagnostic(browser.version() + ' at width ' + width);

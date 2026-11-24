@@ -1,6 +1,6 @@
 const footer = document.querySelector('.shutter-footer');
 const shutter = footer.querySelector('.footer-shutter');
-const blades = shutter.parentElement.querySelector('g');
+const blades = shutter.parentElement.querySelector('.shutter-blades');
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
 function setPivot(x, y) {
@@ -25,7 +25,11 @@ shutter.addEventListener('pointermove', event => {
   if (motion.matches || event.pointerType === 'touch') return;
   const matrix = blades.getScreenCTM();
   if (!matrix) return;
-  const { x, y } = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+  const cell = shutter.getBoundingClientRect();
+  const opening = blades.ownerSVGElement.getBoundingClientRect();
+  const px = opening.left + (event.clientX - cell.left) / cell.width * opening.width;
+  const py = opening.top + (event.clientY - cell.top) / cell.height * opening.height;
+  const { x, y } = new DOMPoint(px, py).matrixTransform(matrix.inverse());
   const inset = value => Math.round(Math.min(89, Math.max(14, value)));
   setPivot(inset(x), inset(y));
 });
